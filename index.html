@@ -88,37 +88,27 @@
 
             <div class="incident-layout">
               <article class="panel-card incident-input-card">
-                <h3>Manual incident inputs</h3>
-                <p class="big-label">Enter the current address and product details directly for the incident brief.</p>
-                <label class="input-label" for="incident-address">Address</label>
-                <input id="incident-address" type="text" value="I-65 Mile Marker 140 · Northbound shoulder" />
-                <label class="input-label" for="incident-city">City</label>
-                <input id="incident-city" type="text" value="Nashville" />
-                <label class="input-label" for="incident-state">State</label>
-                <input id="incident-state" type="text" value="TN" />
-                <label class="input-label" for="incident-product">Product / chemical</label>
-                <input id="incident-product" type="text" value="Anhydrous ammonia" />
-                <label class="input-label" for="incident-placard">Placard / container clue</label>
-                <input id="incident-placard" type="text" value="UN 1005 · Pressure vessel" />
-                <label class="input-label" for="incident-notes">Notes</label>
-                <input id="incident-notes" type="text" value="Possible leak · unknown odor · wind shift pending" />
-                <div class="button-row">
-                  <button class="primary-btn" type="button">Save incident brief</button>
-                  <button class="ghost-btn" type="button">Clear</button>
+                <h3>Primary incident tiles</h3>
+                <p class="big-label">Tap a tile to move directly into the operational workflow for that task.</p>
+                <div class="incident-tiles" aria-label="Incident workflow tiles">
+                  <button class="incident-task-btn active" type="button" data-task="identify" data-view="lookup">Identify</button>
+                  <button class="incident-task-btn" type="button" data-task="erg" data-view="card">ERG</button>
+                  <button class="incident-task-btn" type="button" data-task="plume" data-view="plume">Plume</button>
+                  <button class="incident-task-btn" type="button" data-task="zones" data-view="plume">Zones</button>
+                  <button class="incident-task-btn" type="button" data-task="entry" data-view="map">Entry</button>
+                  <button class="incident-task-btn" type="button" data-task="decon" data-view="map">Decon</button>
+                  <button class="incident-task-btn" type="button" data-task="monitoring" data-view="map">Monitoring</button>
+                  <button class="incident-task-btn" type="button" data-task="evacuation" data-view="report">Evacuation</button>
+                  <button class="incident-task-btn" type="button" data-task="ics" data-view="report">ICS Reports</button>
                 </div>
               </article>
 
               <article class="panel-card tier2-card">
-                <h3>Tier II lookup</h3>
-                <p class="big-label">Search by facility name, city, or state and pull the EPlan Tier II data sheet for the selected site.</p>
-                <label class="input-label" for="tier2-search">Search facility</label>
-                <input id="tier2-search" type="text" placeholder="e.g. Northside Chemical / Nashville / TN" />
-                <div class="button-row">
-                  <button class="primary-btn" id="tier2-search-btn" type="button">Search facility</button>
-                  <button class="ghost-btn" type="button">Reset</button>
+                <h3>Current focus</h3>
+                <p id="incident-focus-label" class="big-label">Identify the product and confirm the verified source before action.</p>
+                <div id="incident-focus-detail" class="incident-focus-detail">
+                  <strong>Active workflow:</strong> Chemical identification and reference review.
                 </div>
-                <div id="tier2-results" class="tier2-results"></div>
-                <div id="tier2-detail" class="tier2-detail"></div>
               </article>
             </div>
           </section>

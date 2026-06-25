@@ -21,6 +21,86 @@ buttons.forEach((button) => {
   });
 });
 
+const incidentTaskButtons = document.querySelectorAll('.incident-task-btn');
+const incidentFocusLabel = document.getElementById('incident-focus-label');
+const incidentFocusDetail = document.getElementById('incident-focus-detail');
+
+const incidentTaskDetails = {
+  identify: {
+    label: 'Identify the product and confirm the verified source before action.',
+    detail: '<strong>Active workflow:</strong> Chemical identification and reference review.'
+  },
+  erg: {
+    label: 'Pull the ERG guidance and confirm immediate isolation and hazard information.',
+    detail: '<strong>Active workflow:</strong> Emergency Response Guidebook reference and hazard summary.'
+  },
+  plume: {
+    label: 'Run the plume model and review the predictive hazard footprint.',
+    detail: '<strong>Active workflow:</strong> Plume modeling and downwind hazard planning.'
+  },
+  zones: {
+    label: 'Define hot zone, warm zone, and public protection boundaries.',
+    detail: '<strong>Active workflow:</strong> Zone management and scene control.'
+  },
+  entry: {
+    label: 'Prepare the entry plan and verify access, accountability, and monitoring needs.',
+    detail: '<strong>Active workflow:</strong> Entry operations and access control.'
+  },
+  decon: {
+    label: 'Set the decontamination corridor and isolate contaminated runoff.',
+    detail: '<strong>Active workflow:</strong> Decon setup and contamination control.'
+  },
+  monitoring: {
+    label: 'Check environmental monitoring and detector information before entry.',
+    detail: '<strong>Active workflow:</strong> Air monitoring and atmospheric assessment.'
+  },
+  evacuation: {
+    label: 'Review protective actions for the public and notify exposed populations.',
+    detail: '<strong>Active workflow:</strong> Evacuation and sheltering coordination.'
+  },
+  ics: {
+    label: 'Open the ICS report package and documentation workflow.',
+    detail: '<strong>Active workflow:</strong> Incident documentation and command reporting.'
+  }
+};
+
+function setIncidentTask(taskName) {
+  incidentTaskButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.task === taskName);
+  });
+
+  const task = incidentTaskDetails[taskName] || incidentTaskDetails.identify;
+  if (incidentFocusLabel) incidentFocusLabel.textContent = task.label;
+  if (incidentFocusDetail) incidentFocusDetail.innerHTML = task.detail;
+}
+
+incidentTaskButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const taskName = button.dataset.task || 'identify';
+    setIncidentTask(taskName);
+    if (button.dataset.view) {
+      showView(button.dataset.view);
+    }
+  });
+});
+
+setIncidentTask('identify');
+
+buttons.forEach((button) => {
+  button.addEventListener('click', () => {
+    if (button.dataset.view) {
+      showView(button.dataset.view);
+    }
+  });
+
+  button.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      button.click();
+    }
+  });
+});
+
 const chemicalDatabase = {
   ammonia: {
     name: 'ANHYDROUS AMMONIA',
@@ -417,6 +497,9 @@ const tier2Facilities = [
     chemicals: ['Ammonia', 'Chlorine', 'Acids'],
     eplanUrl: 'https://www.eplan.gov/?facility=Northside%20Chemical%20Supply',
     reporting: 'Tier II hazardous chemical inventory on file with local emergency planning committee',
+    lat: 36.1532,
+    lon: -86.8125,
+    position: { left: '22%', top: '28%' },
   },
   {
     name: 'Metro Water Services East Plant',
@@ -426,6 +509,9 @@ const tier2Facilities = [
     chemicals: ['Chlorine', 'Sodium Hypochlorite'],
     eplanUrl: 'https://www.eplan.gov/?facility=Metro%20Water%20Services%20East%20Plant',
     reporting: 'Water treatment chemicals and emergency contact information on file',
+    lat: 36.1747,
+    lon: -86.7050,
+    position: { left: '69%', top: '38%' },
   },
   {
     name: 'Global Fuel & Bulk Terminal',
@@ -435,6 +521,9 @@ const tier2Facilities = [
     chemicals: ['Diesel', 'Propane', 'Sulfuric Acid'],
     eplanUrl: 'https://www.eplan.gov/?facility=Global%20Fuel%20and%20Bulk%20Terminal',
     reporting: 'Bulk hazardous materials storage and response plan on file',
+    lat: 36.1258,
+    lon: -86.7432,
+    position: { left: '35%', top: '70%' },
   },
   {
     name: 'Midtown Industrial Services',
@@ -444,6 +533,9 @@ const tier2Facilities = [
     chemicals: ['Anhydrous Ammonia', 'Solvents'],
     eplanUrl: 'https://www.eplan.gov/?facility=Midtown%20Industrial%20Services',
     reporting: 'Industrial chemical inventory and site-specific emergency plan available',
+    lat: 36.1489,
+    lon: -86.7992,
+    position: { left: '58%', top: '22%' },
   },
   {
     name: 'Riverfront Logistics Hub',
@@ -453,6 +545,9 @@ const tier2Facilities = [
     chemicals: ['Hydrogen Peroxide', 'Caustic Soda'],
     eplanUrl: 'https://www.eplan.gov/?facility=Riverfront%20Logistics%20Hub',
     reporting: 'Hazardous materials reporting package and emergency contact details on file',
+    lat: 36.1606,
+    lon: -86.7747,
+    position: { left: '78%', top: '64%' },
   },
 ];
 
@@ -524,54 +619,6 @@ document.addEventListener('keydown', (event) => {
     document.activeElement.click();
   }
 });
-
-const tier2Facilities = [
-  {
-    name: 'Northside Chemical Supply',
-    address: '1200 West End Ave, Nashville, TN 37203',
-    chemicals: ['Ammonia', 'Chlorine', 'Acids'],
-    lat: 36.1532,
-    lon: -86.8125,
-    eplanUrl: 'https://www.eplan.gov/?facility=Northside%20Chemical%20Supply',
-    position: { left: '22%', top: '28%' },
-  },
-  {
-    name: 'Metro Water Services East Plant',
-    address: '2500 Gallatin Pike, Nashville, TN 37216',
-    chemicals: ['Chlorine', 'Sodium Hypochlorite'],
-    lat: 36.1747,
-    lon: -86.7050,
-    eplanUrl: 'https://www.eplan.gov/?facility=Metro%20Water%20Services%20East%20Plant',
-    position: { left: '69%', top: '38%' },
-  },
-  {
-    name: 'Global Fuel & Bulk Terminal',
-    address: '500 Murfreesboro Pike, Nashville, TN 37210',
-    chemicals: ['Diesel', 'Propane', 'Sulfuric Acid'],
-    lat: 36.1258,
-    lon: -86.7432,
-    eplanUrl: 'https://www.eplan.gov/?facility=Global%20Fuel%20and%20Bulk%20Terminal',
-    position: { left: '35%', top: '70%' },
-  },
-  {
-    name: 'Midtown Industrial Services',
-    address: '1800 Broadway, Nashville, TN 37203',
-    chemicals: ['Anhydrous Ammonia', 'Solvents'],
-    lat: 36.1489,
-    lon: -86.7992,
-    eplanUrl: 'https://www.eplan.gov/?facility=Midtown%20Industrial%20Services',
-    position: { left: '58%', top: '22%' },
-  },
-  {
-    name: 'Riverfront Logistics Hub',
-    address: '1001 Cumberland Ave, Nashville, TN 37213',
-    chemicals: ['Hydrogen Peroxide', 'Caustic Soda'],
-    lat: 36.1606,
-    lon: -86.7747,
-    eplanUrl: 'https://www.eplan.gov/?facility=Riverfront%20Logistics%20Hub',
-    position: { left: '78%', top: '64%' },
-  },
-];
 
 function renderTier2Facilities() {
   const container = document.getElementById('tier2-facility-layer');

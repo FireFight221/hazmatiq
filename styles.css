@@ -313,7 +313,7 @@ h1, h2, h3, p { margin-top: 0; }
 
 .incident-layout {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: 1.15fr 0.85fr;
   gap: 16px;
   align-items: start;
 }
@@ -325,6 +325,41 @@ h1, h2, h3, p { margin-top: 0; }
 
 .tier2-card {
   border-color: rgba(25, 184, 255, 0.35);
+}
+
+.incident-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.incident-task-btn {
+  min-height: 72px;
+  border: 1px solid rgba(25, 184, 255, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(25, 184, 255, 0.16), rgba(16, 27, 44, 0.95));
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.incident-task-btn.active {
+  background: linear-gradient(135deg, var(--accent), rgba(25, 184, 255, 0.45));
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 138, 0, 0.2);
+}
+
+.incident-focus-detail {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(25, 184, 255, 0.12);
+  border: 1px solid rgba(25, 184, 255, 0.25);
+  line-height: 1.6;
 }
 
 .tier2-results,
