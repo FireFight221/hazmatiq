@@ -104,11 +104,18 @@ buttons.forEach((button) => {
 const chemicalDatabase = {
   ammonia: {
     name: 'ANHYDROUS AMMONIA',
-    summary: 'Toxic inhalation and corrosive gas hazard. Treat as a life-safety concern until verified.',
+    aliases: ['ammonia', 'anhydrous ammonia', 'nh3', '1005', 'un1005', 'un 1005'],
+    summary: 'Colorless, pungent, highly toxic gas with a severe inhalation and corrosive hazard that requires rapid isolation and respiratory protection.',
     primaryHazard: 'Toxic inhalation / corrosive gas',
     immediateActions: 'Approach uphill/upwind · SCBA required · Isolate area · Monitor downwind · Consider evacuation or shelter-in-place · Avoid low-lying/confined spaces · Establish decon',
     ergGuide: '125',
-    majorConcern: 'Respiratory injury',
+    dotClass: '2.3 / corrosive',
+    physicalState: 'Gas',
+    idlh: '300 ppm',
+    aeGL: 'AEGL-2 / AEGL-3 values vary by duration',
+    erpg: 'ERPG-2 / ERPG-3 guidance',
+    pac: 'PAC-2 / PAC-3 guidance',
+    majorConcern: 'Respiratory injury and airway burn risk',
     recommendedMode: 'HazMat Technician Operations',
     actions: [
       'Approach uphill / upwind',
@@ -137,18 +144,25 @@ const chemicalDatabase = {
       ['Decon References', 'Water rinse and controlled runoff management']
     ],
     sources: [
-      'CAMEO Chemicals: physical hazards, toxicology, and isolation guidance',
-      'NIOSH Pocket Guide: inhalation hazards and PPE considerations',
-      'SDS database: exposure controls and reactivity details',
-      'ERG 2024: initial isolation and protective action guidance'
+      'CAMEO Chemicals: toxicology, physical hazards, and hazard isolation guidance',
+      'NIOSH Pocket Guide: IDLH 300 ppm and respiratory protection considerations',
+      'SDS: corrosive inhalation hazard, reactivity, and exposure controls',
+      'E-Plan: facility inventory and emergency-contact context for stored ammonia'
     ]
   },
   chlorine: {
     name: 'CHLORINE',
-    summary: 'Highly toxic, corrosive, and irritating gas with severe respiratory effects and dense vapor behavior.',
+    aliases: ['chlorine', 'cl2', '1017', 'un1017', 'un 1017'],
+    summary: 'Highly toxic, corrosive gas that can rapidly produce severe respiratory injury and dense vapor exposure.',
     primaryHazard: 'Toxic inhalation / corrosive gas',
     immediateActions: 'Protect from vapors · Avoid low areas · Establish isolation · Monitor downwind · Shelter or evacuate based on release',
     ergGuide: '124',
+    dotClass: '2.3 / corrosive',
+    physicalState: 'Gas',
+    idlh: '10 ppm',
+    aeGL: 'AEGL values vary by duration',
+    erpg: 'ERPG-2 / ERPG-3 guidance',
+    pac: 'PAC-2 / PAC-3 guidance',
     majorConcern: 'Respiratory injury and airway compromise',
     recommendedMode: 'HazMat Technician Operations',
     actions: [
@@ -178,18 +192,25 @@ const chemicalDatabase = {
       ['Decon References', 'Controlled washdown and runoff isolation']
     ],
     sources: [
-      'CAMEO Chemicals: acute toxicity and hazard isolation',
-      'NIOSH Pocket Guide: respiratory protection and exposure limits',
-      'SDS database: storage and compatibility guidance',
-      'ERG 2024: public safety and isolation distances'
+      'CAMEO Chemicals: toxicology, physical hazards, and acute inhalation guidance',
+      'NIOSH Pocket Guide: IDLH 10 ppm and respiratory protection guidance',
+      'SDS: storage, compatibility, and emergency response controls',
+      'E-Plan: Tier II inventory and emergency-contact records for chlorine storage'
     ]
   },
   'sulfur-dioxide': {
     name: 'SULFUR DIOXIDE',
-    summary: 'Irritating and toxic gas that can cause severe respiratory effects and acid mist concerns.',
+    aliases: ['sulfur dioxide', 'sulfur-dioxide', 'so2', '1079', 'un1079', 'un 1079'],
+    summary: 'Irritating and toxic gas that can cause severe respiratory effects and acid-mist concerns during a release.',
     primaryHazard: 'Toxic inhalation / respiratory hazard',
     immediateActions: 'Protect airway exposure · Isolate area · Evaluate downwind impacts · Use SCBA for entry · Consider shelter or evacuation',
     ergGuide: '125',
+    dotClass: '2.3',
+    physicalState: 'Gas',
+    idlh: '100 ppm',
+    aeGL: 'AEGL values vary by duration',
+    erpg: 'ERPG-2 / ERPG-3 guidance',
+    pac: 'PAC-2 / PAC-3 guidance',
     majorConcern: 'Respiratory irritation and bronchospasm',
     recommendedMode: 'HazMat Technician Operations',
     actions: [
@@ -219,20 +240,37 @@ const chemicalDatabase = {
       ['Decon References', 'Wash contamination and isolate runoff']
     ],
     sources: [
-      'CAMEO Chemicals: inhalation and physical hazard profile',
+      'CAMEO Chemicals: acute inhalation and physical hazard response data',
       'NIOSH Pocket Guide: respiratory symptoms and exposure limits',
-      'SDS database: PPE and first aid data',
-      'ERG 2024: isolation and protective action guidance'
+      'SDS: PPE, first aid, and release-response data',
+      'E-Plan: facility inventory and emergency-response planning context'
     ]
   }
 };
 
 function normalizeChemicalQuery(value) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+  return String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function findChemicalRecord(value) {
+  const query = normalizeChemicalQuery(value);
+  if (!query) return chemicalDatabase.ammonia;
+
+  const exactMatch = Object.entries(chemicalDatabase).find(([key, record]) => {
+    return key === query || record.aliases.some((alias) => normalizeChemicalQuery(alias) === query);
+  });
+
+  if (exactMatch) return exactMatch[1];
+
+  const partialMatch = Object.entries(chemicalDatabase).find(([key, record]) => {
+    return key.includes(query) || record.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(query) || record.aliases.some((alias) => normalizeChemicalQuery(alias).includes(query));
+  });
+
+  return partialMatch ? partialMatch[1] : chemicalDatabase.ammonia;
 }
 
 function updateChemicalCard(chemicalKey) {
-  const record = chemicalDatabase[chemicalKey];
+  const record = chemicalDatabase[chemicalKey] || findChemicalRecord(chemicalKey);
   if (!record) return;
 
   document.getElementById('chemical-name').textContent = record.name;
@@ -251,13 +289,28 @@ function updateChemicalCard(chemicalKey) {
 
   const sourceList = document.getElementById('chemical-source-list');
   sourceList.innerHTML = record.sources.map((item) => `<li>${item}</li>`).join('');
+
+  const lookupSource = document.getElementById('lookup-verified-source');
+  const lookupUn = document.getElementById('lookup-un');
+  const lookupErg = document.getElementById('lookup-erg-guide');
+  const lookupDot = document.getElementById('lookup-dot-class');
+  const lookupPhysical = document.getElementById('lookup-physical-state');
+  const lookupIdlh = document.getElementById('lookup-idlh');
+  const lookupPpe = document.getElementById('lookup-ppe-decon');
+
+  if (lookupSource) lookupSource.textContent = 'ERG · NIOSH · SDS · E-Plan';
+  if (lookupUn) lookupUn.textContent = record.advanced.find(([label]) => label === 'UN')?.[1] || 'N/A';
+  if (lookupErg) lookupErg.textContent = record.ergGuide;
+  if (lookupDot) lookupDot.textContent = record.dotClass;
+  if (lookupPhysical) lookupPhysical.textContent = record.physicalState;
+  if (lookupIdlh) lookupIdlh.textContent = `${record.idlh} · ${record.aeGL} · ${record.pac}`;
+  if (lookupPpe) lookupPpe.textContent = `${record.actions[1]} · decon corridor · EMS coordination`;
 }
 
 function lookupChemical() {
   const searchInput = document.getElementById('chemical-search');
-  const query = normalizeChemicalQuery(searchInput.value);
-  const matchedKey = Object.keys(chemicalDatabase).find((key) => key === query || key.includes(query) || chemicalDatabase[key].name.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(query));
-  const selectedKey = matchedKey || 'ammonia';
+  const record = findChemicalRecord(searchInput?.value || '');
+  const selectedKey = Object.keys(chemicalDatabase).find((key) => chemicalDatabase[key] === record) || 'ammonia';
   updateChemicalCard(selectedKey);
   showView('card');
 }

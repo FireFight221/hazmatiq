@@ -125,11 +125,11 @@
             <div class="card-grid two-up">
               <article class="panel-card">
                 <h3>Verified source workflow</h3>
-                <p class="big-label">Use recognized reference tools to confirm the identity and hazards before acting.</p>
+                <p class="big-label">Use CAMEO Chemicals and NIOSH as the authoritative chemical reference set before acting.</p>
                 <div class="chip-list">
                   <li>CAMEO Chemicals</li>
                   <li>NIOSH Pocket Guide</li>
-                  <li>CHRIS Manual</li>
+                  <li>NIOSH IDLH / PPE</li>
                   <li>ERG 2024</li>
                   <li>UN/NA number</li>
                   <li>CAS number</li>
@@ -150,13 +150,13 @@
               <article class="panel-card">
                 <h3>Reference output fields</h3>
                 <ul class="detail-list">
-                  <li><span>Verified source</span><strong>CAMEO · NIOSH · CHRIS · ERG</strong></li>
-                  <li><span>UN/NA</span><strong>1005</strong></li>
-                  <li><span>ERG Guide</span><strong>125</strong></li>
-                  <li><span>DOT hazard class</span><strong>2.3 / corrosive</strong></li>
-                  <li><span>Physical state</span><strong>Gas</strong></li>
-                  <li><span>IDLH / AEGL / PAC</span><strong>Source values shown</strong></li>
-                  <li><span>PPE / decon / EMS</span><strong>Reference-based guidance</strong></li>
+                  <li><span>Verified source</span><strong id="lookup-verified-source">ERG · NIOSH · SDS · E-Plan</strong></li>
+                  <li><span>UN/NA</span><strong id="lookup-un">1005</strong></li>
+                  <li><span>ERG Guide</span><strong id="lookup-erg-guide">125</strong></li>
+                  <li><span>DOT hazard class</span><strong id="lookup-dot-class">2.3 / corrosive</strong></li>
+                  <li><span>Physical state</span><strong id="lookup-physical-state">Gas</strong></li>
+                  <li><span>IDLH / AEGL / PAC</span><strong id="lookup-idlh">300 ppm · AEGL-2 / AEGL-3 · PAC-2 / PAC-3</strong></li>
+                  <li><span>PPE / decon / EMS</span><strong id="lookup-ppe-decon">SCBA · decon corridor · EMS coordination</strong></li>
                 </ul>
               </article>
             </div>
@@ -178,7 +178,7 @@
                     <p class="eyebrow">First responder view</p>
                     <h3 id="chemical-name">ANHYDROUS AMMONIA</h3>
                   </div>
-                  <span class="status-pill">CAMEO • NIOSH • SDS</span>
+                  <span class="status-pill">CAMEO • NIOSH</span>
                 </div>
                 <p id="chemical-summary" class="big-label">Toxic inhalation and corrosive gas hazard. Treat as a life-safety concern until verified.</p>
                 <ul class="detail-list">
@@ -210,7 +210,7 @@
                     <p class="eyebrow">HazMat specialist view</p>
                     <h3>Advanced chemical data</h3>
                   </div>
-                  <span class="status-pill">Verified references</span>
+                  <span class="status-pill">CAMEO • NIOSH references</span>
                 </div>
                 <ul class="detail-list" id="chemical-advanced-list">
                   <li><span>CAS</span><strong>[source value]</strong></li>
@@ -232,10 +232,10 @@
                 <div class="action-box">
                   <h4>Verified source references</h4>
                   <ul id="chemical-source-list">
-                    <li>CAMEO Chemicals: Placeholder entry</li>
-                    <li>NIOSH Pocket Guide: Placeholder summary</li>
-                    <li>SDS database: Placeholder reference</li>
-                    <li>ERG 2024: Placeholder guide page</li>
+                    <li>ERG 2024: guide and initial isolation values</li>
+                    <li>NIOSH Pocket Guide: IDLH and respiratory protection data</li>
+                    <li>SDS: exposure controls and reactivity guidance</li>
+                    <li>E-Plan: facility inventory and emergency-contact context</li>
                   </ul>
                 </div>
               </article>
