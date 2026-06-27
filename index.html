@@ -9,18 +9,50 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">HazMatIQ · Training / Demo Only</p>
-          <h1>Hazardous Materials Response Decision Support</h1>
+        <div class="brand" aria-label="HazMatIQ">
+          <span class="brand-emblem" aria-hidden="true">
+            <span class="nfpa-cell nfpa-fire"><span>1</span></span>
+            <span class="nfpa-cell nfpa-reactivity"><span>0</span></span>
+            <span class="nfpa-cell nfpa-health"><span>3</span></span>
+            <span class="nfpa-cell nfpa-special"><span>W</span></span>
+          </span>
+          <span class="brand-lockup">
+            <span class="brand-name"><span>HAZMAT</span><strong>IQ</strong></span>
+            <span class="brand-tagline">Incident intelligence</span>
+          </span>
         </div>
-        <div class="topbar-actions">
-          <button class="ghost-btn">Secure Channel</button>
-          <button class="accent-btn">Start Incident</button>
-        </div>
+        <a
+          class="department-logo-link"
+          href="https://pelhamcityal.sharepoint.com/sites/PFDHAZMAT"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open the Pelham Fire Department HazMat SharePoint site in a new tab"
+          title="Pelham Fire Department HazMat SharePoint"
+        >
+          <img class="department-logo" src="assets/pelham-fire-logo.png" alt="Pelham Fire Department" />
+        </a>
       </header>
 
-      <section class="alert-banner" role="status">
-        <strong>Tactical alert:</strong> Demo prototype only. No unverified emergency recommendations are displayed. All chemical, plume, and monitoring data are placeholder content for training use until reviewed by HazMat SMEs and validated sources.
+      <section class="alert-banner notification-center" id="notification-center" role="status" aria-live="polite" aria-atomic="false">
+        <div class="notification-heading">
+          <strong>Tactical Alert</strong>
+          <span class="notification-live"><span aria-hidden="true"></span> Notification Center</span>
+        </div>
+        <div class="notification-feed">
+          <div class="notification-item notification-system">
+            <span>System</span>
+            <strong id="tactical-alert-message">Training/demo mode—verify operational guidance with approved sources and HazMat SMEs.</strong>
+          </div>
+          <div class="notification-item">
+            <span>Weather</span>
+            <strong id="notification-weather">Awaiting live weather data</strong>
+          </div>
+          <div class="notification-item">
+            <span>Monitor readings</span>
+            <strong id="notification-monitoring">Awaiting connected detector data</strong>
+          </div>
+        </div>
+        <time class="notification-updated" id="notification-updated">Not yet updated</time>
       </section>
 
       <main class="layout">
@@ -54,25 +86,12 @@
 
         <section class="content-area">
           <section id="home" class="view active">
-            <div class="hero-card compact-home">
-              <div>
-                <p class="eyebrow">HazMatIQ</p>
-                <h2>Start the incident in one tap.</h2>
-                <p>Choose the next action below. Each button opens the core HazMat workflow without digging through menus.</p>
-              </div>
-              <div class="home-status">
-                <div class="status-pill">Training mode</div>
-                <div class="status-pill">Wind 8 mph SW</div>
-                <div class="status-pill">Offline ready</div>
-              </div>
-            </div>
-
             <div class="console-grid compact-grid">
-              <button class="module-btn console-btn priority-btn" data-view="incident">START INCIDENT</button>
-              <button class="module-btn console-btn priority-btn" data-view="lookup">IDENTIFY CHEMICAL</button>
-              <button class="module-btn console-btn priority-btn" data-view="plume">RUN PLUME MODEL</button>
-              <button class="module-btn console-btn priority-btn" data-view="map">LIVE MONITORING MAP</button>
-              <button class="module-btn console-btn priority-btn" data-view="incident">ENTRY / DECON</button>
+              <button class="module-btn console-btn priority-btn" data-view="incident">NEW INCIDENT</button>
+              <button class="module-btn console-btn priority-btn" data-view="lookup">CHEMICAL ID</button>
+              <button class="module-btn console-btn priority-btn" data-view="plume">LIVE WEATHER</button>
+              <button class="module-btn console-btn priority-btn" data-view="plume">PLUME MODEL</button>
+              <button class="module-btn console-btn priority-btn" data-view="incident">ENTRY/DECON</button>
               <button class="module-btn console-btn priority-btn" data-view="report">ICS FORMS</button>
             </div>
           </section>
@@ -259,7 +278,7 @@
                 <div>
                   <p class="eyebrow">Incident location</p>
                   <h3 id="plume-map-title">I-65 Mile Marker 140 · Northbound shoulder</h3>
-                  <p id="plume-map-subtitle" class="muted">GPS 36.1445, -86.8043 · Google Maps base showing homes, businesses, and nearby structures</p>
+                  <p id="plume-map-subtitle" class="muted">GPS 33.28473 -86.80863 · Google Maps base showing homes, businesses, and nearby structures</p>
                 </div>
                 <div class="plume-map-facts">
                   <span class="status-pill" id="scenario-badge">Quick model</span>
@@ -301,7 +320,7 @@
                   <h3>Scenario context</h3>
                   <ul class="detail-list">
                     <li><span>Product</span><strong>Anhydrous ammonia</strong></li>
-                    <li><span>GPS</span><strong id="plume-gps-summary">36.1445, -86.8043</strong></li>
+                    <li><span>GPS</span><strong id="plume-gps-summary">33.28473, -86.80863</strong></li>
                     <li><span>Weather</span><strong id="scenario-weather-summary">Neutral / inversion possible</strong></li>
                     <li><span>Model</span><strong id="scenario-name">Quick model</strong></li>
                   </ul>
@@ -534,10 +553,10 @@
                 <h3>Readings Panel</h3>
                 <p class="big-label">Placeholder readings from Honeywell Safety Suite, detector feeds, and monitoring logs.</p>
                 <ul class="detail-list">
-                  <li><span>LEL</span><strong>0.0%</strong></li>
-                  <li><span>O₂</span><strong>20.9%</strong></li>
-                  <li><span>H₂S</span><strong>Pending</strong></li>
-                  <li><span>PID</span><strong>Demo value</strong></li>
+                  <li><span>LEL</span><strong data-monitor-reading="LEL">0.0%</strong></li>
+                  <li><span>O₂</span><strong data-monitor-reading="O₂">20.9%</strong></li>
+                  <li><span>H₂S</span><strong data-monitor-reading="H₂S">Pending</strong></li>
+                  <li><span>PID</span><strong data-monitor-reading="PID">Demo value</strong></li>
                 </ul>
                 <div class="status-pill">Monitoring plan: confirm wind shift / repeat readings</div>
               </article>
@@ -642,7 +661,7 @@
       </main>
 
       <footer class="footer-note">
-        Training / Demo Only. This prototype is not a substitute for verified HazMat guidance, validated data, legal review, or SME approval.
+        Training / Demo Only.
       </footer>
     </div>
 

@@ -320,8 +320,8 @@ function updatePlumeOutputs() {
   const { lat, lon } = parseGpsCoordinate(gpsInput?.value || '33.28473 -86.80863');
   const incidentLabel = titleInput?.value || 'Incident location';
   const mapModeLabel = currentPlumeMode === 'satellite' ? 'Satellite' : 'Street';
-  const safeLat = Number.isFinite(lat) ? lat : 36.1445;
-  const safeLon = Number.isFinite(lon) ? lon : -86.8043;
+  const safeLat = Number.isFinite(lat) ? lat : 33.28473;
+  const safeLon = Number.isFinite(lon) ? lon : -86.80863;
   const profile = getScenarioProfile(currentScenario);
   const windValue = windInput?.value || '8 mph SW';
   const stabilityValue = stabilityInput?.value || 'Neutral / inversion possible';

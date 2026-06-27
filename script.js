@@ -1,6 +1,55 @@
 const buttons = document.querySelectorAll('.module-btn');
 const views = document.querySelectorAll('.view');
 
+const tacticalAlertMessage = document.getElementById('tactical-alert-message');
+const notificationWeather = document.getElementById('notification-weather');
+const notificationMonitoring = document.getElementById('notification-monitoring');
+const notificationUpdated = document.getElementById('notification-updated');
+
+function updateNotificationCenter(update = {}) {
+  if (Object.prototype.hasOwnProperty.call(update, 'tactical') && tacticalAlertMessage) {
+    tacticalAlertMessage.textContent = update.tactical;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, 'weather') && notificationWeather) {
+    notificationWeather.textContent = update.weather;
+  }
+  if (Object.prototype.hasOwnProperty.call(update, 'monitoring') && notificationMonitoring) {
+    notificationMonitoring.textContent = update.monitoring;
+  }
+
+  if (notificationUpdated) {
+    const updatedAt = update.timestamp ? new Date(update.timestamp) : new Date();
+    const safeUpdatedAt = Number.isNaN(updatedAt.getTime()) ? new Date() : updatedAt;
+    notificationUpdated.dateTime = safeUpdatedAt.toISOString();
+    notificationUpdated.textContent = `Updated ${safeUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+}
+
+window.HazMatIQ = window.HazMatIQ || {};
+window.HazMatIQ.updateNotifications = updateNotificationCenter;
+
+document.addEventListener('hazmatiq:telemetry', (event) => {
+  updateNotificationCenter(event.detail || {});
+});
+
+const monitorReadingElements = document.querySelectorAll('[data-monitor-reading]');
+
+function syncMonitorNotification() {
+  const readingSummary = Array.from(monitorReadingElements)
+    .map((element) => `${element.dataset.monitorReading} ${element.textContent.trim()}`)
+    .join(' · ');
+
+  if (readingSummary) updateNotificationCenter({ monitoring: readingSummary });
+}
+
+if (monitorReadingElements.length) {
+  const monitorObserver = new MutationObserver(syncMonitorNotification);
+  monitorReadingElements.forEach((element) => {
+    monitorObserver.observe(element, { childList: true, characterData: true, subtree: true });
+  });
+  syncMonitorNotification();
+}
+
 function showView(targetId) {
   buttons.forEach((btn) => btn.classList.toggle('active', btn.dataset.view === targetId));
   views.forEach((view) => view.classList.toggle('active', view.id === targetId));
@@ -463,6 +512,8 @@ function updatePlumeOutputs() {
   const speed = windMatch ? Number(windMatch[1]) : 8;
   const distanceFt = profile.distance + (speed * 18);
   const weatherText = `${stationValue} · ${windValue} · ${stabilityValue}`;
+
+  updateNotificationCenter({ weather: weatherText });
 
   if (titleEl) titleEl.textContent = incidentLabel;
   if (subtitleEl) subtitleEl.textContent = `GPS ${safeLat.toFixed(4)}, ${safeLon.toFixed(4)} · Google Maps base showing homes, businesses, and nearby structures`;
