@@ -188,7 +188,7 @@ h1, h2, h3, p { margin-top: 0; }
 
 .layout {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -1198,9 +1198,26 @@ select {
 }
 
 .sidebar .module-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 50px;
+  padding: 11px 16px;
   background: #1a476f;
   border-color: #3c6488;
   color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.sidebar-card h2 {
+  font-size: 1.55rem;
+}
+
+.sidebar-card > .muted {
+  font-size: 0.95rem;
 }
 
 .sidebar .module-btn:hover {
@@ -1245,9 +1262,16 @@ select {
 }
 
 #home .priority-btn {
-  min-height: 110px;
-  padding: clamp(20px, 2.3vw, 34px);
-  font-size: clamp(1rem, 1.35vw, 1.25rem);
+  min-height: 100px;
+  padding: clamp(16px, 1.8vw, 24px);
+  font-family: Bahnschrift, "Aptos Display", "Segoe UI Variable Display", "Trebuchet MS", sans-serif;
+  font-size: clamp(1.1rem, 1.4vw, 1.35rem);
+  font-weight: 800;
+  font-stretch: condensed;
+  line-height: 1.15;
+  letter-spacing: 0.055em;
+  text-align: center;
+  text-wrap: balance;
 }
 
 @media (min-width: 720px) {
@@ -1276,13 +1300,13 @@ select {
   .topbar { flex-direction: row; align-items: center; padding: 15px 18px; }
   .alert-banner { margin: 10px 0; padding: 10px 14px; font-size: 0.88rem; }
   .sidebar-card { padding: 12px; margin-bottom: 10px; }
-  .sidebar-card h2 { margin-bottom: 4px; font-size: 1.25rem; }
-  .sidebar-card .muted { margin-bottom: 10px; font-size: 0.82rem; }
+  .sidebar-card h2 { margin-bottom: 4px; font-size: 1.4rem; }
+  .sidebar-card .muted { margin-bottom: 10px; font-size: 0.88rem; }
   .sidebar .module-nav { gap: 6px; }
-  .sidebar .module-btn { min-height: 38px; padding: 7px 9px; font-size: 0.82rem; }
+  .sidebar .module-btn { min-height: 44px; padding: 8px 12px; font-size: 0.94rem; }
   #home .compact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   #home .compact-grid { grid-template-rows: repeat(3, minmax(0, 1fr)); }
-  #home .priority-btn { min-height: 96px; }
+  #home .priority-btn { min-height: 88px; padding: 14px; font-size: 1.05rem; }
   .footer-note { margin-top: 10px; padding: 9px 13px; font-size: 0.78rem; }
 }
 
@@ -1294,13 +1318,13 @@ select {
   }
 
   .sidebar-card { padding: 12px; margin-bottom: 0; }
-  .sidebar-card h2 { margin-bottom: 4px; font-size: 1.2rem; }
-  .sidebar-card .muted { margin-bottom: 8px; font-size: 0.8rem; }
+  .sidebar-card h2 { margin-bottom: 4px; font-size: 1.35rem; }
+  .sidebar-card .muted { margin-bottom: 8px; font-size: 0.84rem; }
   .sidebar .module-nav { gap: 6px; }
-  .sidebar .module-btn { min-height: 38px; padding: 7px 9px; font-size: 0.8rem; }
+  .sidebar .module-btn { min-height: 42px; padding: 7px 11px; font-size: 0.9rem; }
   .brand-emblem { width: 48px; height: 48px; flex-basis: 48px; }
   .department-logo { width: 68px; height: 68px; }
-  #home .priority-btn { min-height: 88px; }
+  #home .priority-btn { min-height: 82px; }
 }
 
 /* Mobile command layout */
@@ -1311,14 +1335,14 @@ select {
   .alert-banner { margin: 8px 0; padding: 9px 11px; font-size: 0.76rem; line-height: 1.35; }
   .layout { grid-template-columns: 1fr; gap: 10px; }
   .sidebar-card { margin-bottom: 0; padding: 11px; }
-  .sidebar-card h2 { margin-bottom: 3px; font-size: 1.08rem; }
+  .sidebar-card h2 { margin-bottom: 3px; font-size: 1.2rem; }
   .sidebar-card .muted { margin-bottom: 8px; font-size: 0.75rem; }
   .sidebar-card.compact { display: none; }
   .sidebar .module-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .sidebar .module-btn { min-height: 44px; padding: 6px; font-size: 0.68rem; line-height: 1.15; }
+  .sidebar .module-btn { min-height: 44px; padding: 7px 8px; font-size: 0.76rem; line-height: 1.15; }
   #home .compact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   #home .compact-grid { grid-template-rows: repeat(3, minmax(0, 1fr)); }
-  #home .priority-btn { min-height: 86px; padding: 12px; font-size: 0.82rem; }
+  #home .priority-btn { min-height: 86px; padding: 12px; font-size: 0.92rem; letter-spacing: 0.035em; }
   .footer-note { display: none; }
 }
 
