@@ -317,7 +317,7 @@ function updatePlumeOutputs() {
   const receptorSummaryEl = document.getElementById('receptor-summary');
   const recommendationEl = document.getElementById('plume-recommendation');
 
-  const { lat, lon } = parseGpsCoordinate(gpsInput?.value || '36.1445, -86.8043');
+  const { lat, lon } = parseGpsCoordinate(gpsInput?.value || '33.28473 -86.80863');
   const incidentLabel = titleInput?.value || 'Incident location';
   const mapModeLabel = currentPlumeMode === 'satellite' ? 'Satellite' : 'Street';
   const safeLat = Number.isFinite(lat) ? lat : 36.1445;
