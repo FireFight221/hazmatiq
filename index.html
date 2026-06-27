@@ -87,7 +87,7 @@
         <section class="content-area">
           <section id="home" class="view active">
             <div class="console-grid compact-grid">
-              <button class="module-btn console-btn priority-btn" data-view="incident">NEW INCIDENT</button>
+              <button class="module-btn console-btn priority-btn" data-view="new-incident">NEW INCIDENT</button>
               <button class="module-btn console-btn priority-btn" data-view="lookup">CHEMICAL ID</button>
               <button class="module-btn console-btn priority-btn" data-view="plume">LIVE WEATHER</button>
               <button class="module-btn console-btn priority-btn" data-view="plume">PLUME MODEL</button>
@@ -96,13 +96,133 @@
             </div>
           </section>
 
+          <section id="new-incident" class="view">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Incident setup</p>
+                <h2>New Incident</h2>
+                <p class="muted">Enter the initial dispatch information. You can update every field as the incident develops.</p>
+              </div>
+              <button class="ghost-btn" id="cancel-new-incident" type="button">Back to Home</button>
+            </div>
+
+            <form id="incident-intake-form" class="incident-intake-layout">
+              <article class="panel-card incident-intake-card">
+                <div class="form-card-heading">
+                  <div>
+                    <p class="eyebrow">CAD / command entry</p>
+                    <h3>Initial incident information</h3>
+                  </div>
+                  <span class="required-note">Enter any information currently available</span>
+                </div>
+
+                <div class="incident-form-grid">
+                  <div class="form-field full-width">
+                    <label class="input-label" for="new-incident-address">Incident Address</label>
+                    <div class="address-autocomplete">
+                      <input
+                        id="new-incident-address"
+                        name="incidentAddress"
+                        type="text"
+                        autocomplete="off"
+                        placeholder="Begin typing a street number or address"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-controls="incident-address-suggestions"
+                        aria-expanded="false"
+                      />
+                      <input id="new-incident-latitude" name="incidentLatitude" type="hidden" />
+                      <input id="new-incident-longitude" name="incidentLongitude" type="hidden" />
+                      <input id="new-incident-address-source" name="incidentAddressSource" type="hidden" />
+                      <div class="address-suggestions" id="incident-address-suggestions" role="listbox" hidden></div>
+                    </div>
+                    <div class="address-lookup-meta">
+                      <span id="incident-address-status" role="status" aria-live="polite">Type at least 3 characters for address suggestions.</span>
+                      <a href="https://maps.shelbyal.com/" target="_blank" rel="noopener noreferrer">Shelby County GIS</a>
+                    </div>
+                  </div>
+
+                  <div class="form-field">
+                    <label class="input-label" for="new-facility-name">Facility Name</label>
+                    <input id="new-facility-name" name="facilityName" type="text" autocomplete="organization" placeholder="Facility or property name" />
+                  </div>
+
+                  <div class="form-field">
+                    <label class="input-label" for="new-chemical-involved">Chemical Involved</label>
+                    <input id="new-chemical-involved" name="chemicalInvolved" type="text" placeholder="Chemical name, UN/NA number, or unknown" />
+                  </div>
+
+                  <div class="form-field full-width">
+                    <label class="input-label" for="new-units-resources">Units / Resources</label>
+                    <textarea id="new-units-resources" name="unitsResources" rows="3" placeholder="Assigned companies, HazMat teams, law enforcement, EMS, mutual aid, and requested resources"></textarea>
+                  </div>
+                </div>
+
+                <fieldset class="cad-times-fieldset">
+                  <legend>CAD Times <span>Spillman CAD integration ready</span></legend>
+                  <div class="cad-times-grid">
+                    <div class="form-field cad-time-card" data-cad-event="received">
+                      <strong>Call Received</strong>
+                      <label class="input-label" for="cad-received-date">Date</label>
+                      <input id="cad-received-date" name="cadReceivedDate" type="date" />
+                      <label class="input-label" for="cad-received-time">Time</label>
+                      <input id="cad-received-time" name="cadReceivedTime" type="time" step="1" />
+                    </div>
+                    <div class="form-field cad-time-card" data-cad-event="dispatched">
+                      <strong>Dispatched</strong>
+                      <label class="input-label" for="cad-dispatched-date">Date</label>
+                      <input id="cad-dispatched-date" name="cadDispatchedDate" type="date" />
+                      <label class="input-label" for="cad-dispatched-time">Time</label>
+                      <input id="cad-dispatched-time" name="cadDispatchedTime" type="time" step="1" />
+                    </div>
+                    <div class="form-field cad-time-card" data-cad-event="arrival">
+                      <strong>First Unit On Scene</strong>
+                      <label class="input-label" for="cad-arrival-date">Date</label>
+                      <input id="cad-arrival-date" name="cadArrivalDate" type="date" />
+                      <label class="input-label" for="cad-arrival-time">Time</label>
+                      <input id="cad-arrival-time" name="cadArrivalTime" type="time" step="1" />
+                    </div>
+                  </div>
+                </fieldset>
+
+                <div class="button-row incident-form-actions">
+                  <button class="primary-btn" type="submit">Save &amp; Open Incident Dashboard</button>
+                  <button class="ghost-btn" type="reset">Clear Form</button>
+                </div>
+                <p class="form-status" id="incident-form-status" role="status" aria-live="polite"></p>
+              </article>
+
+              <aside class="panel-card eplan-login-card">
+                <div class="eplan-login-only">
+                  <img
+                    class="eplan-official-logo"
+                    src="https://erplan.net/eplan/media/eplanlogo.gif"
+                    alt="E-Plan Hazmat Emergency Management System"
+                  />
+                  <h3>E-Plan for First Responders</h3>
+                  <div class="eplan-frame-shell">
+                    <iframe
+                      class="eplan-login-frame"
+                      src="https://erplan.net/eplan/mobile/mLogin.htm"
+                      title="Official E-Plan First Responder login"
+                      loading="eager"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      scrolling="no"
+                      allow="publickey-credentials-get"
+                    ></iframe>
+                  </div>
+                </div>
+              </aside>
+            </form>
+          </section>
+
           <section id="incident" class="view">
             <div class="section-header">
               <div>
                 <p class="eyebrow">Command</p>
                 <h2>Incident Dashboard</h2>
               </div>
-              <button class="accent-btn">Update Scene</button>
+              <button class="accent-btn" id="edit-incident-btn" type="button">Update Scene</button>
             </div>
 
             <div class="incident-layout">
@@ -130,6 +250,33 @@
                 </div>
               </article>
             </div>
+
+            <article class="panel-card incident-record-card">
+              <div class="incident-record-heading">
+                <div>
+                  <p class="eyebrow">Active incident record</p>
+                  <h3 id="incident-record-title">No incident has been created</h3>
+                </div>
+                <span class="status-pill" id="incident-record-status">Awaiting incident setup</span>
+              </div>
+              <ul class="detail-list incident-record-details">
+                <li><span>Address</span><strong id="incident-record-address">Not entered</strong></li>
+                <li><span>Facility</span><strong id="incident-record-facility">Not entered</strong></li>
+                <li><span>Chemical</span><strong id="incident-record-chemical">Not entered</strong></li>
+                <li><span>Units / Resources</span><strong id="incident-record-resources">Not entered</strong></li>
+                <li><span>CAD Timeline</span><strong id="incident-record-cad">Not entered</strong></li>
+              </ul>
+              <div class="incident-module-readiness" aria-label="Incident Commander data modules">
+                <span>Live Weather</span>
+                <span>Mapping</span>
+                <span>Chemical Data</span>
+                <span>Resources</span>
+                <span>Objectives</span>
+                <span>Plume Model</span>
+                <span>Monitor Readings</span>
+                <span>AI-Assisted ICS Forms</span>
+              </div>
+            </article>
           </section>
 
           <section id="lookup" class="view">

@@ -50,6 +50,387 @@ if (monitorReadingElements.length) {
   syncMonitorNotification();
 }
 
+const incidentIntakeForm = document.getElementById('incident-intake-form');
+const cancelNewIncidentButton = document.getElementById('cancel-new-incident');
+const editIncidentButton = document.getElementById('edit-incident-btn');
+const incidentFormStatus = document.getElementById('incident-form-status');
+const incidentAddressInput = document.getElementById('new-incident-address');
+const incidentLatitudeInput = document.getElementById('new-incident-latitude');
+const incidentLongitudeInput = document.getElementById('new-incident-longitude');
+const incidentAddressSourceInput = document.getElementById('new-incident-address-source');
+const incidentAddressSuggestions = document.getElementById('incident-address-suggestions');
+const incidentAddressStatus = document.getElementById('incident-address-status');
+let activeIncident = null;
+
+const SHELBY_ADDRESS_SERVICE = 'https://maps.shelbyal.com/gisserver/rest/services/LegacyServices/ShelbyALDynamic_EXT/MapServer/10/query';
+const addressSuggestionCache = new Map();
+let addressSearchTimer;
+let addressSearchController;
+let addressSuggestions = [];
+let activeAddressSuggestion = -1;
+
+function setAddressLookupStatus(message) {
+  if (incidentAddressStatus) incidentAddressStatus.textContent = message;
+}
+
+function closeAddressSuggestions() {
+  if (!incidentAddressSuggestions || !incidentAddressInput) return;
+  incidentAddressSuggestions.hidden = true;
+  incidentAddressInput.setAttribute('aria-expanded', 'false');
+  incidentAddressInput.removeAttribute('aria-activedescendant');
+  activeAddressSuggestion = -1;
+}
+
+function setActiveAddressSuggestion(index) {
+  if (!incidentAddressSuggestions || !incidentAddressInput || !addressSuggestions.length) return;
+  activeAddressSuggestion = (index + addressSuggestions.length) % addressSuggestions.length;
+  const options = incidentAddressSuggestions.querySelectorAll('.address-suggestion');
+  options.forEach((option, optionIndex) => {
+    const isActive = optionIndex === activeAddressSuggestion;
+    option.classList.toggle('active', isActive);
+    option.setAttribute('aria-selected', String(isActive));
+    if (isActive) {
+      incidentAddressInput.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+function selectAddressSuggestion(suggestion) {
+  if (!incidentAddressInput) return;
+  incidentAddressInput.value = suggestion.address;
+  if (incidentLatitudeInput) incidentLatitudeInput.value = suggestion.latitude ?? '';
+  if (incidentLongitudeInput) incidentLongitudeInput.value = suggestion.longitude ?? '';
+  if (incidentAddressSourceInput) incidentAddressSourceInput.value = 'Shelby County GIS';
+  closeAddressSuggestions();
+  setAddressLookupStatus('Verified address selected from Shelby County GIS.');
+  syncIncidentDraft();
+}
+
+function renderAddressSuggestions(suggestions) {
+  if (!incidentAddressSuggestions || !incidentAddressInput) return;
+  addressSuggestions = suggestions;
+  incidentAddressSuggestions.innerHTML = '';
+
+  if (!suggestions.length) {
+    closeAddressSuggestions();
+    setAddressLookupStatus('No matching local addresses found. You can continue entering the address manually.');
+    return;
+  }
+
+  suggestions.forEach((suggestion, index) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'address-suggestion';
+    option.id = `incident-address-option-${index}`;
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', 'false');
+    const copy = document.createElement('span');
+    const address = document.createElement('strong');
+    address.textContent = suggestion.address;
+    copy.appendChild(address);
+    if (suggestion.context) {
+      const context = document.createElement('span');
+      context.textContent = suggestion.context;
+      copy.appendChild(context);
+    }
+    option.appendChild(copy);
+    option.addEventListener('pointerdown', (event) => event.preventDefault());
+    option.addEventListener('click', () => selectAddressSuggestion(suggestion));
+    incidentAddressSuggestions.appendChild(option);
+  });
+
+  incidentAddressSuggestions.hidden = false;
+  incidentAddressInput.setAttribute('aria-expanded', 'true');
+  setAddressLookupStatus(`${suggestions.length} address option${suggestions.length === 1 ? '' : 's'} available.`);
+}
+
+async function fetchAddressSuggestions(query) {
+  const normalizedQuery = query.trim().replace(/\s+/g, ' ');
+  const cacheKey = normalizedQuery.toLowerCase();
+  if (addressSuggestionCache.has(cacheKey)) return addressSuggestionCache.get(cacheKey);
+
+  if (addressSearchController) addressSearchController.abort();
+  addressSearchController = new AbortController();
+  const escapedQuery = normalizedQuery.replace(/'/g, "''").toUpperCase();
+  const matchPattern = /^\d/.test(escapedQuery) ? `${escapedQuery}%` : `%${escapedQuery}%`;
+  const parameters = new URLSearchParams({
+    where: `UPPER(Full_Address) LIKE '${matchPattern}'`,
+    outFields: 'Full_Address,Municipality,USPS_Place,State,Zip5,CommonPlace',
+    returnGeometry: 'true',
+    outSR: '4326',
+    orderByFields: 'Full_Address ASC',
+    resultRecordCount: '6',
+    f: 'json',
+  });
+
+  const response = await fetch(`${SHELBY_ADDRESS_SERVICE}?${parameters}`, {
+    signal: addressSearchController.signal,
+  });
+  if (!response.ok) throw new Error(`Address service returned ${response.status}`);
+  const result = await response.json();
+  if (result.error) throw new Error(result.error.message || 'Address lookup failed');
+
+  const uniqueAddresses = new Set();
+  const suggestions = (result.features || []).flatMap((feature) => {
+    const attributes = feature.attributes || {};
+    const address = String(attributes.Full_Address || '').trim();
+    if (!address || uniqueAddresses.has(address)) return [];
+    uniqueAddresses.add(address);
+    const place = attributes.Municipality || attributes.USPS_Place || '';
+    const region = [place, attributes.State, attributes.Zip5].filter(Boolean).join(', ');
+    return [{
+      address,
+      context: attributes.CommonPlace || region,
+      latitude: feature.geometry?.y,
+      longitude: feature.geometry?.x,
+    }];
+  });
+
+  addressSuggestionCache.set(cacheKey, suggestions);
+  return suggestions;
+}
+
+async function runAddressSearch(query) {
+  setAddressLookupStatus('Searching current local address records…');
+  try {
+    const suggestions = await fetchAddressSuggestions(query);
+    renderAddressSuggestions(suggestions);
+  } catch (error) {
+    if (error.name === 'AbortError') return;
+    closeAddressSuggestions();
+    setAddressLookupStatus('Address suggestions are temporarily unavailable. Continue entering the address manually.');
+    console.warn('Address autocomplete failed.', error);
+  }
+}
+
+if (incidentAddressInput) {
+  incidentAddressInput.addEventListener('input', () => {
+    if (incidentLatitudeInput) incidentLatitudeInput.value = '';
+    if (incidentLongitudeInput) incidentLongitudeInput.value = '';
+    if (incidentAddressSourceInput) incidentAddressSourceInput.value = '';
+    window.clearTimeout(addressSearchTimer);
+    const query = incidentAddressInput.value.trim();
+    if (query.length < 3) {
+      closeAddressSuggestions();
+      setAddressLookupStatus('Type at least 3 characters for address suggestions.');
+      return;
+    }
+    addressSearchTimer = window.setTimeout(() => runAddressSearch(query), 350);
+  });
+
+  incidentAddressInput.addEventListener('keydown', (event) => {
+    if (incidentAddressSuggestions?.hidden || !addressSuggestions.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveAddressSuggestion(activeAddressSuggestion + 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveAddressSuggestion(activeAddressSuggestion - 1);
+    } else if (event.key === 'Enter' && activeAddressSuggestion >= 0) {
+      event.preventDefault();
+      selectAddressSuggestion(addressSuggestions[activeAddressSuggestion]);
+    } else if (event.key === 'Escape') {
+      closeAddressSuggestions();
+    }
+  });
+
+  incidentAddressInput.addEventListener('blur', () => {
+    window.setTimeout(closeAddressSuggestions, 150);
+  });
+}
+
+function formatCadTime(dateValue, timeValue, legacyValue) {
+  if (legacyValue && !dateValue && !timeValue) {
+    const legacyDate = new Date(legacyValue);
+    return Number.isNaN(legacyDate.getTime())
+      ? legacyValue
+      : legacyDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  if (!dateValue && !timeValue) return null;
+  if (!dateValue) return timeValue;
+
+  const date = new Date(`${dateValue}T${timeValue || '00:00'}`);
+  if (Number.isNaN(date.getTime())) return [dateValue, timeValue].filter(Boolean).join(' ');
+  const options = timeValue
+    ? { dateStyle: 'short', timeStyle: 'short' }
+    : { dateStyle: 'short' };
+  return date.toLocaleString([], options);
+}
+
+function renderIncidentRecord(incident) {
+  const title = document.getElementById('incident-record-title');
+  const status = document.getElementById('incident-record-status');
+  const address = document.getElementById('incident-record-address');
+  const facility = document.getElementById('incident-record-facility');
+  const chemical = document.getElementById('incident-record-chemical');
+  const resources = document.getElementById('incident-record-resources');
+  const cad = document.getElementById('incident-record-cad');
+
+  if (!incident) return;
+
+  const cadTimes = [
+    (incident.cadReceivedDate || incident.cadReceivedTime || incident.cadReceived)
+      && `Received ${formatCadTime(incident.cadReceivedDate, incident.cadReceivedTime, incident.cadReceived)}`,
+    (incident.cadDispatchedDate || incident.cadDispatchedTime || incident.cadDispatched)
+      && `Dispatched ${formatCadTime(incident.cadDispatchedDate, incident.cadDispatchedTime, incident.cadDispatched)}`,
+    (incident.cadArrivalDate || incident.cadArrivalTime || incident.cadArrival)
+      && `On scene ${formatCadTime(incident.cadArrivalDate, incident.cadArrivalTime, incident.cadArrival)}`,
+  ].filter(Boolean).join(' · ');
+
+  if (title) title.textContent = incident.facilityName || incident.incidentAddress || 'Active incident';
+  if (status) status.textContent = 'Incident active';
+  if (address) address.textContent = incident.incidentAddress || 'Not entered';
+  if (facility) facility.textContent = incident.facilityName || 'Not entered';
+  if (chemical) chemical.textContent = incident.chemicalInvolved || 'Unknown / not entered';
+  if (resources) resources.textContent = incident.unitsResources || 'Not entered';
+  if (cad) cad.textContent = cadTimes || 'Not entered';
+}
+
+function populateIncidentForm(incident) {
+  if (!incidentIntakeForm || !incident) return;
+  Object.entries(incident).forEach(([name, value]) => {
+    const field = incidentIntakeForm.elements.namedItem(name);
+    if (field && typeof value === 'string') field.value = value;
+  });
+}
+
+function persistIncident(incident) {
+  activeIncident = { ...incident };
+  try {
+    sessionStorage.setItem('hazmatiq.activeIncident', JSON.stringify(activeIncident));
+  } catch (error) {
+    console.warn('Incident data could not be stored for this browser session.', error);
+  }
+  renderIncidentRecord(activeIncident);
+}
+
+function restoreIncident() {
+  try {
+    const savedIncident = sessionStorage.getItem('hazmatiq.activeIncident');
+    if (!savedIncident) return;
+    activeIncident = JSON.parse(savedIncident);
+    populateIncidentForm(activeIncident);
+    renderIncidentRecord(activeIncident);
+  } catch (error) {
+    console.warn('Saved incident data could not be restored.', error);
+  }
+}
+
+function applyIncidentToModules(incident) {
+  const plumeLocation = document.getElementById('incident-location');
+  const plumeGps = document.getElementById('gps-location');
+  const plumeChemical = document.getElementById('chemical-name-input');
+  const chemicalSearch = document.getElementById('chemical-search');
+
+  if (plumeLocation && incident.incidentAddress) plumeLocation.value = incident.incidentAddress;
+  if (plumeGps && incident.incidentLatitude && incident.incidentLongitude) {
+    plumeGps.value = `${incident.incidentLatitude}, ${incident.incidentLongitude}`;
+  }
+  if (plumeChemical && incident.chemicalInvolved) plumeChemical.value = incident.chemicalInvolved;
+  if (chemicalSearch && incident.chemicalInvolved) chemicalSearch.value = incident.chemicalInvolved;
+}
+
+function readIncidentForm() {
+  if (!incidentIntakeForm) return {};
+  return Object.fromEntries(new FormData(incidentIntakeForm).entries());
+}
+
+function syncIncidentDraft() {
+  const incident = readIncidentForm();
+  incident.createdAt = activeIncident?.createdAt || new Date().toISOString();
+  incident.updatedAt = new Date().toISOString();
+  persistIncident(incident);
+  applyIncidentToModules(incident);
+  if (incidentFormStatus) incidentFormStatus.textContent = 'Draft synced to the Incident Dashboard.';
+  return incident;
+}
+
+if (incidentIntakeForm) {
+  let draftSyncTimer;
+
+  incidentIntakeForm.addEventListener('input', () => {
+    window.clearTimeout(draftSyncTimer);
+    draftSyncTimer = window.setTimeout(syncIncidentDraft, 250);
+  });
+
+  incidentIntakeForm.addEventListener('change', () => {
+    window.clearTimeout(draftSyncTimer);
+    syncIncidentDraft();
+  });
+
+  incidentIntakeForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!incidentIntakeForm.reportValidity()) return;
+
+    const incident = syncIncidentDraft();
+    updateNotificationCenter({
+      tactical: `Active incident: ${incident.facilityName || incident.incidentAddress}${incident.chemicalInvolved ? ` · ${incident.chemicalInvolved}` : ''}`,
+    });
+
+    if (incidentFormStatus) incidentFormStatus.textContent = 'Incident saved. Opening the Incident Commander dashboard…';
+    showView('incident');
+  });
+
+  incidentIntakeForm.addEventListener('reset', () => {
+    if (incidentFormStatus) incidentFormStatus.textContent = 'Form cleared.';
+  });
+}
+
+if (cancelNewIncidentButton) {
+  cancelNewIncidentButton.addEventListener('click', () => showView('home'));
+}
+
+if (editIncidentButton) {
+  editIncidentButton.addEventListener('click', () => showView('new-incident'));
+}
+
+window.HazMatIQ.getActiveIncident = () => (activeIncident ? { ...activeIncident } : null);
+window.HazMatIQ.updateIncident = (incidentUpdate = {}) => {
+  const nextIncident = { ...(activeIncident || {}), ...incidentUpdate, updatedAt: new Date().toISOString() };
+  persistIncident(nextIncident);
+  populateIncidentForm(nextIncident);
+  applyIncidentToModules(nextIncident);
+  return { ...nextIncident };
+};
+
+function splitCadTimestamp(value) {
+  if (!value) return {};
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return {};
+  const localDate = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+  const localTime = [
+    String(date.getHours()).padStart(2, '0'),
+    String(date.getMinutes()).padStart(2, '0'),
+    String(date.getSeconds()).padStart(2, '0'),
+  ].join(':');
+  return { date: localDate, time: localTime };
+}
+
+window.HazMatIQ.applySpillmanCadUpdate = (cadUpdate = {}) => {
+  const received = splitCadTimestamp(cadUpdate.receivedAt || cadUpdate.received);
+  const dispatched = splitCadTimestamp(cadUpdate.dispatchedAt || cadUpdate.dispatched);
+  const arrival = splitCadTimestamp(cadUpdate.arrivalAt || cadUpdate.onSceneAt || cadUpdate.arrival);
+  const incidentUpdate = {
+    ...(received.date && { cadReceivedDate: received.date, cadReceivedTime: received.time }),
+    ...(dispatched.date && { cadDispatchedDate: dispatched.date, cadDispatchedTime: dispatched.time }),
+    ...(arrival.date && { cadArrivalDate: arrival.date, cadArrivalTime: arrival.time }),
+    ...((cadUpdate.unitsResources || cadUpdate.resources) && {
+      unitsResources: cadUpdate.unitsResources || cadUpdate.resources,
+    }),
+    spillmanLastSync: new Date().toISOString(),
+  };
+
+  return window.HazMatIQ.updateIncident(incidentUpdate);
+};
+
+restoreIncident();
+
 function showView(targetId) {
   buttons.forEach((btn) => btn.classList.toggle('active', btn.dataset.view === targetId));
   views.forEach((view) => view.classList.toggle('active', view.id === targetId));
