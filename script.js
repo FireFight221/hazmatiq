@@ -53,6 +53,9 @@ if (monitorReadingElements.length) {
 const incidentIntakeForm = document.getElementById('incident-intake-form');
 const cancelNewIncidentButton = document.getElementById('cancel-new-incident');
 const editIncidentButton = document.getElementById('edit-incident-btn');
+const deleteIncidentButton = document.getElementById('delete-incident-btn');
+const incidentModuleButtons = document.querySelectorAll('.incident-module-btn');
+const incidentModuleMessage = document.getElementById('incident-module-message');
 const incidentFormStatus = document.getElementById('incident-form-status');
 const incidentAddressInput = document.getElementById('new-incident-address');
 const incidentLatitudeInput = document.getElementById('new-incident-latitude');
@@ -60,6 +63,12 @@ const incidentLongitudeInput = document.getElementById('new-incident-longitude')
 const incidentAddressSourceInput = document.getElementById('new-incident-address-source');
 const incidentAddressSuggestions = document.getElementById('incident-address-suggestions');
 const incidentAddressStatus = document.getElementById('incident-address-status');
+const facilityNameInput = document.getElementById('new-facility-name');
+const facilityLatitudeInput = document.getElementById('new-facility-latitude');
+const facilityLongitudeInput = document.getElementById('new-facility-longitude');
+const facilitySourceInput = document.getElementById('new-facility-source');
+const facilityNameSuggestions = document.getElementById('facility-name-suggestions');
+const facilityNameStatus = document.getElementById('facility-name-status');
 let activeIncident = null;
 
 const SHELBY_ADDRESS_SERVICE = 'https://maps.shelbyal.com/gisserver/rest/services/LegacyServices/ShelbyALDynamic_EXT/MapServer/10/query';
@@ -240,6 +249,189 @@ if (incidentAddressInput) {
   });
 }
 
+const facilitySuggestionCache = new Map();
+let facilitySearchTimer;
+let facilitySearchController;
+let facilitySuggestions = [];
+let activeFacilitySuggestion = -1;
+
+function setFacilityLookupStatus(message) {
+  if (facilityNameStatus) facilityNameStatus.textContent = message;
+}
+
+function closeFacilitySuggestions() {
+  if (!facilityNameSuggestions || !facilityNameInput) return;
+  facilityNameSuggestions.hidden = true;
+  facilityNameInput.setAttribute('aria-expanded', 'false');
+  facilityNameInput.removeAttribute('aria-activedescendant');
+  activeFacilitySuggestion = -1;
+}
+
+function setActiveFacilitySuggestion(index) {
+  if (!facilityNameSuggestions || !facilityNameInput || !facilitySuggestions.length) return;
+  activeFacilitySuggestion = (index + facilitySuggestions.length) % facilitySuggestions.length;
+  const options = facilityNameSuggestions.querySelectorAll('.address-suggestion');
+  options.forEach((option, optionIndex) => {
+    const isActive = optionIndex === activeFacilitySuggestion;
+    option.classList.toggle('active', isActive);
+    option.setAttribute('aria-selected', String(isActive));
+    if (isActive) {
+      facilityNameInput.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+function selectFacilitySuggestion(suggestion) {
+  if (!facilityNameInput) return;
+  facilityNameInput.value = suggestion.name;
+  if (facilityLatitudeInput) facilityLatitudeInput.value = suggestion.latitude ?? '';
+  if (facilityLongitudeInput) facilityLongitudeInput.value = suggestion.longitude ?? '';
+  if (facilitySourceInput) facilitySourceInput.value = 'Shelby County GIS';
+
+  if (incidentAddressInput && !incidentAddressInput.value.trim() && suggestion.address) {
+    incidentAddressInput.value = suggestion.address;
+    if (incidentLatitudeInput) incidentLatitudeInput.value = suggestion.latitude ?? '';
+    if (incidentLongitudeInput) incidentLongitudeInput.value = suggestion.longitude ?? '';
+    if (incidentAddressSourceInput) incidentAddressSourceInput.value = 'Shelby County GIS facility match';
+    setAddressLookupStatus('Incident address filled from the selected facility.');
+  }
+
+  closeFacilitySuggestions();
+  setFacilityLookupStatus('Verified facility selected from Shelby County GIS.');
+  syncIncidentDraft();
+}
+
+function renderFacilitySuggestions(suggestions) {
+  if (!facilityNameSuggestions || !facilityNameInput) return;
+  facilitySuggestions = suggestions;
+  facilityNameSuggestions.innerHTML = '';
+
+  if (!suggestions.length) {
+    closeFacilitySuggestions();
+    setFacilityLookupStatus('No matching local facilities found. Continue entering the facility manually.');
+    return;
+  }
+
+  suggestions.forEach((suggestion, index) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'address-suggestion';
+    option.id = `facility-name-option-${index}`;
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', 'false');
+    const copy = document.createElement('span');
+    const name = document.createElement('strong');
+    name.textContent = suggestion.name;
+    copy.appendChild(name);
+    if (suggestion.address) {
+      const address = document.createElement('span');
+      address.textContent = suggestion.address;
+      copy.appendChild(address);
+    }
+    option.appendChild(copy);
+    option.addEventListener('pointerdown', (event) => event.preventDefault());
+    option.addEventListener('click', () => selectFacilitySuggestion(suggestion));
+    facilityNameSuggestions.appendChild(option);
+  });
+
+  facilityNameSuggestions.hidden = false;
+  facilityNameInput.setAttribute('aria-expanded', 'true');
+  setFacilityLookupStatus(`${suggestions.length} facility option${suggestions.length === 1 ? '' : 's'} available.`);
+}
+
+async function fetchFacilitySuggestions(query) {
+  const normalizedQuery = query.trim().replace(/\s+/g, ' ');
+  const cacheKey = normalizedQuery.toLowerCase();
+  if (facilitySuggestionCache.has(cacheKey)) return facilitySuggestionCache.get(cacheKey);
+
+  if (facilitySearchController) facilitySearchController.abort();
+  facilitySearchController = new AbortController();
+  const escapedQuery = normalizedQuery.replace(/'/g, "''").toUpperCase();
+  const parameters = new URLSearchParams({
+    where: `(UPPER(CommonPlace) LIKE '%${escapedQuery}%' OR UPPER(LandMark) LIKE '%${escapedQuery}%')`,
+    outFields: 'CommonPlace,LandMark,Full_Address,Municipality,State,Zip5',
+    returnGeometry: 'true',
+    outSR: '4326',
+    resultRecordCount: '8',
+    f: 'json',
+  });
+
+  const response = await fetch(`${SHELBY_ADDRESS_SERVICE}?${parameters}`, {
+    signal: facilitySearchController.signal,
+  });
+  if (!response.ok) throw new Error(`Facility service returned ${response.status}`);
+  const result = await response.json();
+  if (result.error) throw new Error(result.error.message || 'Facility lookup failed');
+
+  const uniqueFacilities = new Set();
+  const suggestions = (result.features || []).flatMap((feature) => {
+    const attributes = feature.attributes || {};
+    const name = String(attributes.CommonPlace || attributes.LandMark || '').trim();
+    const address = String(attributes.Full_Address || '').trim();
+    const uniqueKey = `${name}|${address}`.toLowerCase();
+    if (!name || uniqueFacilities.has(uniqueKey)) return [];
+    uniqueFacilities.add(uniqueKey);
+    return [{
+      name,
+      address,
+      latitude: feature.geometry?.y,
+      longitude: feature.geometry?.x,
+    }];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+
+  facilitySuggestionCache.set(cacheKey, suggestions);
+  return suggestions;
+}
+
+async function runFacilitySearch(query) {
+  setFacilityLookupStatus('Searching current local facility records…');
+  try {
+    renderFacilitySuggestions(await fetchFacilitySuggestions(query));
+  } catch (error) {
+    if (error.name === 'AbortError') return;
+    closeFacilitySuggestions();
+    setFacilityLookupStatus('Facility suggestions are temporarily unavailable. Continue entering the name manually.');
+    console.warn('Facility autocomplete failed.', error);
+  }
+}
+
+if (facilityNameInput) {
+  facilityNameInput.addEventListener('input', () => {
+    if (facilityLatitudeInput) facilityLatitudeInput.value = '';
+    if (facilityLongitudeInput) facilityLongitudeInput.value = '';
+    if (facilitySourceInput) facilitySourceInput.value = '';
+    window.clearTimeout(facilitySearchTimer);
+    const query = facilityNameInput.value.trim();
+    if (query.length < 2) {
+      closeFacilitySuggestions();
+      setFacilityLookupStatus('Type at least 2 characters for facility suggestions.');
+      return;
+    }
+    facilitySearchTimer = window.setTimeout(() => runFacilitySearch(query), 350);
+  });
+
+  facilityNameInput.addEventListener('keydown', (event) => {
+    if (facilityNameSuggestions?.hidden || !facilitySuggestions.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveFacilitySuggestion(activeFacilitySuggestion + 1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveFacilitySuggestion(activeFacilitySuggestion - 1);
+    } else if (event.key === 'Enter' && activeFacilitySuggestion >= 0) {
+      event.preventDefault();
+      selectFacilitySuggestion(facilitySuggestions[activeFacilitySuggestion]);
+    } else if (event.key === 'Escape') {
+      closeFacilitySuggestions();
+    }
+  });
+
+  facilityNameInput.addEventListener('blur', () => {
+    window.setTimeout(closeFacilitySuggestions, 150);
+  });
+}
+
 function formatCadTime(dateValue, timeValue, legacyValue) {
   if (legacyValue && !dateValue && !timeValue) {
     const legacyDate = new Date(legacyValue);
@@ -268,7 +460,16 @@ function renderIncidentRecord(incident) {
   const resources = document.getElementById('incident-record-resources');
   const cad = document.getElementById('incident-record-cad');
 
-  if (!incident) return;
+  if (!incident) {
+    if (title) title.textContent = 'No incident has been created';
+    if (status) status.textContent = 'Awaiting incident setup';
+    if (address) address.textContent = 'Not entered';
+    if (facility) facility.textContent = 'Not entered';
+    if (chemical) chemical.textContent = 'Not entered';
+    if (resources) resources.textContent = 'Not entered';
+    if (cad) cad.textContent = 'Not entered';
+    return;
+  }
 
   const cadTimes = [
     (incident.cadReceivedDate || incident.cadReceivedTime || incident.cadReceived)
@@ -384,6 +585,60 @@ if (cancelNewIncidentButton) {
 
 if (editIncidentButton) {
   editIncidentButton.addEventListener('click', () => showView('new-incident'));
+}
+
+const incidentModuleDestinations = new Map();
+
+window.HazMatIQ.setIncidentModuleDestination = (moduleName, url) => {
+  if (!moduleName || !url) return false;
+  incidentModuleDestinations.set(moduleName, url);
+  return true;
+};
+
+incidentModuleButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const moduleName = button.dataset.incidentModule || button.textContent.trim();
+    const destination = incidentModuleDestinations.get(moduleName) || button.dataset.destination;
+    if (destination) {
+      window.open(destination, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    if (incidentModuleMessage) {
+      incidentModuleMessage.textContent = `${moduleName} is ready for its reporting-site destination to be configured.`;
+    }
+  });
+});
+
+if (deleteIncidentButton) {
+  deleteIncidentButton.addEventListener('click', () => {
+    const confirmed = window.confirm(
+      'DELETE THIS INCIDENT?\n\nThis will permanently remove the incident data saved in this browser session. This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    activeIncident = null;
+    try {
+      sessionStorage.removeItem('hazmatiq.activeIncident');
+    } catch (error) {
+      console.warn('Incident session data could not be removed.', error);
+    }
+
+    if (incidentIntakeForm) incidentIntakeForm.reset();
+    if (incidentModuleMessage) incidentModuleMessage.textContent = '';
+    renderIncidentRecord(null);
+    closeAddressSuggestions();
+
+    ['incident-location', 'gps-location', 'chemical-name-input', 'chemical-search'].forEach((id) => {
+      const field = document.getElementById(id);
+      if (field) field.value = '';
+    });
+
+    updateNotificationCenter({
+      tactical: 'Incident deleted. No active incident is currently loaded.',
+    });
+    showView('home');
+  });
 }
 
 window.HazMatIQ.getActiveIncident = () => (activeIncident ? { ...activeIncident } : null);

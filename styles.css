@@ -9,6 +9,7 @@
   --accent-2: #ffd323;
   --border: #b8bec4;
   --navy: #123a63;
+  --incident-red: #7b2025;
   --red: #d71920;
   --orange: #f05a28;
   --yellow: #ffd323;
@@ -1498,13 +1499,23 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(440px, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .incident-intake-card,
 .eplan-login-card,
 .incident-record-card {
   min-height: auto;
+}
+
+.incident-intake-card {
+  border: 3px solid var(--incident-red);
+}
+
+.incident-intake-layout > .panel-card {
+  align-self: stretch;
+  height: auto;
+  margin-bottom: 0;
 }
 
 .form-card-heading,
@@ -1518,9 +1529,16 @@ select {
 
 .required-note {
   flex: 0 0 auto;
-  color: #7b2025;
+  color: var(--incident-red);
   font-size: 0.75rem;
   font-weight: 800;
+}
+
+.incident-information-title {
+  color: var(--navy);
+  font-size: 1.35rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
 }
 
 .incident-form-grid {
@@ -1714,7 +1732,7 @@ textarea:focus {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  border-top: 5px solid var(--navy);
+  border: 3px solid #f58220;
 }
 
 .eplan-login-only {
@@ -1722,7 +1740,8 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
+  height: 100%;
   gap: 12px;
 }
 
@@ -1874,6 +1893,15 @@ textarea:focus {
 
 .incident-record-card {
   margin-top: 0;
+  border-top: 5px solid var(--navy);
+}
+
+.incident-record-label {
+  margin-bottom: 8px;
+  color: var(--navy);
+  font-size: 0.88rem;
+  font-weight: 950;
+  letter-spacing: 0.16em;
 }
 
 .incident-record-details {
@@ -1887,15 +1915,61 @@ textarea:focus {
   margin-top: 18px;
 }
 
-.incident-module-readiness span {
+.incident-module-btn {
   padding: 10px;
   border: 1px solid #bcc2c8;
   border-radius: 9px;
   background: var(--panel-2);
   color: #3f474f;
+  font: inherit;
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 800;
   text-align: center;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.incident-module-btn:hover {
+  transform: translateY(-1px);
+  border-color: #b89b08;
+  background: #fff1a8;
+}
+
+.incident-module-btn:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.incident-module-message {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+  color: #4d5862;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.delete-incident-link {
+  display: block;
+  margin: 14px 0 0;
+  padding: 3px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: #b20f17;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.delete-incident-link:hover {
+  border-bottom-color: #b20f17;
+}
+
+.delete-incident-link:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 3px;
 }
 
 @media (max-width: 1100px) {

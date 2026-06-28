@@ -111,7 +111,7 @@
                 <div class="form-card-heading">
                   <div>
                     <p class="eyebrow">CAD / command entry</p>
-                    <h3>Initial incident information</h3>
+                    <h3 class="incident-information-title">INCIDENT INFORMATIONN</h3>
                   </div>
                   <span class="required-note">Enter any information currently available</span>
                 </div>
@@ -144,7 +144,27 @@
 
                   <div class="form-field">
                     <label class="input-label" for="new-facility-name">Facility Name</label>
-                    <input id="new-facility-name" name="facilityName" type="text" autocomplete="organization" placeholder="Facility or property name" />
+                    <div class="address-autocomplete facility-autocomplete">
+                      <input
+                        id="new-facility-name"
+                        name="facilityName"
+                        type="text"
+                        autocomplete="off"
+                        placeholder="Begin typing a business or facility name"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-controls="facility-name-suggestions"
+                        aria-expanded="false"
+                      />
+                      <input id="new-facility-latitude" name="facilityLatitude" type="hidden" />
+                      <input id="new-facility-longitude" name="facilityLongitude" type="hidden" />
+                      <input id="new-facility-source" name="facilitySource" type="hidden" />
+                      <div class="address-suggestions" id="facility-name-suggestions" role="listbox" hidden></div>
+                    </div>
+                    <div class="address-lookup-meta">
+                      <span id="facility-name-status" role="status" aria-live="polite">Type at least 2 characters for facility suggestions.</span>
+                      <a href="https://maps.shelbyal.com/" target="_blank" rel="noopener noreferrer">Shelby County GIS</a>
+                    </div>
                   </div>
 
                   <div class="form-field">
@@ -225,36 +245,10 @@
               <button class="accent-btn" id="edit-incident-btn" type="button">Update Scene</button>
             </div>
 
-            <div class="incident-layout">
-              <article class="panel-card incident-input-card">
-                <h3>Primary incident tiles</h3>
-                <p class="big-label">Tap a tile to move directly into the operational workflow for that task.</p>
-                <div class="incident-tiles" aria-label="Incident workflow tiles">
-                  <button class="incident-task-btn active" type="button" data-task="identify" data-view="lookup">Identify</button>
-                  <button class="incident-task-btn" type="button" data-task="erg" data-view="card">ERG</button>
-                  <button class="incident-task-btn" type="button" data-task="plume" data-view="plume">Plume</button>
-                  <button class="incident-task-btn" type="button" data-task="zones" data-view="plume">Zones</button>
-                  <button class="incident-task-btn" type="button" data-task="entry" data-view="map">Entry</button>
-                  <button class="incident-task-btn" type="button" data-task="decon" data-view="map">Decon</button>
-                  <button class="incident-task-btn" type="button" data-task="monitoring" data-view="map">Monitoring</button>
-                  <button class="incident-task-btn" type="button" data-task="evacuation" data-view="report">Evacuation</button>
-                  <button class="incident-task-btn" type="button" data-task="ics" data-view="report">ICS Reports</button>
-                </div>
-              </article>
-
-              <article class="panel-card tier2-card">
-                <h3>Current focus</h3>
-                <p id="incident-focus-label" class="big-label">Identify the product and confirm the verified source before action.</p>
-                <div id="incident-focus-detail" class="incident-focus-detail">
-                  <strong>Active workflow:</strong> Chemical identification and reference review.
-                </div>
-              </article>
-            </div>
-
             <article class="panel-card incident-record-card">
               <div class="incident-record-heading">
                 <div>
-                  <p class="eyebrow">Active incident record</p>
+                  <p class="eyebrow incident-record-label">ACTIVE INCIDENT RECORD</p>
                   <h3 id="incident-record-title">No incident has been created</h3>
                 </div>
                 <span class="status-pill" id="incident-record-status">Awaiting incident setup</span>
@@ -267,15 +261,17 @@
                 <li><span>CAD Timeline</span><strong id="incident-record-cad">Not entered</strong></li>
               </ul>
               <div class="incident-module-readiness" aria-label="Incident Commander data modules">
-                <span>Live Weather</span>
-                <span>Mapping</span>
-                <span>Chemical Data</span>
-                <span>Resources</span>
-                <span>Objectives</span>
-                <span>Plume Model</span>
-                <span>Monitor Readings</span>
-                <span>AI-Assisted ICS Forms</span>
+                <button class="incident-module-btn" type="button" data-incident-module="Live Weather">Live Weather</button>
+                <button class="incident-module-btn" type="button" data-incident-module="Mapping">Mapping</button>
+                <button class="incident-module-btn" type="button" data-incident-module="Chemical Data">Chemical Data</button>
+                <button class="incident-module-btn" type="button" data-incident-module="Resources">Resources</button>
+                <button class="incident-module-btn" type="button" data-incident-module="Response Objectives">Objectives</button>
+                <button class="incident-module-btn" type="button" data-incident-module="Plume Model">Plume Model</button>
+                <button class="incident-module-btn" type="button" data-incident-module="Monitor Readings">Monitor Readings</button>
+                <button class="incident-module-btn" type="button" data-incident-module="AI-Assisted ICS Forms">AI-Assisted ICS Forms</button>
               </div>
+              <p class="incident-module-message" id="incident-module-message" role="status" aria-live="polite"></p>
+              <button class="delete-incident-link" id="delete-incident-btn" type="button">DELETE INCIDENT</button>
             </article>
           </section>
 
