@@ -346,6 +346,14 @@
     $('monitor-map-recenter').addEventListener('click',()=>{
       const rows=mappedMonitors();if(rows.length)focusMap(rows[0].monitorId,false);
     });
+    $('monitor-open-live-map').addEventListener('click',()=>{
+      const rows=mappedMonitors();
+      document.querySelector('.app-primary-nav [data-view="map"]')?.click();
+      window.dispatchEvent(new CustomEvent('emergenz:focus-monitor-live-map',{
+        detail: rows.length ? {latitude:rows[0].latitude,longitude:rows[0].longitude} : {}
+      }));
+      if(!rows.length)status('Live Map opened. No field monitors have documented coordinates yet.');
+    });
     window.addEventListener('storage',(e)=>{if(Object.values(KEYS).includes(e.key)){refreshAll();}});
     window.addEventListener('emergenz:monitoring-open',e=>{if(e.detail?.monitorId)focusMap(e.detail.monitorId);});
     refreshAll();
