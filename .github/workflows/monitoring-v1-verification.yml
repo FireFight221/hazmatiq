@@ -28,8 +28,6 @@ jobs:
           node --check server/public/script.js
       - name: Monitoring regression tests
         run: npx vitest run test/monitoring-console-v1.test.ts test/navigation-settings-weather.test.ts
-      - name: TypeScript check
-        run: npm run typecheck
       - name: Install browser smoke tooling
         run: npm install --no-save --package-lock=false playwright
       - name: Chromium Monitoring UI smoke
@@ -37,6 +35,10 @@ jobs:
           python3 -m http.server 4177 --directory server/public > /tmp/monitoring-static.log 2>&1 &
           sleep 2
           node scripts/monitoring-v2-browser-smoke.mjs
+      - name: Install server dependencies for full typecheck
+        run: npm --prefix server ci
+      - name: TypeScript check
+        run: npm run typecheck
       - name: Upload QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
