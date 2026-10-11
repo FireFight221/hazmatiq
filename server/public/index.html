@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="page-shell.css?v=1" />
     <link rel="stylesheet" href="plume-overrides.css?v=11&canonical-grid=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=6" />
+    <link rel="stylesheet" href="monitoring-console.css?v=1" />
   </head>
   <body>
     <div class="app-shell">
@@ -49,8 +50,8 @@
           <button class="module-btn app-nav-item" type="button" data-view="report" aria-label="Open Reports">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="4.5" width="14" height="17" rx="2" /><path d="M9 4.5V3h6v1.5M8.5 10h7m-7 4h7m-7 4h4" /></svg></span><span class="app-nav-label label">Reports</span>
           </button>
-          <button class="module-btn app-nav-item app-nav-secondary" type="button" data-view="monitor" aria-label="Open Equipment">
-            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="4" y="6" width="16" height="13" rx="2" /><path d="M8 6V4h8v2m-9 5h2m-2 3h2m6-3h2m-2 3h2" /><circle cx="12" cy="15.5" r="1.5" /></svg></span><span class="app-nav-label label">Equipment</span>
+          <button class="module-btn app-nav-item app-nav-secondary" type="button" data-view="monitor" aria-label="Open Monitoring">
+            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="15" rx="2" /><path d="M5 13h3l2-5 3 9 2-4h4" /><path d="M9 22h6" /></svg></span><span class="app-nav-label label">Monitoring</span>
           </button>
           <button class="module-btn app-nav-item" type="button" data-view="weather" aria-label="Open Weather Intelligence">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 18h10.2a3.8 3.8 0 0 0 .5-7.6A5.9 5.9 0 0 0 6.4 9.2 4.4 4.4 0 0 0 7 18Z" /><path d="M8 21h.01M12 21h.01M16 21h.01" /></svg></span><span class="app-nav-label label">Weather</span>
@@ -75,7 +76,7 @@
           <button class="module-btn" data-view="plume">PLUME MODELING</button>
           <button class="module-btn" data-view="map">LIVE MAP</button>
           <button class="module-btn" data-view="weather">WEATHER</button>
-          <button class="module-btn" data-view="monitor">EQUIPMENT</button>
+          <button class="module-btn" data-view="monitor">MONITORING</button>
           <button class="module-btn" data-view="report">MY REPORTS</button>
           <button class="module-btn" data-view="planning-tools">PLANNING</button>
           <button class="module-btn" data-view="my-chemicals">MY CHEMICALS</button>
@@ -1478,7 +1479,86 @@
             </dialog>
           </section>
 
-          <section id="monitor" class="view equipment-page" data-page-root="equipment" data-page-name="Equipment">
+          <section id="monitor" class="view emergenz-monitoring-page" data-page-root="monitoring" data-page-name="Monitoring">
+            <header class="em-monitor-header">
+              <div class="em-monitor-title">
+                <span class="em-monitor-screen-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><rect x="3" y="5" width="42" height="34" rx="6" stroke="currentColor" stroke-width="3"/><path d="M7 24h8l5-10 6 19 5-9h10" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 44h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span>
+                <div><h1>MONITORING</h1><p>Environmental Monitoring • Field Readings • Deployment Intelligence</p></div>
+              </div>
+              <div class="em-monitor-head-state"><span class="em-monitor-status-dot"></span> MANUAL OPERATIONS <small>Live instrument feeds not connected</small></div>
+            </header>
+            <div class="em-monitor-kpis" aria-label="Monitoring totals">
+              <div><small>TOTAL MONITORS</small><strong id="monitor-total-count">17</strong></div>
+              <div><small>DEPLOYED</small><strong id="monitor-deployed-count">0</strong></div>
+              <div><small>AVAILABLE</small><strong id="monitor-available-count">17</strong></div>
+              <div><small>MANUAL READINGS</small><strong id="monitor-readings-count">0</strong></div>
+              <div><small>REPORTED ALARMS</small><strong id="monitor-alarm-count">0</strong></div>
+            </div>
+            <div class="em-monitor-columns">
+              <section class="em-monitor-panel em-monitor-unit-panel" aria-label="Monitor Units">
+                <header><h2>MONITOR UNITS</h2><button type="button" id="monitor-add-unit" class="monitor-btn-primary">+ ADD MONITOR</button></header>
+                <div class="em-monitor-search-line"><input id="monitor-search" type="search" aria-label="Search monitors or teams" placeholder="Search monitors, teams or locations..." /></div>
+                <div class="em-monitor-filter-row" aria-label="Filter monitor units">
+                  <button class="active" type="button" data-monitor-filter="all">ALL</button>
+                  <button type="button" data-monitor-filter="deployed">DEPLOYED</button>
+                  <button type="button" data-monitor-filter="available">AVAILABLE</button>
+                  <button type="button" data-monitor-filter="manual">MANUAL DATA</button>
+                  <button type="button" data-monitor-filter="oos">OUT OF SERVICE</button>
+                </div>
+                <div class="em-monitor-scroll" id="monitor-console-units" tabindex="0" aria-label="Scroll through monitor units"></div>
+                <footer>Listed as available does not confirm calibration or operational readiness. Verify before field deployment.</footer>
+              </section>
+              <div class="em-monitor-right">
+                <section id="monitor-map-panel" class="em-monitor-panel em-monitor-map-panel">
+                  <header><h2>MONITORING MAP</h2><div class="em-monitor-map-tools"><span id="monitor-mapped-count">0 LOCATED</span><button type="button" id="monitor-map-recenter" aria-label="Recenter on first deployed unit">RECENTER</button><button type="button" id="monitor-open-live-map">OPEN LIVE MAP ↗</button></div></header>
+                  <div class="em-monitor-map-frame"><div id="monitor-map-canvas" aria-label="Deployed monitor location map"></div>
+                    <div class="em-monitor-map-empty" id="monitor-map-empty">No deployed monitors have map coordinates.<small>Assign a unit and enter its actual deployment position to display a marker. No simulated locations are shown.</small></div>
+                    <div id="monitor-map-selection" class="em-monitor-map-selection" hidden></div>
+                  </div>
+                  <footer>Monitoring pins show documented device positions only. No inferred hot zones, plumes, or ERG boundaries.</footer>
+                </section>
+                <section class="em-monitor-panel em-monitor-entry-panel" id="monitor-manual-entry-panel">
+                  <header><h2>MANUAL READING ENTRY</h2><span>ICP / RADIO REPORTED</span></header>
+                  <form id="monitor-manual-form">
+                    <div class="em-monitor-form-grid">
+                      <label>MONITOR<select id="monitor-entry-device" required><option value="">Select monitor</option></select></label>
+                      <label>PARAMETER<select id="monitor-entry-sensor"><option>NH3</option><option>Cl2</option><option>CO</option><option>H2S</option><option>O2</option><option>LEL</option><option>VOC / PID</option><option>SO2</option><option>HCN</option><option>Gamma Dose Rate</option><option>Radiation Counts</option><option>Other</option></select></label>
+                      <label>VALUE<input id="monitor-entry-value" type="number" step="any" required placeholder="Enter reported value" /></label>
+                      <label>UNITS<select id="monitor-entry-units" required><option>ppm</option></select></label>
+                      <label>OBSERVED AT<input id="monitor-entry-time" type="datetime-local" required /></label>
+                      <label>LOCATION<input id="monitor-entry-location" placeholder="Entry / perimeter / sampling point" /></label>
+                      <label>REPORTED BY<input id="monitor-entry-reporter" placeholder="Team or operator" required /></label>
+                      <label>INSTRUMENT ALARM<select id="monitor-entry-alarm"><option value="Unknown">Not reported</option><option value="Normal">No alarm reported</option><option value="Caution">Caution reported</option><option value="Alarm">Alarm reported</option></select></label>
+                      <label class="em-monitor-full">NOTES<input id="monitor-entry-notes" placeholder="Optional field observations" /></label>
+                    </div>
+                    <div class="em-monitor-entry-actions"><small>Saved as a manual observation — never labeled as live telemetry.</small><button type="submit" class="monitor-btn-primary">SAVE READING</button></div>
+                  </form>
+                </section>
+                <section class="em-monitor-panel em-monitor-readings-panel">
+                  <header><h2>RECENT READINGS</h2><span>Recorded field observations</span></header>
+                  <div class="em-monitor-table-wrap"><table><thead><tr><th>TIME</th><th>MONITOR</th><th>PARAMETER</th><th>VALUE</th><th>UNITS</th><th>LOCATION</th><th>SOURCE</th></tr></thead><tbody id="monitor-recent-body"></tbody></table><p id="monitor-reading-empty">No field readings have been entered.</p></div>
+                </section>
+              </div>
+            </div>
+            <div id="monitor-workspace-status" class="em-monitor-workspace-status" role="status" aria-live="polite">Manual monitoring workspace ready. Deploy a unit to begin.</div>
+            <dialog class="em-monitor-deploy-dialog" id="monitor-deploy-dialog" aria-labelledby="monitor-deploy-title">
+              <form id="monitor-deployment-form">
+                <header><h2 id="monitor-deploy-title">DEPLOY MONITOR</h2><p>Record an actual location and assignment. GPS is not assumed.</p></header>
+                <input id="monitor-deploy-id" type="hidden" />
+                <div class="em-monitor-deploy-grid">
+                  <label>ASSIGNED TEAM / PERSON<input id="monitor-deploy-team" required placeholder="Entry Team 1" /></label>
+                  <label>DEPLOYMENT ROLE<input id="monitor-deploy-role" required placeholder="Downwind / perimeter / entry" /></label>
+                  <label>LOCATION NAME<input id="monitor-deploy-location" required placeholder="Monitoring Point A" /></label>
+                  <label>LATITUDE (OPTIONAL)<input id="monitor-deploy-lat" type="number" min="-90" max="90" step="any" placeholder="Real measured coordinates" /></label>
+                  <label>LONGITUDE (OPTIONAL)<input id="monitor-deploy-lon" type="number" min="-180" max="180" step="any" placeholder="Real measured coordinates" /></label>
+                  <label>NOTES<input id="monitor-deploy-notes" placeholder="Optional" /></label>
+                </div>
+                <div class="em-monitor-dialog-buttons"><button type="button" id="monitor-undeploy" class="monitor-btn-danger">REMOVE DEPLOYMENT</button><button type="button" id="monitor-deploy-cancel" class="monitor-btn-secondary">CANCEL</button><button type="submit" class="monitor-btn-primary">SAVE DEPLOYMENT</button></div>
+              </form>
+            </dialog>
+          </section>
+
+          <section id="monitor-legacy" class="view equipment-page" data-page-root="equipment-legacy" data-page-name="Equipment Legacy" hidden>
             <header class="hazmat-page-hero variant-monitoring">
               <div class="hazmat-page-hero-content"><h1 class="hazmat-hero-title">Equipment</h1><p class="hazmat-hero-subtitle">Monitor Readiness, PPE &amp; Field Assets.</p><div class="hazmat-hero-chip-row"><span class="hazmat-hero-chip monitor-simulated-label">Training Data · Simulated</span></div></div>
             </header>
@@ -1853,6 +1933,7 @@
     <script src="chem-compare.js?v=chemcompare-4"></script>
     <script src="monitor-inventory.js"></script>
     <script src="equipment.js"></script>
+    <script src="monitoring-console.js?v=1"></script>
     <script src="sources.js"></script>
   </body>
 </html>
