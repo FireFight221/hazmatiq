@@ -317,10 +317,8 @@
   window.getHazMatIQMonitorMarkers=mappedMonitors;
   function ensureMap() {
     const rows=mappedMonitors();
-    if(!rows.length){$('monitor-map-empty').hidden=false;
-      if($('monitor-mapped-count'))$('monitor-mapped-count').textContent='0 LOCATED';
-      return;}
-    $('monitor-map-empty').hidden=true;
+    // Show an ordinary geographic basemap without inventing a monitor, plume or incident.
+    $('monitor-map-empty').hidden=rows.length>0;
     if(!window.maplibregl){status('MapLibre unavailable. Monitor data remains saved.');return;}
     if(maps.instance)return;
     const first=rows[0];
@@ -328,7 +326,8 @@
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
     ],tileSize:256,maxzoom:19}},layers:[{id:'satellite',type:'raster',source:'satellite'}]};
     try{
-      maps.instance=new maplibregl.Map({container:'monitor-map-canvas',style,center:[first.longitude,first.latitude],zoom:15});
+      maps.instance=new maplibregl.Map({container:'monitor-map-canvas',style,
+        center:first?[first.longitude,first.latitude]:[-95.7,37.1],zoom:first?15:4});
       maps.instance.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
       maps.instance.on('error',()=>{status('Monitoring basemap unavailable; saved coordinates remain accessible.');});
       maps.instance.on('load',renderMapMarkers);
@@ -337,7 +336,7 @@
   function renderMapMarkers() {
     const rows=mappedMonitors();
     $('monitor-map-empty').hidden=rows.length>0;
-    if(rows.length&&!maps.instance)ensureMap();
+    if(!maps.instance)ensureMap();
     if(!maps.instance)return;
     maps.markers.forEach(m=>m.remove());maps.markers=[];
     rows.forEach(p=>{
