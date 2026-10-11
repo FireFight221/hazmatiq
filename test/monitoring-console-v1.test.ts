@@ -43,14 +43,14 @@ describe('EMERGENZ Monitoring V1', () => {
     expect(consoleSource).toContain("addEventListener('click',()=>prepareReading(item.id))");
     expect(consoleSource).toContain('NO READINGS RECORDED');
     expect(consoleSource).toContain('if(!a){status(');
-    expect(html).toContain('Live instrument feeds not connected');
+    expect(html).toContain('No telemetry connection');
     expect(html).toContain('Saved as a manual observation');
   });
 
   it('only maps user-assigned coordinates, without simulated polygons or auto-generated monitor pins', () => {
     expect(consoleSource).toContain('assignments.filter(a=>pointOf(a))');
     expect(consoleSource).toContain('if(!rows.length){');
-    expect(consoleSource).toContain('No deployed monitors have map coordinates');
+    expect(html).toContain('No deployed monitors have map coordinates');
     expect(mainScript).toContain('window.getHazMatIQMonitorMarkers()');
     expect(mainScript).toContain("layer !== 'monitors'");
     expect(mainScript).toContain("window.addEventListener('emergenz:monitoring-updated'");
