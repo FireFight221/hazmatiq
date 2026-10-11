@@ -49,7 +49,7 @@ describe('EMERGENZ Monitoring V1', () => {
 
   it('only maps user-assigned coordinates, without simulated polygons or auto-generated monitor pins', () => {
     expect(consoleSource).toContain('assignments.filter(a=>pointOf(a))');
-    expect(consoleSource).toContain('if(!rows.length){');
+    expect(consoleSource).toContain(" $('monitor-map-empty').hidden=rows.length>0;".trim());
     expect(html).toContain('No deployed monitors have map coordinates');
     expect(mainScript).toContain('window.getHazMatIQMonitorMarkers()');
     expect(mainScript).toContain("layer !== 'monitors'");
