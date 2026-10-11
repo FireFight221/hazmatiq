@@ -1541,6 +1541,21 @@
               </div>
             </div>
             <div id="monitor-workspace-status" class="em-monitor-workspace-status" role="status" aria-live="polite">Manual monitoring workspace ready. Deploy a unit to begin.</div>
+            <dialog class="em-monitor-deploy-dialog" id="monitor-unit-dialog" aria-labelledby="monitor-unit-title">
+              <form id="monitor-unit-form">
+                <header><h2 id="monitor-unit-title">ADD MONITOR</h2><p>Inventory details are locally stored. Calibration and readiness must be confirmed independently.</p></header>
+                <input id="monitor-unit-id" type="hidden" />
+                <div class="em-monitor-deploy-grid">
+                  <label>UNIT NAME<input id="monitor-unit-name" required placeholder="e.g. MultiRAE 5" /></label>
+                  <label>MANUFACTURER<input id="monitor-unit-manufacturer" placeholder="e.g. Honeywell / RAE Systems" /></label>
+                  <label>EXACT MODEL<input id="monitor-unit-model" placeholder="Confirm exact device model" /></label>
+                  <label>SERIAL NUMBER<input id="monitor-unit-serial" placeholder="Optional, must be verified" /></label>
+                  <label>SENSOR PACKAGE<input id="monitor-unit-sensors" placeholder="Verified sensors only" /></label>
+                  <label>INVENTORY STATE<select id="monitor-unit-status"><option value="Available">Available (readiness unverified)</option><option value="Out of Service">Out of Service</option><option value="Unknown">Unknown</option></select></label>
+                </div>
+                <div class="em-monitor-dialog-buttons"><button type="button" id="monitor-unit-cancel" class="monitor-btn-secondary">CANCEL</button><button type="submit" class="monitor-btn-primary">SAVE MONITOR</button></div>
+              </form>
+            </dialog>
             <dialog class="em-monitor-deploy-dialog" id="monitor-deploy-dialog" aria-labelledby="monitor-deploy-title">
               <form id="monitor-deployment-form">
                 <header><h2 id="monitor-deploy-title">DEPLOY MONITOR</h2><p>Record an actual location and assignment. GPS is not assumed.</p></header>
