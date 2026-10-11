@@ -58,9 +58,10 @@
     let changed=false;
     STARTERS.forEach(([family,n,manufacturer])=>{
       const name=n===null?family:family+' '+n;
-      if (inventory.some(v=>(v.deviceName||'').trim().toLowerCase()===name.toLowerCase())) return;
+      const id='emergenz-starter-'+family.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+(n??'rad');
+      if (inventory.some(v=>v.id===id||(v.deviceName||'').trim().toLowerCase()===name.toLowerCase())) return;
       inventory.push({
-        id:'emergenz-starter-'+family.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+(n??'rad'),
+        id,
         deviceName:name, manufacturer, model: family, serialNumber:'', sensorPackage:'',
         assignedUnit:'', primaryUse:'', status:'Available', readinessDataMode:'Unverified',
         sourceSystem:'EMERGENZ Starter Inventory', sourceMode:'Manual Reference',
@@ -81,6 +82,7 @@
   function readingText(r) { return r ? [r.sensor,r.readingValue,r.unit].filter(v=>v!==undefined&&v!=='').join(' ') : 'NO READINGS RECORDED'; }
   function familyOf(item) {
     const n=(item.model||item.deviceName||'').toLowerCase();
+    if(n.includes('multirae lite')) return '';
     if(n.includes('multirae pro')) return 'MultiRAE Pro';
     if(n.includes('multirae')) return 'MultiRAE';
     if(n.includes('arearae')) return 'AreaRAE';
@@ -152,7 +154,9 @@
       const map=h('button','monitor-btn-plain','VIEW ON MAP');map.type='button';
       map.disabled=!pointOf(a);map.title=map.disabled?'Set deployment coordinates to map this unit':'Center this unit on the map';
       map.addEventListener('click',()=>focusMap(item.id));
-      actions.append(entry,assign,map);body.append(actions);card.append(photo,body);host.append(card);
+      const edit=h('button','monitor-btn-plain','EDIT DETAILS');edit.type='button';
+      edit.addEventListener('click',()=>openUnitDialog(item.id));
+      actions.append(entry,assign,map,edit);body.append(actions);card.append(photo,body);host.append(card);
     }
     if(!list.length)host.append(h('div','monitor-list-empty','No monitors match this filter.'));
   }
@@ -180,6 +184,38 @@
     $('monitor-entry-notes').value='';
     $('monitor-manual-form').scrollIntoView({behavior:'smooth',block:'center'});
     $('monitor-entry-value').focus();
+  }
+
+  function openUnitDialog(id='') {
+    const item=inventory.find(m=>m.id===id);
+    $('monitor-unit-title').textContent=item?'EDIT MONITOR — '+item.deviceName:'ADD MONITOR';
+    $('monitor-unit-id').value=item?.id||'';
+    $('monitor-unit-name').value=item?.deviceName||'';
+    $('monitor-unit-manufacturer').value=item?.manufacturer||'';
+    $('monitor-unit-model').value=item?.model||'';
+    $('monitor-unit-serial').value=item?.serialNumber||'';
+    $('monitor-unit-sensors').value=item?.sensorPackage||'';
+    $('monitor-unit-status').value=['Available','Out of Service','Unknown'].includes(item?.status)?item.status:'Available';
+    $('monitor-unit-dialog').showModal();
+    $('monitor-unit-name').focus();
+  }
+  function saveUnit(e) {
+    e.preventDefault();
+    const name=$('monitor-unit-name').value.trim();
+    const id=$('monitor-unit-id').value||uid();
+    if(!name){status('Unit name is required.');return;}
+    if(inventory.some(m=>m.id!==id&&m.deviceName?.trim().toLowerCase()===name.toLowerCase())){
+      status('Another monitor already has that name.');return;
+    }
+    const previous=inventory.find(m=>m.id===id)||{};
+    const item={...previous,id,deviceName:name,manufacturer:$('monitor-unit-manufacturer').value.trim(),
+      model:$('monitor-unit-model').value.trim(),serialNumber:$('monitor-unit-serial').value.trim(),
+      sensorPackage:$('monitor-unit-sensors').value.trim(),status:$('monitor-unit-status').value,
+      sourceSystem:previous.sourceSystem||'Manual EMERGENZ Entry',readinessDataMode:'Unverified',
+      updatedAt:new Date().toISOString()};
+    const next=inventory.some(m=>m.id===id)?inventory.map(m=>m.id===id?item:m):[...inventory,item];
+    if(!save(KEYS.inventory,next))return;
+    inventory=next;$('monitor-unit-dialog').close();refreshAll();status(name+' inventory details saved.');
   }
   function openDeployment(deviceId) {
     const item=inventory.find(m=>m.id===deviceId);
@@ -328,13 +364,9 @@
       });
     });
     $('monitor-search').addEventListener('input',e=>{search=e.target.value.trim().toLowerCase();renderUnits();});
-    $('monitor-add-unit').addEventListener('click',()=>{
-      const name=window.prompt('New monitor name (manufacturer/model can be edited later):');
-      if(!name?.trim())return;
-      if(inventory.some(m=>m.deviceName?.toLowerCase()===name.trim().toLowerCase())){status('That monitor already exists.');return;}
-      inventory.push({id:uid(),deviceName:name.trim(),model:'Model not confirmed',manufacturer:'Not specified',status:'Available',sourceSystem:'Manual EMERGENZ Entry',readinessDataMode:'Unverified'});
-      if(save(KEYS.inventory,inventory))refreshAll();
-    });
+    $('monitor-add-unit').addEventListener('click',()=>openUnitDialog());
+    $('monitor-unit-form').addEventListener('submit',saveUnit);
+    $('monitor-unit-cancel').addEventListener('click',()=>$('monitor-unit-dialog').close());
     $('monitor-entry-sensor').addEventListener('change',updateUnits); updateUnits();
     $('monitor-entry-device').addEventListener('change',e=>{
       const a=activeAssignment(e.target.value); $('monitor-entry-location').value=a?.location||'';
