@@ -15055,9 +15055,11 @@ window.addEventListener('emergenz:focus-monitor-live-map', (event) => {
   liveMapState.activeLayers.monitors = true;
   renderLiveMapMarkers();
   const target = event.detail || {};
-  if (Number.isFinite(Number(target.latitude)) && Number.isFinite(Number(target.longitude))) {
+  if (target.latitude !== null && target.latitude !== undefined && target.longitude !== null && target.longitude !== undefined &&
+      Number.isFinite(Number(target.latitude)) && Number.isFinite(Number(target.longitude))) {
     liveMap.flyTo({ center: [Number(target.longitude), Number(target.latitude)], zoom: 16, essential: true });
   }
+  saveLiveMapState('Field monitoring points enabled.');
 });
 
 function readLatestPlumeOverlay() {
@@ -15406,7 +15408,7 @@ function initializeLiveMap() {
     liveMap.on('moveend', scheduleWildfireRefresh);
   }
   ['icp', 'entry', 'decon', 'staging', 'medical', 'trafficCams'].forEach((layer) => {
-    if (liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
+    if (layer !== 'monitors' && liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
   });
   updateLiveMapPanels();
   restoreLiveMapOverlays();
@@ -15447,7 +15449,7 @@ document.querySelectorAll('[data-live-layer]').forEach((button) => {
     if (!liveMapState) liveMapState = readLiveMapState();
     const layer = button.dataset.liveLayer;
     liveMapState.activeLayers[layer] = !liveMapState.activeLayers[layer];
-    if (liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
+    if (layer !== 'monitors' && liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
     updateLiveMapPanels();
     if (layer === 'weatherRadar') updateLiveRadarOverlay();
     if (layer === 'plume') updateLivePlumeOverlay();
