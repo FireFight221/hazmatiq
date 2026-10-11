@@ -10,6 +10,9 @@ on:
       - "server/public/script.js"
       - "test/monitoring-console-v1.test.ts"
   workflow_dispatch:
+concurrency:
+  group: monitoring-v1-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   monitoring-check:
     runs-on: ubuntu-latest
