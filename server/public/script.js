@@ -15412,6 +15412,22 @@ function initializeLiveMap() {
   });
   updateLiveMapPanels();
   restoreLiveMapOverlays();
+  // Deferred navigation from Monitoring: page transition can precede MapLibre creation.
+  const pendingMonitorFocus = window.HazMatIQ?.pendingMonitorMapFocus;
+  if (pendingMonitorFocus) {
+    delete window.HazMatIQ.pendingMonitorMapFocus;
+    liveMapState.activeLayers.monitors = true;
+    const applyMonitorFocus = () => {
+      renderLiveMapMarkers();
+      const lat = pendingMonitorFocus.latitude, lng = pendingMonitorFocus.longitude;
+      if (lat !== null && lat !== undefined && lng !== null && lng !== undefined
+        && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+        liveMap.flyTo({ center: [Number(lng), Number(lat)], zoom: 16, essential: true });
+      }
+    };
+    if (liveMap?.loaded()) applyMonitorFocus();
+    else liveMap?.once('load', applyMonitorFocus);
+  }
   window.requestAnimationFrame(() => {
     liveMap?.resize();
     logLiveMapDiagnostic();
