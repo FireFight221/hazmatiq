@@ -17,7 +17,7 @@ describe('global navigation and page header contract', () => {
       ['Live Map', 'map'],
       ['COMMAND', 'incident'],
       ['Reports', 'report'],
-      ['Equipment', 'monitor'],
+      ['Monitoring', 'monitor'],
       ['Weather', 'weather'],
       ['Settings', null],
     ] as const) {
