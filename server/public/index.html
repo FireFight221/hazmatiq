@@ -15,13 +15,14 @@
     <link rel="stylesheet" href="guided-response-overrides.css?v=1" />
     <link rel="stylesheet" href="hazard-profile-page.css?v=1" />
     <link rel="stylesheet" href="page-shell.css?v=1" />
-    <link rel="stylesheet" href="plume-overrides.css?v=11&canonical-grid=1" />
+    <link rel="stylesheet" href="plume-overrides.css?v=12&canonical-grid=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=6" />
     <link rel="stylesheet" href="monitoring-console.css?v=3" />
+    <link rel="stylesheet" href="command-header.css?v=1" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar hazmat-command-bar command-header">
+      <header class="topbar hazmat-command-bar command-header" id="application-header">
         <span class="command-header-plume" aria-hidden="true"></span>
         <div class="hazmat-command-identity">
           <div class="brand">
@@ -35,6 +36,9 @@
           <button class="module-btn app-nav-item" type="button" data-view="overview" data-nav-key="dashboard" aria-label="Open EMERGENZ Dashboard" aria-current="page">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg></span><span class="app-nav-label label">Dashboard</span>
           </button>
+          <button class="module-btn app-nav-item" type="button" data-view="incident" data-nav-key="command" aria-label="Open Incident Command">
+            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="8" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3" /><circle cx="12" cy="4" r="1" fill="currentColor" stroke="none" /><circle cx="20" cy="12" r="1" fill="currentColor" stroke="none" /></svg></span><span class="app-nav-label label">COMMAND</span>
+          </button>
           <button class="module-btn app-nav-item" type="button" data-view="lookup" aria-label="Open Hazard ID">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m12 2.8 9.2 9.2-9.2 9.2L2.8 12 12 2.8Z" /><path d="M12 7.3v5.2" /><circle cx="12" cy="16.5" r=".8" fill="currentColor" stroke="none" /></svg></span><span class="app-nav-label label">Hazard ID</span>
           </button>
@@ -44,17 +48,14 @@
           <button class="module-btn app-nav-item" type="button" data-view="map" aria-label="Open Live Map">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 21s6-5.1 6-10.1a6 6 0 1 0-12 0C6 15.9 12 21 12 21Z" /><circle cx="12" cy="10.8" r="2.1" /><path d="M3 10.8h3m12 0h3M12 2.8v2.1M12 16.7v3" /></svg></span><span class="app-nav-label label">Live Map</span>
           </button>
-          <button class="module-btn app-nav-item" type="button" data-view="incident" data-nav-key="command" aria-label="Open Incident Command">
-            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="8" /><path d="M12 2v3m0 14v3M2 12h3m14 0h3" /><circle cx="12" cy="4" r="1" fill="currentColor" stroke="none" /><circle cx="20" cy="12" r="1" fill="currentColor" stroke="none" /></svg></span><span class="app-nav-label label">COMMAND</span>
-          </button>
-          <button class="module-btn app-nav-item" type="button" data-view="report" aria-label="Open Reports">
-            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="4.5" width="14" height="17" rx="2" /><path d="M9 4.5V3h6v1.5M8.5 10h7m-7 4h7m-7 4h4" /></svg></span><span class="app-nav-label label">Reports</span>
-          </button>
           <button class="module-btn app-nav-item app-nav-secondary" type="button" data-view="monitor" aria-label="Open Monitoring">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="3.3" width="18" height="18" rx="3" /><path d="M12 6.5 18 12l-6 5.5L6 12Z" /><path d="M12 6.5V12h6M6 12h6v5.5M8.5 19h7" /></svg></span><span class="app-nav-label label">Monitoring</span>
           </button>
           <button class="module-btn app-nav-item" type="button" data-view="weather" aria-label="Open Weather Intelligence">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 18h10.2a3.8 3.8 0 0 0 .5-7.6A5.9 5.9 0 0 0 6.4 9.2 4.4 4.4 0 0 0 7 18Z" /><path d="M8 21h.01M12 21h.01M16 21h.01" /></svg></span><span class="app-nav-label label">Weather</span>
+          </button>
+          <button class="module-btn app-nav-item" type="button" data-view="report" aria-label="Open Reports">
+            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="4.5" width="14" height="17" rx="2" /><path d="M9 4.5V3h6v1.5M8.5 10h7m-7 4h7m-7 4h4" /></svg></span><span class="app-nav-label label">Reports</span>
           </button>
           <button class="module-btn app-nav-item app-nav-settings" id="app-settings-nav" type="button" data-view="settings" aria-label="Open Settings">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="8" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="10" cy="18" r="2" /></svg></span><span class="app-nav-label label">Settings</span>
@@ -987,13 +988,12 @@
                     </div>
                     <div class="plume-model-field plume-release-height-field">
                       <div class="plume-field-label-row">
-                        <label for="plume-release-height">Release height (ft) <span class="plume-optional-label">Optional</span></label>
+                        <label for="plume-release-height">Height (ft AGL)</label>
                       </div>
-                      <input id="plume-release-height" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Ground-level default" />
-                      <small>Height above ground level.</small>
+                      <input id="plume-release-height" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0 — ground level" title="Release height in feet above ground level; defaults to zero" />
                     </div>
                     <details class="container-profile" aria-label="Editable container planning profile">
-                      <summary>Source / Container Details <small>Advanced / Details</small></summary>
+                      <summary>Container Details</summary>
                       <div class="container-bubble-grid">
                         <label class="container-bubble" for="plume-container-type"><span>Container Type</span><select id="plume-container-type"></select></label>
                         <label class="container-bubble" for="container-model-source"><span>Release Source</span><select id="container-model-source"><option>Auto-select</option><option>Direct release</option><option>Puddle</option><option>Tank</option><option>Gas pipeline</option><option>Liquid flow</option><option>Solid release</option><option>Unknown / verify</option></select></label>
@@ -1018,7 +1018,7 @@
                       <small class="container-profile-footer">Planning defaults only. Verify with SDS, shipping papers, facility inventory, or container markings.</small>
                     </details>
                     <details class="plume-input-review">
-                      <summary>Model Inputs Summary</summary>
+                      <summary>Model Inputs</summary>
                       <dl class="plume-review-list">
                         <div><dt>Chemical</dt><dd id="plume-review-chemical">No Current Data Exists</dd></div>
                         <div><dt>Release Type</dt><dd id="plume-review-release">Continuous release</dd></div>
@@ -1142,11 +1142,11 @@
                     <span>Observed <strong id="plume-weather-glance-time">—</strong></span>
                   </div>
                 </section>
-                <section class="plume-model-section plume-criteria-section" aria-labelledby="plume-criteria-heading">
-                  <header class="plume-model-section-heading">
+                <details class="plume-model-section plume-criteria-section" aria-labelledby="plume-criteria-heading">
+                  <summary class="plume-model-section-heading">
                     <span class="plume-stage-number" aria-hidden="true">3</span>
                     <div><strong id="plume-criteria-heading">Modeling Criteria</strong><small>Endpoint basis and fallback guidance for the current planning run.</small></div>
-                  </header>
+                  </summary>
                   <div class="plume-model-section-grid plume-criteria-grid">
                     <label class="plume-model-field" for="plume-endpoint-duration">
                       <span>Endpoint</span>
@@ -1165,11 +1165,10 @@
                       <input id="plume-erg-period" type="hidden" value="night" />
                     </details>
                   </div>
-                </section>
+                </details>
               </div>
             </form>
 
-            <button class="plume-left-plot-button" id="plume-left-plot-btn" type="submit" form="plume-model-form">Plot Plume</button>
 
             <section class="plume-compact-card plume-endpoint-card" aria-labelledby="plume-endpoint-card-heading" hidden>
               <header><h3 id="plume-endpoint-card-heading">Endpoint / LOC</h3><strong id="plume-endpoint-badge">Missing</strong></header>
@@ -1177,91 +1176,6 @@
               <p id="plume-endpoint-levels">AEGL values appear after source-backed endpoint selection.</p>
               <span id="plume-readiness-cas" hidden>No Current Data Exists</span>
             </section>
-
-              </aside>
-
-              <main class="plume-v2-map-column">
-                <article class="plume-v2-map-card">
-                  <div class="plume-v2-map-controls" role="group" aria-label="Plume map controls">
-                      <form class="plume-map-location-control" id="plume-map-address-form">
-                        <label class="plume-location-field" for="plume-map-address-input">
-                          <span>Plume Location</span>
-                          <input class="plume-location-input" id="plume-map-address-input" type="text" placeholder="Enter address or coordinates" autocomplete="street-address" />
-                        </label>
-                        <div class="plume-location-actions">
-                          <button class="plume-map-button secondary" id="use-plume-incident-location-btn" type="button">Use Incident Address</button>
-                          <button class="plume-map-button secondary" type="submit">Manual Entry</button>
-                        </div>
-                      </form>
-                      <div class="plume-map-layer-controls" role="group" aria-label="Map layers and overlays">
-                        <span class="plume-map-control-label">LAYERS</span>
-                        <button class="plume-layer-button active" type="button" data-plume-layer="zones" aria-pressed="true">Threat Zones</button>
-                        <button class="plume-layer-button active" type="button" data-plume-layer="centerline" aria-pressed="true">Plume</button>
-                        <button class="plume-layer-button" type="button" data-plume-layer="distance" aria-pressed="false">Distance</button>
-                        <button class="plume-layer-button" id="plume-buildings-toggle" type="button" aria-pressed="false" disabled>Buildings</button>
-                      </div>
-                      <div class="plume-map-action-controls" role="group" aria-label="Map actions">
-                        <span class="plume-map-control-label">ACTIONS</span>
-                        <button class="plume-layer-button" id="plume-fit-view-btn" type="button">Fit Plume</button>
-                        <button class="plume-layer-button" id="plume-recenter-map-btn" type="button">Recenter Map</button>
-                        <button class="plume-layer-button" id="plume-reset-view-btn" type="button">Reset View</button>
-                      </div>
-                  </div>
-                  <div class="plume-map-shell plume-v2-map-shell">
-                    <button class="plume-map-maximize-button" id="plume-map-maximize-btn" type="button" aria-label="Maximize map" title="Maximize map">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
-                    </button>
-                    <button class="plume-map-maximize-button plume-map-minimize-button" id="plume-map-minimize-btn" type="button" aria-label="Minimize map" title="Minimize map" hidden>
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" /></svg>
-                    </button>
-                    <div id="plume-gis-map" class="plume-map-frame" role="application" aria-label="Interactive incident plume map"></div>
-                    <div class="plume-map-availability" id="plume-map-availability" role="status" aria-live="polite" hidden></div>
-                    <div class="plume-terrain-status" id="plume-terrain-status">Satellite View</div>
-                    <div class="plume-3d-envelope-status" id="plume-3d-envelope-status" role="status" aria-live="polite" hidden></div>
-                    <details class="plume-3d-model-facts" id="plume-3d-model-facts" hidden>
-                      <summary>3D MODEL FACTS</summary>
-                      <dl>
-                        <div><dt>Model</dt><dd id="plume-3d-fact-version">—</dd></div>
-                        <div><dt>Vapor density</dt><dd id="plume-3d-fact-vapor-density">—</dd></div>
-                        <div><dt>Vapor pressure</dt><dd id="plume-3d-fact-vapor-pressure">—</dd></div>
-                        <div><dt>Specific gravity</dt><dd id="plume-3d-fact-specific-gravity">—</dd></div>
-                        <div><dt>Molecular weight</dt><dd id="plume-3d-fact-molecular-weight">—</dd></div>
-                        <div><dt>Release height</dt><dd id="plume-3d-fact-release-height">—</dd></div>
-                        <div><dt>Release / duration</dt><dd id="plume-3d-fact-release">—</dd></div>
-                        <div><dt>Wind / humidity</dt><dd id="plume-3d-fact-weather">—</dd></div>
-                        <div><dt>Ambient temperature</dt><dd id="plume-3d-fact-temperature">—</dd></div>
-                        <div><dt>Terrain coupling</dt><dd id="plume-3d-fact-terrain">—</dd></div>
-                        <div><dt>Building interaction</dt><dd id="plume-3d-fact-buildings">—</dd></div>
-                        <div><dt>Urban channeling</dt><dd id="plume-3d-fact-channeling">—</dd></div>
-                        <div><dt>3D behavior</dt><dd id="plume-3d-fact-behavior">—</dd></div>
-                        <div><dt>Confidence</dt><dd id="plume-3d-fact-confidence">—</dd></div>
-                      </dl>
-                      <p id="plume-3d-fact-limitations"></p>
-                    </details>
-                    <div class="plume-wind-direction-status" id="plume-wind-direction-status">Missing Wind Direction</div>
-                    <div class="plume-compass-control" id="plume-compass-control" aria-label="Map rotation and tilt controls">
-                      <div class="plume-compass-ring" aria-hidden="true"><span class="plume-compass-north">N</span><span class="plume-compass-arrow" id="plume-compass-arrow"></span></div>
-                      <div class="plume-compass-buttons">
-                        <button class="plume-compass-button zoom-in" type="button" data-plume-camera="zoom-in" aria-label="Zoom map in" title="Zoom In">+</button>
-                        <button class="plume-compass-button zoom-out" type="button" data-plume-camera="zoom-out" aria-label="Zoom map out" title="Zoom Out">−</button>
-                        <button class="plume-compass-button left" type="button" data-plume-camera="rotate-left" aria-label="Rotate map left" title="Rotate Left">↶</button>
-                        <button class="plume-compass-button right" type="button" data-plume-camera="rotate-right" aria-label="Rotate map right" title="Rotate Right">↷</button>
-                        <button class="plume-compass-button tilt-up" type="button" data-plume-camera="tilt-up" aria-label="Tilt map up" title="Tilt Up">＋</button>
-                        <button class="plume-compass-button tilt-down" type="button" data-plume-camera="tilt-down" aria-label="Tilt map down" title="Tilt Down">−</button>
-                        <button class="plume-compass-button reset" type="button" data-plume-camera="reset-north" aria-label="Reset map north" title="Reset North">N</button>
-                      </div>
-                      <output id="plume-bearing-output" aria-live="polite">0°</output>
-                    </div>
-                  </div>
-                  <footer class="plume-map-status-footer">
-                    <span id="plume-map-address-status" role="status" aria-live="polite"></span>
-                    <span id="plume-live-status" role="status" aria-live="polite"></span>
-                    <span id="plume-layers-status" role="status" aria-live="polite"></span>
-                    <span id="plume-input-status" role="status" aria-live="polite"></span>
-                    <span id="plume-map-attribution">© OpenFreeMap · © OpenMapTiles · Imagery © Esri</span>
-                  </footer>
-                </article>
-              </main>
 
               <aside class="plume-v2-intelligence-column" aria-label="Threat intelligence and command actions">
                 <section class="plume-intelligence-card">
@@ -1329,6 +1243,96 @@
                   <button class="plume-command-button" type="button" data-view="map">Open Live Map</button>
                 </section>
               </aside>
+              </aside>
+
+              <main class="plume-v2-map-column">
+                <article class="plume-v2-map-card">
+                  <div class="plume-v2-map-controls" role="group" aria-label="Plume map controls">
+                      <details class="plume-location-popover" id="plume-location-popover">
+                        <summary title="Set plume address or coordinates">Location</summary>
+                      <form class="plume-map-location-control" id="plume-map-address-form">
+                        <label class="plume-location-field" for="plume-map-address-input">
+                          <span>Plume Location</span>
+                          <input class="plume-location-input" id="plume-map-address-input" type="text" placeholder="Enter address or coordinates" autocomplete="street-address" />
+                        </label>
+                        <div class="plume-location-actions">
+                          <button class="plume-map-button secondary" id="use-plume-incident-location-btn" type="button">Use Incident Address</button>
+                          <button class="plume-map-button secondary" type="submit">Manual Entry</button>
+                        </div>
+                      </form>
+                      </details>
+                      <div class="plume-map-layer-controls" role="group" aria-label="Map layers and overlays">
+                        <span class="plume-map-control-label">LAYERS</span>
+                        <button class="plume-layer-button active" type="button" data-plume-layer="zones" aria-pressed="true">Threat Zones</button>
+                        <button class="plume-layer-button active" type="button" data-plume-layer="centerline" aria-pressed="true">Plume</button>
+                        <button class="plume-layer-button" type="button" data-plume-layer="distance" aria-pressed="false">Distance</button>
+                        <button class="plume-layer-button" id="plume-buildings-toggle" type="button" aria-pressed="false" disabled>Buildings</button>
+                      </div>
+                      <div class="plume-map-action-controls" role="group" aria-label="Map actions">
+                        <span class="plume-map-control-label">ACTIONS</span>
+                        <button class="plume-layer-button" id="plume-fit-view-btn" type="button">Fit Plume</button>
+                        <button class="plume-layer-button" id="plume-recenter-map-btn" type="button">Recenter Map</button>
+                        <button class="plume-layer-button" id="plume-reset-view-btn" type="button">Reset View</button>
+                        <button class="plume-layer-button" id="plume-ground-view-btn" type="button" hidden title="View the plume from 1.7 metres above the ground">Ground View</button>
+                      </div>
+                  </div>
+                  <div class="plume-map-shell plume-v2-map-shell">
+                    <button class="plume-map-maximize-button" id="plume-map-maximize-btn" type="button" aria-label="Maximize map" title="Maximize map">
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>
+                    </button>
+                    <button class="plume-map-maximize-button plume-map-minimize-button" id="plume-map-minimize-btn" type="button" aria-label="Minimize map" title="Minimize map" hidden>
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" /></svg>
+                    </button>
+                    <div id="plume-gis-map" class="plume-map-frame" role="application" aria-label="Interactive incident plume map"></div>
+                    <div class="plume-map-availability" id="plume-map-availability" role="status" aria-live="polite" hidden></div>
+                    <div class="plume-terrain-status" id="plume-terrain-status">Satellite View</div>
+                    <div class="plume-3d-envelope-status" id="plume-3d-envelope-status" role="status" aria-live="polite" hidden></div>
+                    <details class="plume-3d-model-facts" id="plume-3d-model-facts" hidden>
+                      <summary>3D MODEL FACTS</summary>
+                      <dl>
+                        <div><dt>Model</dt><dd id="plume-3d-fact-version">—</dd></div>
+                        <div><dt>Vapor density</dt><dd id="plume-3d-fact-vapor-density">—</dd></div>
+                        <div><dt>Vapor pressure</dt><dd id="plume-3d-fact-vapor-pressure">—</dd></div>
+                        <div><dt>Specific gravity</dt><dd id="plume-3d-fact-specific-gravity">—</dd></div>
+                        <div><dt>Molecular weight</dt><dd id="plume-3d-fact-molecular-weight">—</dd></div>
+                        <div><dt>Release height</dt><dd id="plume-3d-fact-release-height">—</dd></div>
+                        <div><dt>Release / duration</dt><dd id="plume-3d-fact-release">—</dd></div>
+                        <div><dt>Wind / humidity</dt><dd id="plume-3d-fact-weather">—</dd></div>
+                        <div><dt>Ambient temperature</dt><dd id="plume-3d-fact-temperature">—</dd></div>
+                        <div><dt>Terrain coupling</dt><dd id="plume-3d-fact-terrain">—</dd></div>
+                        <div><dt>Building interaction</dt><dd id="plume-3d-fact-buildings">—</dd></div>
+                        <div><dt>Urban channeling</dt><dd id="plume-3d-fact-channeling">—</dd></div>
+                        <div><dt>3D behavior</dt><dd id="plume-3d-fact-behavior">—</dd></div>
+                        <div><dt>Confidence</dt><dd id="plume-3d-fact-confidence">—</dd></div>
+                      </dl>
+                      <p id="plume-3d-fact-limitations"></p>
+                    </details>
+                    <div class="plume-wind-direction-status" id="plume-wind-direction-status">Missing Wind Direction</div>
+                    <div class="plume-compass-control" id="plume-compass-control" aria-label="Map rotation and tilt controls">
+                      <div class="plume-compass-ring" aria-hidden="true"><span class="plume-compass-north">N</span><span class="plume-compass-arrow" id="plume-compass-arrow"></span></div>
+                      <div class="plume-compass-buttons">
+                        <button class="plume-compass-button zoom-in" type="button" data-plume-camera="zoom-in" aria-label="Zoom map in" title="Zoom In">+</button>
+                        <button class="plume-compass-button zoom-out" type="button" data-plume-camera="zoom-out" aria-label="Zoom map out" title="Zoom Out">−</button>
+                        <button class="plume-compass-button left" type="button" data-plume-camera="rotate-left" aria-label="Rotate map left" title="Rotate Left">↶</button>
+                        <button class="plume-compass-button right" type="button" data-plume-camera="rotate-right" aria-label="Rotate map right" title="Rotate Right">↷</button>
+                        <button class="plume-compass-button tilt-up" type="button" data-plume-camera="tilt-up" aria-label="Tilt map up" title="Tilt Up">＋</button>
+                        <button class="plume-compass-button tilt-down" type="button" data-plume-camera="tilt-down" aria-label="Tilt map down" title="Tilt Down">−</button>
+                        <button class="plume-compass-button reset" type="button" data-plume-camera="reset-north" aria-label="Reset map north" title="Reset North">N</button>
+                      </div>
+                      <output id="plume-bearing-output" aria-live="polite">0°</output>
+                    </div>
+                  </div>
+                  <footer class="plume-map-status-footer">
+                    <span id="plume-map-address-status" role="status" aria-live="polite"></span>
+                    <span id="plume-live-status" role="status" aria-live="polite"></span>
+                    <span id="plume-layers-status" role="status" aria-live="polite"></span>
+                    <span id="plume-input-status" role="status" aria-live="polite"></span>
+                    <span id="plume-map-attribution">© OpenFreeMap · © OpenMapTiles · Imagery © Esri</span>
+                  </footer>
+                </article>
+              </main>
+
+
             </div>
           </section>
 
@@ -1943,7 +1947,7 @@
     <script src="weather-radar.js"></script>
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
-    <script src="script.js?v=map-consolidation-1"></script>
+    <script src="script.js?v=plume-ground-view-1"></script>
     <script src="weather-workspace.js?v=6"></script>
     <script src="settings-workspace.js?v=1"></script>
     <script src="incident-command.js"></script>

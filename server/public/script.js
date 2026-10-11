@@ -709,6 +709,7 @@ function activatePage(targetId, { preserveHazardState = false, skipPlumeInitiali
   syncCommandBarContext();
   const plumeMapWorkspace = document.querySelector('.plume-v2-workspace');
   if (plumeMapWorkspace) plumeMapWorkspace.hidden = targetId !== 'plume';
+  if (targetId === 'plume') window.requestAnimationFrame(syncPlumeWorkspaceHeight);
   initializeActivePage(targetId, { skipPlumeInitialization, context: activationContext });
   return targetView;
 }
@@ -844,6 +845,7 @@ workspaceDrawerClose?.addEventListener('click', () => closeWorkspaceDrawer());
 workspaceDrawerBackdrop?.addEventListener('click', () => closeWorkspaceDrawer());
 window.addEventListener('resize', () => {
   if (!workspaceDrawer?.hidden) positionHomepageWorkspaceDrawer();
+  if (document.getElementById('plume')?.classList.contains('active')) syncPlumeWorkspaceHeight();
   if (plumeMap) resizePlumeMapAfterLayout();
 });
 workspaceDrawer?.querySelectorAll('[data-view]').forEach((control) => {
@@ -871,6 +873,17 @@ workspaceDrawer?.addEventListener('keydown', (event) => {
 });
 
 // MapLibre needs an explicit resize when the responsive plume workspace changes size.
+function syncPlumeWorkspaceHeight() {
+  const workspace = document.getElementById('plume');
+  if (!workspace?.classList.contains('active') || workspace.classList.contains('plume-map-maximized')) return;
+  const top = Math.max(0, workspace.getBoundingClientRect().top);
+  workspace.style.setProperty('--plume-workspace-top', `${Math.ceil(top)}px`);
+}
+function syncPlumeMapControlsHeight() {
+  const controls = document.querySelector('.plume-v2-map-controls');
+  const card = controls?.closest('.plume-v2-map-card');
+  if (card && controls.offsetHeight) card.style.setProperty('--plume-map-controls-height', `${controls.offsetHeight}px`);
+}
 const plumeWorkspace = document.getElementById('plume');
 if (plumeWorkspace && 'ResizeObserver' in window) {
   new ResizeObserver(() => {
@@ -878,6 +891,10 @@ if (plumeWorkspace && 'ResizeObserver' in window) {
       window.requestAnimationFrame(() => plumeMap?.resize());
     }
   }).observe(plumeWorkspace);
+  new ResizeObserver(() => window.requestAnimationFrame(syncPlumeWorkspaceHeight))
+    .observe(document.querySelector('.command-header'));
+  const controls = document.querySelector('.plume-v2-map-controls');
+  if (controls) new ResizeObserver(syncPlumeMapControlsHeight).observe(controls);
 }
 
 buttons.forEach((button) => {
@@ -8444,7 +8461,7 @@ const plumeFallbackMapStyle = plumeSatelliteMapStyle;
 const plumeMapViews = {
   street: { style: plumeMapStyleUrl, pitch: 0, bearing: 0 },
   satellite: { style: plumeSatelliteMapStyle, pitch: 0, bearing: 0 },
-  plume3d: { style: plumeMapStyleUrl, pitch: 54, bearing: 0, requires3d: true },
+  plume3d: { style: plumeMapStyleUrl, pitch: 82, bearing: 0, requires3d: true },
   terrain3d: { style: plumeMapStyleUrl, pitch: 60, bearing: -20, minZoom: 15, requires3d: true },
 };
 function readStoredPlumeMapView() {
@@ -8499,6 +8516,8 @@ function setPlumeMapMaximized(maximized) {
 }
 
 function updatePlumeMapViewButtons() {
+  const groundButton = document.getElementById('plume-ground-view-btn');
+  if (groundButton) groundButton.hidden = !plumeViewIsPlume();
   document.querySelectorAll('[data-plume-map-view]').forEach((button) => {
     const isActive = button.dataset.plumeMapView === activePlumeMapView;
     button.classList.toggle('active', isActive);
@@ -8535,7 +8554,7 @@ function rotatePlumeMap(delta) {
 
 function zoomPlumeMap(delta) {
   if (!plumeMap?.getZoom || !plumeMap?.easeTo) return;
-  plumeMap.easeTo({ zoom: Math.max(1, Math.min(22, plumeMap.getZoom() + delta)), duration: 250 });
+  plumeMap.easeTo({ zoom: Math.max(1, Math.min(plumeMap.getMaxZoom?.() || 24, plumeMap.getZoom() + delta)), duration: 250 });
 }
 
 function resetPlumeMapNorth() {
@@ -8545,7 +8564,7 @@ function resetPlumeMapNorth() {
 
 function tiltPlumeMap(delta) {
   if (!plumeMap?.getPitch || !plumeMap?.easeTo) return;
-  const pitch = Math.max(0, Math.min(70, plumeMap.getPitch() + delta));
+  const pitch = Math.max(0, Math.min(plumeMap.getMaxPitch?.() || 85, plumeMap.getPitch() + delta));
   plumeMap.easeTo({ pitch, duration: 350 });
 }
 
@@ -8601,6 +8620,7 @@ function setPlumeMapResultVisible(hasResult) {
 
 function resetPlumeMapView() {
   if (!plumeMap?.easeTo) return;
+  if (plumeViewIsPlume() && setPlumeGroundView()) return;
   const view = plumeMapViews[activePlumeMapView] || plumeMapViews.satellite;
   plumeMap.easeTo({
     bearing: view.bearing,
@@ -8615,6 +8635,30 @@ function plume3dCameraBearing() {
   return Number.isFinite(windFrom) ? (windFrom + 180 + 28) % 360 : 28;
 }
 
+// A real eye-height camera, using MapLibre's public camera calculation.
+// Aim at nearby ground so the horizon and the cloud above it remain in view.
+function setPlumeGroundView(duration = 500) {
+  const mesh = currentPlume3dMeshData;
+  if (!plumeViewIsPlume() || !mesh?.origin || !plumeMap?.calculateCameraOptionsFromTo) return false;
+  const sourceSection = mesh.paths.find((path) => path.zoneRank === 3)?.sections[0] || mesh.paths[0]?.sections[0];
+  const sourceWidth = Math.max(2, Number(sourceSection?.footprintWidthM) || 2);
+  const observerLocal = [-15, -sourceWidth - 8];
+  const length = Math.hypot(...observerLocal);
+  const lookDistance = 12;
+  const targetLocal = observerLocal.map((value) => value * (1 - lookDistance / length));
+  const observer = localMetersToLngLat(observerLocal, mesh.origin, mesh.windFromDeg);
+  const target = localMetersToLngLat(targetLocal, mesh.origin, mesh.windFromDeg);
+  const ground = plume3dTerrainElevation(target, Number(sourceSection?.terrainElevationM) || 0);
+  const observerGround = plume3dTerrainElevation(observer, ground);
+  const camera = plumeMap.calculateCameraOptionsFromTo(
+    new window.maplibregl.LngLat(...observer), observerGround + 1.7,
+    new window.maplibregl.LngLat(...target), ground,
+  );
+  plumeMap.easeTo({ ...camera, duration });
+  setText('plume-layers-status', 'Ground View · eye height 1.7 m · estimated plume heights at true scale. Fit Plume returns to the zone overview.');
+  return true;
+}
+
 async function fitPlumeToView() {
   if (!plumeMap) return;
   if (plumeMapReady) await plumeMapReady;
@@ -8626,7 +8670,7 @@ async function fitPlumeToView() {
     plumeMap.fitBounds(bounds, {
       padding: 70,
       maxZoom: 15,
-      pitch: plumeMap.getPitch?.() || 0,
+      pitch: plumeViewIsPlume() ? 60 : (plumeMap.getPitch?.() || 0),
       bearing: plumeMap.getBearing?.() || 0,
       duration: 450,
     });
@@ -9086,6 +9130,8 @@ function ensurePlumeMap(location = null) {
       style: view.style,
       pitch: view.pitch,
       bearing: view.bearing,
+      maxPitch: 85,
+      maxZoom: 24,
       preserveDrawingBuffer: true,
       attributionControl: false,
     });
@@ -9825,7 +9871,10 @@ async function renderThreatZones(geojson, label) {
   }
   const bounds = new window.maplibregl.LngLatBounds();
   forEachCoordinate(currentThreatZoneGeoJson, (coordinate) => bounds.extend(coordinate));
-  if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 500 });
+  if (plumeViewIsPlume()) {
+    updatePlume3dEnvelope();
+    setPlumeGroundView();
+  } else if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 500 });
   setText('plume-overlay-status', label);
   return true;
 }
@@ -9905,10 +9954,18 @@ function addOptionalPlumeGuideLayer(layer) {
   }
 }
 
+function plumeMapUsesRelativeTerrain() {
+  return Number(String(window.maplibregl?.version || '4').split('.')[0]) < 5;
+}
+
 function plume3dTerrainElevation(coordinate, fallback = null) {
   try {
     const sampled = plumeMap?.queryTerrainElevation?.(coordinate, { exaggerated: false });
-    return Number.isFinite(Number(sampled)) ? Number(sampled) : fallback;
+    if (sampled === null || sampled === undefined || !Number.isFinite(Number(sampled))) return fallback;
+    // MapLibre 4 returns elevation relative to its camera target. Convert to
+    // MSL before combining terrain with the model's AGL release/cloud height.
+    const targetElevation = plumeMapUsesRelativeTerrain() ? (plumeMap.getCameraTargetElevation?.() || 0) : 0;
+    return Number(sampled) + targetElevation;
   } catch {
     return fallback;
   }
@@ -10160,6 +10217,7 @@ function getPlume3dDiagnostic() {
     envelopeFeatureCount: currentPlume3dEnvelopeGeoJson?.features?.length || 0,
     meshPathCount: meshData?.paths?.length || 0,
     meshVertexCount: vertexCount,
+    meshDrawCount: plume3dCustomLayer?.drawCount || 0,
     customLayerExists: Boolean(customLayer),
     customLayerVisible: Boolean(plume3dCustomLayer?.visible),
     styleLoaded: Boolean(plumeMap?.isStyleLoaded?.()),
@@ -10195,7 +10253,9 @@ function buildPlume3dMeshVertices(meshData) {
   const maplibre = window.maplibregl;
   if (!maplibre?.MercatorCoordinate || !meshData?.origin) return new Float32Array();
   const vertices = [];
-  const ringPoints = 14;
+  const ringPoints = 24;
+  // Small, origin-relative coordinates avoid Float32 jitter at eye-height zoom.
+  const meshOrigin = maplibre.MercatorCoordinate.fromLngLat([meshData.origin.lon, meshData.origin.lat], 0);
   const addVertex = (branch, theta, color) => {
     const width = Math.max(1.5, Number(branch.footprintWidthM) || 1.5);
     const terrain = Number(branch.terrainElevationM) || 0;
@@ -10211,15 +10271,17 @@ function buildPlume3dMeshVertices(meshData) {
         : terrain + Math.max(Number(branch.baseAGL) || 0, centerline + spread),
     );
     const altitude = Math.max(
-      terrain + 0.5,
+      terrain,
       baseMSL + ((Math.sin(theta) + 1) * 0.5) * (topMSL - baseMSL),
     );
     const coordinate = localMetersToLngLat([
       Number(branch.downwindDistanceM) || 0,
       (Number(branch.centerY) || 0) + Math.cos(theta) * width,
     ], meshData.origin, meshData.windFromDeg);
-    const mercator = maplibre.MercatorCoordinate.fromLngLat(coordinate, Math.max(0, altitude));
-    vertices.push(mercator.x, mercator.y, mercator.z, color[0], color[1], color[2], color[3]);
+    const mercator = maplibre.MercatorCoordinate.fromLngLat(coordinate, altitude);
+    const shade = 0.72 + 0.28 * ((Math.sin(theta) + 1) / 2);
+    vertices.push(mercator.x - meshOrigin.x, mercator.y - meshOrigin.y, mercator.z,
+      color[0] * shade, color[1] * shade, color[2] * shade, color[3]);
   };
   meshData.paths.forEach((path) => {
     const color = plume3dColorForRank(path.zoneRank);
@@ -10256,6 +10318,8 @@ function createPlume3dCustomLayer() {
     visible: false,
     vertexBuffer: null,
     vertexCount: 0,
+    drawCount: 0,
+    origin: null,
     gl: null,
     program: null,
     positionLocation: -1,
@@ -10263,6 +10327,7 @@ function createPlume3dCustomLayer() {
     matrixLocation: null,
     onAdd(map, gl) {
       this.gl = gl;
+      this.map = map;
       const vertexShader = gl.createShader(gl.VERTEX_SHADER);
       gl.shaderSource(vertexShader, `
         attribute vec3 a_pos;
@@ -10308,6 +10373,10 @@ function createPlume3dCustomLayer() {
       const gl = this.gl;
       if (!gl) return;
       const vertices = buildPlume3dMeshVertices(meshData);
+      this.origin = meshData?.origin
+        ? window.maplibregl.MercatorCoordinate.fromLngLat([meshData.origin.lon, meshData.origin.lat], 0)
+        : null;
+      this.drawCount = 0;
       gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
       this.vertexCount = vertices.length / 7;
@@ -10315,15 +10384,28 @@ function createPlume3dCustomLayer() {
     },
     render(gl, args) {
       if (!this.visible || !this.vertexBuffer || !this.vertexCount || !this.program) return;
-      const matrix = args?.defaultProjectionData?.mainMatrix || args?.matrix;
-      if (!matrix) return;
+      // Bundled MapLibre 4.7 passes the matrix directly. Version 5 wraps it.
+      const matrix = args?.defaultProjectionData?.mainMatrix || args?.matrix || (args?.length === 16 ? args : null);
+      if (!matrix || !this.origin) {
+        if (!this.matrixFailureReported) reportPlume3dFailure('The map did not supply a usable 3D camera matrix.');
+        this.matrixFailureReported = true;
+        return;
+      }
+      const terrainOffset = plumeMapUsesRelativeTerrain() && this.map.getTerrain?.()
+        ? -(this.map.getCameraTargetElevation?.() || 0) * this.origin.meterInMercatorCoordinateUnits()
+        : 0;
+      const translated = new Float32Array(matrix);
+      for (let row = 0; row < 4; row += 1) {
+        translated[12 + row] = matrix[row] * this.origin.x + matrix[4 + row] * this.origin.y
+          + matrix[8 + row] * terrainOffset + matrix[12 + row];
+      }
       gl.useProgram(this.program);
       gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
       gl.enableVertexAttribArray(this.positionLocation);
       gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, 28, 0);
       gl.enableVertexAttribArray(this.colorLocation);
       gl.vertexAttribPointer(this.colorLocation, 4, gl.FLOAT, false, 28, 12);
-      gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
+      gl.uniformMatrix4fv(this.matrixLocation, false, translated);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.enable(gl.DEPTH_TEST);
@@ -10331,6 +10413,7 @@ function createPlume3dCustomLayer() {
       gl.disable(gl.CULL_FACE);
       gl.depthMask(false);
       gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
+      this.drawCount += 1;
       gl.depthMask(true);
       gl.disableVertexAttribArray(this.positionLocation);
       gl.disableVertexAttribArray(this.colorLocation);
@@ -10780,7 +10863,9 @@ async function setPlumeMapView(viewName) {
     updatePlume3dEnvelope();
     if (currentThreatZoneGeoJson?.features?.length) {
       plumeMap.once('idle', () => {
-        if (switchToken === plumeMapViewToken && activePlumeMapView === viewName) updatePlume3dEnvelope();
+        if (switchToken === plumeMapViewToken && activePlumeMapView === viewName) {
+          updatePlume3dEnvelope();
+        }
       });
     }
   }
@@ -10793,6 +10878,10 @@ async function setPlumeMapView(viewName) {
     duration: 500,
   };
   if (view.minZoom) camera.zoom = Math.max(plumeMap.getZoom(), view.minZoom);
+  if (plumeViewIsPlume(viewName) && setPlumeGroundView()) {
+    updatePlumeCompass();
+    return;
+  }
   if (!cameraBeforeSwitch && activeZones?.features?.length) {
     const bounds = new window.maplibregl.LngLatBounds();
     forEachCoordinate(activeZones, (coordinate) => bounds.extend(coordinate));
@@ -13658,6 +13747,7 @@ document.getElementById('plume-buildings-toggle')?.addEventListener('click', tog
 document.getElementById('plume-fit-view-btn')?.addEventListener('click', () => void fitPlumeToView());
 document.getElementById('plume-recenter-map-btn')?.addEventListener('click', () => void recenterPlumeOnIncident());
 document.getElementById('plume-reset-view-btn')?.addEventListener('click', resetPlumeMapView);
+document.getElementById('plume-ground-view-btn')?.addEventListener('click', () => setPlumeGroundView());
 document.querySelectorAll('[data-plume-camera]').forEach((button) => {
   button.addEventListener('click', () => {
     const actions = {
