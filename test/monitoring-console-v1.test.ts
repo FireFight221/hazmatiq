@@ -17,7 +17,11 @@ describe('EMERGENZ Monitoring V1', () => {
     expect(html).toContain('id="monitor-manual-form"');
     expect(html).toContain('id="monitor-map-canvas"');
     expect(html).toContain('id="monitor-console-units"');
-    expect(html).toContain('src="monitoring-console.js?v=1"');
+    expect(html).toContain('class="em-monitor-middle"');
+    expect(html).toContain('class="em-monitor-right"');
+    expect(html).toContain('id="monitor-map-style"');
+    expect(html).toContain('id="monitor-location-count"');
+    expect(html).toContain('src="monitoring-console.js?v=2"');
   });
 
   it('seeds precisely 17 starter slots without inventing sensor packages, GPS, or readings', () => {
@@ -61,6 +65,9 @@ describe('EMERGENZ Monitoring V1', () => {
     expect(consoleSource).toContain('manufacturer reference product photograph');
     expect(consoleSource).toContain("if(n.includes('multirae lite')) return ''");
     expect(consoleCss).toContain('em-monitor-scroll');
+    expect(consoleCss).toContain('grid-template-columns:minmax(360px,43fr) minmax(245px,20fr) minmax(370px,37fr)');
+    expect(consoleCss).toContain('em-kpi-alarms');
+    expect(consoleCss).toContain('em-kpi-manual');
     expect(consoleCss).toContain('overflow-y:auto');
     expect(html).toContain('id="monitor-unit-dialog"');
     expect(consoleSource).toContain('function saveUnit(e)');
