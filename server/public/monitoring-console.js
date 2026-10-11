@@ -143,8 +143,8 @@
       const photo=h('div','monitor-unit-photo-wrap');setUnitPhoto(photo,item);
       const body=h('div','monitor-unit-body');
       const head=h('div','monitor-unit-head');head.append(h('h3','',item.deviceName));
-      head.append(h('span','monitor-unit-state '+(a?'is-deployed':item.status==='Out of Service'?'is-oos':'is-available'),
-        a?'DEPLOYED':item.status==='Out of Service'?'OUT OF SERVICE':'AVAILABLE'));
+      head.append(h('span','monitor-unit-state '+(a?(r?'is-manual':'is-deployed'):item.status==='Out of Service'?'is-oos':'is-available'),
+        a?(r?'MANUAL DATA':'DEPLOYED'):item.status==='Out of Service'?'OUT OF SERVICE':'AVAILABLE'));
       body.append(head,h('p','monitor-model-label',[item.manufacturer,item.model].filter(Boolean).join(' • ')));
       const info=h('div','monitor-unit-info');
       [['ASSIGNED TO',a?.team||'Not assigned'],['DEPLOYMENT',a?.role||'Not deployed'],
