@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="page-shell.css?v=1" />
     <link rel="stylesheet" href="plume-overrides.css?v=11&canonical-grid=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=6" />
-    <link rel="stylesheet" href="monitoring-console.css?v=1" />
+    <link rel="stylesheet" href="monitoring-console.css?v=2" />
   </head>
   <body>
     <div class="app-shell">
@@ -51,7 +51,7 @@
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="4.5" width="14" height="17" rx="2" /><path d="M9 4.5V3h6v1.5M8.5 10h7m-7 4h7m-7 4h4" /></svg></span><span class="app-nav-label label">Reports</span>
           </button>
           <button class="module-btn app-nav-item app-nav-secondary" type="button" data-view="monitor" aria-label="Open Monitoring">
-            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="15" rx="2" /><path d="M5 13h3l2-5 3 9 2-4h4" /><path d="M9 22h6" /></svg></span><span class="app-nav-label label">Monitoring</span>
+            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="3.3" width="18" height="18" rx="3" /><path d="M12 6.5 18 12l-6 5.5L6 12Z" /><path d="M12 6.5V12h6M6 12h6v5.5M8.5 19h7" /></svg></span><span class="app-nav-label label">Monitoring</span>
           </button>
           <button class="module-btn app-nav-item" type="button" data-view="weather" aria-label="Open Weather Intelligence">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 18h10.2a3.8 3.8 0 0 0 .5-7.6A5.9 5.9 0 0 0 6.4 9.2 4.4 4.4 0 0 0 7 18Z" /><path d="M8 21h.01M12 21h.01M16 21h.01" /></svg></span><span class="app-nav-label label">Weather</span>
@@ -1482,19 +1482,20 @@
           <section id="monitor" class="view emergenz-monitoring-page" data-page-root="monitoring" data-page-name="Monitoring">
             <header class="em-monitor-header">
               <div class="em-monitor-title">
-                <span class="em-monitor-screen-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><rect x="3" y="5" width="42" height="34" rx="6" stroke="currentColor" stroke-width="3"/><path d="M7 24h8l5-10 6 19 5-9h10" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 44h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span>
+                <span class="em-monitor-screen-icon" aria-hidden="true"><svg viewBox="0 0 56 62" fill="none"><rect x="5" y="4" width="46" height="54" rx="9" fill="#061322" stroke="#ffd045" stroke-width="2.8"/><rect x="10" y="12" width="36" height="31" rx="3" fill="#092a43" stroke="#47b2df" stroke-width="1.6"/><path d="M28 16 41 28 28 40 15 28Z" fill="#ffd137" stroke="#091825" stroke-width="1.4"/><path d="M28 16 41 28H28Z" fill="#ff573f"/><path d="M15 28 28 40V28Z" fill="#3f9fee"/><path d="M28 28 41 28 28 40Z" fill="#121b23"/><circle cx="28" cy="28" r="5" fill="#071724"/><circle cx="28" cy="28" r="1.3" fill="#ffd448"/><circle cx="27" cy="49" r="2" fill="#7dbbd2"/><path d="M20 54h16" stroke="#4a98bb" stroke-width="1.8"/></svg></span>
                 <div><h1>MONITORING</h1><p>Environmental Monitoring • Field Readings • Deployment Intelligence</p></div>
               </div>
-              <div class="em-monitor-head-state"><span class="em-monitor-status-dot"></span> MANUAL OPERATIONS <small>Live instrument feeds not connected</small></div>
+              <div class="em-monitor-head-state"><span class="em-monitor-status-dot"></span> MANUAL MODE <small>No telemetry connection</small></div>
             </header>
             <div class="em-monitor-kpis" aria-label="Monitoring totals">
-              <div><small>TOTAL MONITORS</small><strong id="monitor-total-count">17</strong></div>
-              <div><small>DEPLOYED</small><strong id="monitor-deployed-count">0</strong></div>
-              <div><small>AVAILABLE</small><strong id="monitor-available-count">17</strong></div>
-              <div><small>MANUAL READINGS</small><strong id="monitor-readings-count">0</strong></div>
-              <div><small>REPORTED ALARMS</small><strong id="monitor-alarm-count">0</strong></div>
+              <div class="em-kpi-total"><span class="em-kpi-icon" aria-hidden="true">▣</span><small>TOTAL MONITORS</small><strong id="monitor-total-count">17</strong><em>On file</em></div>
+              <div class="em-kpi-deployed"><span class="em-kpi-icon" aria-hidden="true">◉</span><small>DEPLOYED</small><strong id="monitor-deployed-count">0</strong><em>Manual assignment</em></div>
+              <div class="em-kpi-manual"><span class="em-kpi-icon" aria-hidden="true">✎</span><small>MANUAL READINGS</small><strong id="monitor-readings-count">0</strong><em>Operator-entered</em></div>
+              <div class="em-kpi-available"><span class="em-kpi-icon" aria-hidden="true">▤</span><small>AVAILABLE</small><strong id="monitor-available-count">17</strong><em>Readiness unverified</em></div>
+              <div class="em-kpi-alarms"><span class="em-kpi-icon" aria-hidden="true">!</span><small>REPORTED ALARMS</small><strong id="monitor-alarm-count">0</strong><em>Instrument-indicated only</em></div>
+              <div class="em-kpi-locations"><span class="em-kpi-icon" aria-hidden="true">⌖</span><small>MAP LOCATIONS</small><strong id="monitor-location-count">0</strong><em>Confirmed coordinates</em></div>
             </div>
-            <div class="em-monitor-columns">
+                        <div class="em-monitor-columns">
               <section class="em-monitor-panel em-monitor-unit-panel" aria-label="Monitor Units">
                 <header><h2>MONITOR UNITS</h2><button type="button" id="monitor-add-unit" class="monitor-btn-primary">+ ADD MONITOR</button></header>
                 <div class="em-monitor-search-line"><input id="monitor-search" type="search" aria-label="Search monitors or teams" placeholder="Search monitors, teams or locations..." /></div>
@@ -1508,17 +1509,9 @@
                 <div class="em-monitor-scroll" id="monitor-console-units" tabindex="0" aria-label="Scroll through monitor units"></div>
                 <footer>Listed as available does not confirm calibration or operational readiness. Verify before field deployment.</footer>
               </section>
-              <div class="em-monitor-right">
-                <section id="monitor-map-panel" class="em-monitor-panel em-monitor-map-panel">
-                  <header><h2>MONITORING MAP</h2><div class="em-monitor-map-tools"><span id="monitor-mapped-count">0 LOCATED</span><button type="button" id="monitor-map-recenter" aria-label="Recenter on first deployed unit">RECENTER</button><button type="button" id="monitor-open-live-map">OPEN LIVE MAP ↗</button></div></header>
-                  <div class="em-monitor-map-frame"><div id="monitor-map-canvas" aria-label="Deployed monitor location map"></div>
-                    <div class="em-monitor-map-empty" id="monitor-map-empty">No deployed monitors have map coordinates.<small>Assign a unit and enter its actual deployment position to display a marker. No simulated locations are shown.</small></div>
-                    <div id="monitor-map-selection" class="em-monitor-map-selection" hidden></div>
-                  </div>
-                  <footer>Monitoring pins show documented device positions only. No inferred hot zones, plumes, or ERG boundaries.</footer>
-                </section>
+              <div class="em-monitor-middle" aria-label="Manual monitoring input">
                 <section class="em-monitor-panel em-monitor-entry-panel" id="monitor-manual-entry-panel">
-                  <header><h2>MANUAL READING ENTRY</h2><span>ICP / RADIO REPORTED</span></header>
+                  <header class="em-monitor-entry-head"><h2><span aria-hidden="true">✎</span> MANUAL READING ENTRY</h2><span>ICP / RADIO REPORTED</span></header>
                   <form id="monitor-manual-form">
                     <div class="em-monitor-form-grid">
                       <label>MONITOR<select id="monitor-entry-device" required><option value="">Select monitor</option></select></label>
@@ -1533,6 +1526,17 @@
                     </div>
                     <div class="em-monitor-entry-actions"><small>Saved as a manual observation — never labeled as live telemetry.</small><button type="submit" class="monitor-btn-primary">SAVE READING</button></div>
                   </form>
+                </section>
+                <div class="em-monitor-art-panel" aria-hidden="true"></div>
+              </div>
+              <div class="em-monitor-right">
+                <section id="monitor-map-panel" class="em-monitor-panel em-monitor-map-panel">
+                  <header><h2>MONITORING MAP</h2><div class="em-monitor-map-tools"><select id="monitor-map-style" aria-label="Monitoring basemap"><option value="satellite">Satellite</option><option value="street">Street</option></select><span id="monitor-mapped-count">0 LOCATED</span><button type="button" id="monitor-map-recenter" aria-label="Recenter on first deployed unit">RECENTER</button><button type="button" id="monitor-open-live-map">OPEN LIVE MAP ↗</button></div></header>
+                  <div class="em-monitor-map-frame"><div id="monitor-map-canvas" aria-label="Deployed monitor location map"></div>
+                    <div class="em-monitor-map-empty" id="monitor-map-empty">No deployed monitors have map coordinates.<small>Assign a unit and enter its actual deployment position to display a marker. No simulated locations are shown.</small></div>
+                    <div id="monitor-map-selection" class="em-monitor-map-selection" hidden></div>
+                  </div>
+                  <footer>Monitoring pins show documented device positions only. No inferred hot zones, plumes, or ERG boundaries.</footer>
                 </section>
                 <section class="em-monitor-panel em-monitor-readings-panel">
                   <header><h2>RECENT READINGS</h2><span>Recorded field observations</span></header>
@@ -1948,7 +1952,7 @@
     <script src="chem-compare.js?v=chemcompare-4"></script>
     <script src="monitor-inventory.js"></script>
     <script src="equipment.js"></script>
-    <script src="monitoring-console.js?v=1"></script>
+    <script src="monitoring-console.js?v=2"></script>
     <script src="sources.js"></script>
   </body>
 </html>
