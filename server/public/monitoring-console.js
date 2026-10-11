@@ -116,12 +116,12 @@
   function renderCounts() {
     const total=inventory.length;
     const deployed=inventory.filter(v=>activeAssignment(v.id)).length;
-    const oos=inventory.filter(v=>v.status==='Out of Service').length;
+    const available=inventory.filter(v=>!activeAssignment(v.id) && v.status!=='Out of Service').length;
     // Current alarms are derived from the most recent observation per deployed unit,
     // never accumulated from historical alarm readings.
     const activeAlarms=assignments.filter(a=>latestReading(a)?.alarmState==='Alarm').length;
     const mapped=mappedMonitors().length;
-    const items={ 'monitor-total-count':total,'monitor-deployed-count':deployed,'monitor-available-count':total-deployed-oos,
+    const items={ 'monitor-total-count':total,'monitor-deployed-count':deployed,'monitor-available-count':available,
       'monitor-readings-count':readings.filter(r=>r.dataMode==='Manual'||!r.dataMode).length,
       'monitor-alarm-count':activeAlarms,'monitor-location-count':mapped};
     Object.entries(items).forEach(([id,n])=>{ if($(id)) $(id).textContent=String(Math.max(0,n)); });
@@ -280,6 +280,16 @@
     e.preventDefault();
     const id=$('monitor-entry-device').value,a=activeAssignment(id);
     if(!a){status('Assign a deployment to this monitor before recording an incident reading. Select DEPLOY UNIT in the monitor list.');return;}
+    const model=familyOf(inventory.find(v=>v.id===id)||{});
+    const sensor=$('monitor-entry-sensor').value;
+    const radiationDevice=model==='Ludlum RAD'||model==='RadEye';
+    const radiationSensor=sensor==='Gamma Dose Rate'||sensor==='Radiation Counts';
+    if(radiationDevice && !radiationSensor && sensor!=='Other'){
+      status('Verify the device: a radiation survey meter does not report this gas-sensor parameter.');return;
+    }
+    if(!radiationDevice && radiationSensor){
+      status('Select a radiological instrument for a radiation measurement.');return;
+    }
     const raw=$('monitor-entry-value').value.trim(), v=Number(raw);
     if(raw===''||!Number.isFinite(v)){status('Enter a valid numeric observation.');return;}
     const time=$('monitor-entry-time').value;
