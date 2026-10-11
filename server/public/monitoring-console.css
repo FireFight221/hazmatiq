@@ -402,3 +402,31 @@
  #monitor .em-monitor-kpis .em-kpi-icon{width:35px;height:35px;font-size:1.3rem;}
  #monitor .em-monitor-unit-info{grid-template-columns:1fr 1fr;}
 }
+
+
+/* Neutral satellite context stays visible with zero deployed monitoring points.
+   This overlay never indicates a real sensor, plume, or incident location. */
+#monitor .em-monitor-map-empty:not([hidden]) {
+  inset:auto 12px 12px 12px;
+  width:min(450px,calc(100% - 24px));
+  min-height:0;
+  max-height:none;
+  z-index:4;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+  text-align:left;
+  padding:12px 15px;
+  background:rgba(3,18,32,.92);
+  border:1px solid #3984af;
+  border-left:3px solid #ffd237;
+  border-radius:5px;
+  box-shadow:0 3px 19px rgba(0,0,0,.4);
+  color:#fff;
+  font-size:.8rem;
+  pointer-events:none;
+}
+#monitor .em-monitor-map-empty:not([hidden]) small {
+  text-align:left;margin-top:4px;font-size:.68rem;color:#d6e9f7;
+}
