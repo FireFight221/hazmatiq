@@ -108,15 +108,22 @@
     window.dispatchEvent(new CustomEvent('emergenz:monitoring-updated'));
   }
   function refreshAll() {
-    seed(); renderCounts(); renderUnits(); renderReadings(); renderMapMarkers(); renderReadingOptions();emit();
+    const selection=$('monitor-entry-device')?.value||'';
+    seed(); renderCounts(); renderUnits(); renderReadings(); renderReadingOptions();
+    if(selection && inventory.some(m=>m.id===selection))$('monitor-entry-device').value=selection;
+    renderMapMarkers();emit();
   }
   function renderCounts() {
     const total=inventory.length;
     const deployed=inventory.filter(v=>activeAssignment(v.id)).length;
     const oos=inventory.filter(v=>v.status==='Out of Service').length;
-    const activeAlarms=readings.filter(r=>r.alarmState==='Alarm' && activeAssignment(r.monitorId)).length;
+    // Current alarms are derived from the most recent observation per deployed unit,
+    // never accumulated from historical alarm readings.
+    const activeAlarms=assignments.filter(a=>latestReading(a)?.alarmState==='Alarm').length;
+    const mapped=mappedMonitors().length;
     const items={ 'monitor-total-count':total,'monitor-deployed-count':deployed,'monitor-available-count':total-deployed-oos,
-      'monitor-readings-count':readings.length,'monitor-alarm-count':activeAlarms};
+      'monitor-readings-count':readings.filter(r=>r.dataMode==='Manual'||!r.dataMode).length,
+      'monitor-alarm-count':activeAlarms,'monitor-location-count':mapped};
     Object.entries(items).forEach(([id,n])=>{ if($(id)) $(id).textContent=String(Math.max(0,n)); });
   }
   function renderUnits() {
@@ -152,7 +159,7 @@
       const assign=h('button','monitor-btn-secondary',a?'EDIT DEPLOYMENT':'DEPLOY UNIT');assign.type='button';
       assign.addEventListener('click',()=>openDeployment(item.id));
       const map=h('button','monitor-btn-plain','VIEW ON MAP');map.type='button';
-      map.disabled=!pointOf(a);map.title=map.disabled?'Set deployment coordinates to map this unit':'Center this unit on the map';
+      map.disabled=!pointOf(a);map.title=map.disabled?'Enter actual deployment coordinates to map this unit':'Center this unit on the map';
       map.addEventListener('click',()=>focusMap(item.id));
       const edit=h('button','monitor-btn-plain','EDIT DETAILS');edit.type='button';
       edit.addEventListener('click',()=>openUnitDialog(item.id));
@@ -272,7 +279,7 @@
   function saveReading(e) {
     e.preventDefault();
     const id=$('monitor-entry-device').value,a=activeAssignment(id);
-    if(!a){status('Deploy the selected monitor before entering readings.');return;}
+    if(!a){status('Assign a deployment to this monitor before recording an incident reading. Select DEPLOY UNIT in the monitor list.');return;}
     const raw=$('monitor-entry-value').value.trim(), v=Number(raw);
     if(raw===''||!Number.isFinite(v)){status('Enter a valid numeric observation.');return;}
     const time=$('monitor-entry-time').value;
@@ -310,7 +317,9 @@
   window.getHazMatIQMonitorMarkers=mappedMonitors;
   function ensureMap() {
     const rows=mappedMonitors();
-    if(!rows.length){$('monitor-map-empty').hidden=false;return;}
+    if(!rows.length){$('monitor-map-empty').hidden=false;
+      if($('monitor-mapped-count'))$('monitor-mapped-count').textContent='0 LOCATED';
+      return;}
     $('monitor-map-empty').hidden=true;
     if(!window.maplibregl){status('MapLibre unavailable. Monitor data remains saved.');return;}
     if(maps.instance)return;
@@ -333,6 +342,7 @@
     maps.markers.forEach(m=>m.remove());maps.markers=[];
     rows.forEach(p=>{
       const node=h('button','monitor-map-pin',p.alarmState==='Alarm'?'!':'M');
+      if(p.alarmState==='Alarm')node.classList.add('monitor-map-pin-alert');
       node.type='button';node.title=p.deviceName+' • '+p.latestReadingSummary;
       node.addEventListener('click',()=>focusMap(p.monitorId,false));
       const marker=new maplibregl.Marker({element:node}).setLngLat([p.longitude,p.latitude]).addTo(maps.instance);
@@ -378,12 +388,22 @@
     $('monitor-map-recenter').addEventListener('click',()=>{
       const rows=mappedMonitors();if(rows.length)focusMap(rows[0].monitorId,false);
     });
+    $('monitor-map-style')?.addEventListener('change',e=>{
+      if (!maps.instance) return;
+      const satellite={version:8,sources:{satellite:{type:'raster',tiles:[
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      ],tileSize:256,maxzoom:19}},layers:[{id:'satellite',type:'raster',source:'satellite'}]};
+      maps.instance.setStyle(e.target.value==='street'
+        ? 'https://tiles.openfreemap.org/styles/liberty'
+        : satellite);
+    });
     $('monitor-open-live-map').addEventListener('click',()=>{
       const rows=mappedMonitors();
+      const target=rows.length?{latitude:rows[0].latitude,longitude:rows[0].longitude}:{};
+      window.HazMatIQ ||= {};
+      window.HazMatIQ.pendingMonitorMapFocus=target;
       document.querySelector('.app-primary-nav [data-view="map"]')?.click();
-      window.dispatchEvent(new CustomEvent('emergenz:focus-monitor-live-map',{
-        detail: rows.length ? {latitude:rows[0].latitude,longitude:rows[0].longitude} : {}
-      }));
+      window.dispatchEvent(new CustomEvent('emergenz:focus-monitor-live-map',{detail:target}));
       if(!rows.length)status('Live Map opened. No field monitors have documented coordinates yet.');
     });
     window.addEventListener('storage',(e)=>{if(Object.values(KEYS).includes(e.key)){refreshAll();}});
