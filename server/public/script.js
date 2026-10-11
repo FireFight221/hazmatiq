@@ -15014,7 +15014,51 @@ function renderLiveMapMarkers() {
     });
     liveMapMarkers.push(mapMarker);
   });
+  // Monitoring V1 canonical deployment pins. Do not create synthetic locations.
+  if (liveMapState.activeLayers.monitors && typeof window.getHazMatIQMonitorMarkers === 'function') {
+    window.getHazMatIQMonitorMarkers().forEach((monitor) => {
+      const lat = Number(monitor.latitude);
+      const lng = Number(monitor.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+      const element = document.createElement('button');
+      element.type = 'button';
+      element.className = 'live-map-marker emergenz-monitoring-marker';
+      element.dataset.layer = 'monitors';
+      element.textContent = monitor.alarmState === 'Alarm' ? '!' : 'M';
+      element.title = monitor.deviceName + ' — ' + monitor.latestReadingSummary;
+      element.addEventListener('click', () => {
+        const panel = document.getElementById('live-map-selected');
+        if (!panel) return;
+        panel.replaceChildren();
+        const title = document.createElement('strong');
+        title.textContent = monitor.deviceName;
+        const details = document.createElement('span');
+        details.textContent = [monitor.team, monitor.assignmentRole, monitor.deploymentLocation,
+          monitor.latestReadingSummary, monitor.dataMode, monitor.observedAt ? new Date(monitor.observedAt).toLocaleString() : 'No observation']
+          .filter(Boolean).join(' · ');
+        panel.append(title, details);
+        panel.hidden = false;
+      });
+      const pin = new window.maplibregl.Marker({ element, draggable: false })
+        .setLngLat([lng, lat]).addTo(liveMap);
+      liveMapMarkers.push(pin);
+    });
+  }
 }
+
+// Receive field monitoring updates without creating duplicate marker sets.
+window.addEventListener('emergenz:monitoring-updated', () => {
+  if (typeof liveMap !== 'undefined' && liveMap) renderLiveMapMarkers();
+});
+window.addEventListener('emergenz:focus-monitor-live-map', (event) => {
+  if (!liveMap || !liveMapState) return;
+  liveMapState.activeLayers.monitors = true;
+  renderLiveMapMarkers();
+  const target = event.detail || {};
+  if (Number.isFinite(Number(target.latitude)) && Number.isFinite(Number(target.longitude))) {
+    liveMap.flyTo({ center: [Number(target.longitude), Number(target.latitude)], zoom: 16, essential: true });
+  }
+});
 
 function readLatestPlumeOverlay() {
   const activeIncident = getActiveIncident();
@@ -15361,7 +15405,7 @@ function initializeLiveMap() {
     liveMap.__wildfireMoveBound = true;
     liveMap.on('moveend', scheduleWildfireRefresh);
   }
-  ['icp', 'entry', 'decon', 'monitors', 'staging', 'medical', 'trafficCams'].forEach((layer) => {
+  ['icp', 'entry', 'decon', 'staging', 'medical', 'trafficCams'].forEach((layer) => {
     if (liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
   });
   updateLiveMapPanels();
