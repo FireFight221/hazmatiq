@@ -1616,10 +1616,27 @@ function persistCanonicalIncidentChemicalSelection(chemical, profileRecord = nul
   const invalidated = identityChanged
     ? invalidateIncidentChemicalOutputs(incidents[index], previousIdentity, changedAt)
     : {};
+  const involvedChemicals = Array.isArray(incidents[index].involvedChemicals)
+    ? [...incidents[index].involvedChemicals]
+    : [];
+  const selectedChemical = {
+    chemicalId: String(fields.selectedChemicalId),
+    chemicalCompanionId: fields.chemicalCompanionId,
+    chemicalName: fields.chemicalName,
+    cas: fields.casNumber,
+    un: fields.unNumber,
+    ergGuide: fields.ergGuide,
+    source: 'Chemical / Hazard ID selection',
+    identifiedAt: changedAt,
+  };
+  if (!isAlreadyIncidentChemical(selectedChemical, { ...incidents[index], involvedChemicals })) {
+    involvedChemicals.push(selectedChemical);
+  }
   incidents[index] = {
     ...incidents[index],
     ...invalidated,
     ...fields,
+    involvedChemicals,
     sourceStatuses: {
       ...(incidents[index].sourceStatuses || {}),
       ...invalidated.sourceStatuses,
@@ -6662,18 +6679,33 @@ function renderHazardLaneResults(lane, results) {
     return;
   }
   results.forEach((result) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'hazard-search-result-card';
     const aliases = [...(result.aliases || []), ...(result.agentCodes || [])].filter((value, index, values) => values.indexOf(value) === index);
-    const resultName = [result.displayName, result.scientificName].filter(Boolean).join(' / ');
-    button.innerHTML = `<strong>${resultName}</strong><span>${config.label} — ${result.category}</span><small>${aliases.length ? `Aliases: ${aliases.join(' · ')} · ` : ''}Status: ${result.verificationStatus}</small>`;
-    button.addEventListener('click', () => {
-      if (chemicalSearchInput) chemicalSearchInput.value = result.displayName;
-      clearChemicalSuggestions();
-      void (window.HazMatIQ.openHazardProfile?.(result) || openStarterHazard(result));
-    });
-    container.append(button);
+    const sourceSummary = [
+      `Lane: ${config.label}`,
+      result.scientificName && `Scientific name: ${result.scientificName}`,
+      result.category && `Category: ${result.category}`,
+      aliases.length && `Aliases / agent codes: ${aliases.join(' · ')}`,
+      result.verificationStatus && `Review status: ${result.verificationStatus}`,
+      ...(result.sourceSummary || []),
+    ].filter(Boolean).join(' · ');
+    container.append(createSuggestion(
+      'Hazard',
+      result.displayName,
+      '',
+      () => {
+        if (chemicalSearchInput) chemicalSearchInput.value = result.displayName;
+        clearChemicalSuggestions();
+        void (window.HazMatIQ.openHazardProfile?.(result) || openStarterHazard(result));
+      },
+      {
+        identifiers: chemicalSearchResultBadges({
+          cas: result.cas,
+          un: result.unNaNumbers,
+          ergGuide: result.ergGuide || result.erg,
+        }),
+        provenance: sourceSummary || 'Source and review details unavailable.',
+      },
+    ));
   });
   container.hidden = false;
   chemicalSearchInput?.setAttribute('aria-expanded', 'true');
@@ -7122,7 +7154,9 @@ function renderIncidentGuidance() {
 }
 
 function renderIncidentCommandSnapshot() {
-  const chemicalContext = getIncidentChemicalContext(getActiveIncident());
+  const activeIncident = getActiveIncident();
+  renderIncidentInvolvedChemicals(activeIncident);
+  const chemicalContext = getIncidentChemicalContext(activeIncident);
   const commandChemical = chemicalContext.chemical;
   const chemicalLoaded = Boolean(commandChemical?.name || activeChemical);
   if (!chemicalLoaded) {
@@ -7197,11 +7231,9 @@ document.addEventListener('hazmatiq:ppe-selection', (event) => updateIncidentPpe
 function syncPlumeChemicalSelection() {
   const plumeChemicalInput = document.getElementById('plume-chemical-input');
   const plotButton = document.getElementById('plot-plume-btn');
-  const leftPlotButton = document.getElementById('plume-left-plot-btn');
   const chemical = getIncidentChemicalContext(getActiveIncident()).chemical;
   if (plumeChemicalInput) plumeChemicalInput.value = chemical?.name || 'No identified chemical';
   if (plotButton) plotButton.disabled = false;
-  if (leftPlotButton && !activePlumeCommand) leftPlotButton.textContent = 'Plot Plume';
   setText('plume-input-status', '');
   updatePlumeInputSummaries();
 }
@@ -7545,15 +7577,39 @@ function chemicalSearchDetail(chemical) {
   ].filter(Boolean).join(' · ') || 'No Current Data Exists';
 }
 
-function chemicalSearchIdentifiers(chemical) {
-  if (Array.isArray(chemical.linkedIdentifiers) && chemical.linkedIdentifiers.length) return chemical.linkedIdentifiers;
-  const un = parseJsonField(chemical.un, [])?.[0];
-  const cas = parseJsonField(chemical.cas, [])?.[0];
+function chemicalSearchProvenance(chemical) {
   return [
-    cas && { type: 'CAS', label: `CAS ${cas}` },
-    un && { type: isUnreviewedTransportationRecord(chemical) ? 'Transport' : 'UN/NA', label: `UN ${un}` },
-    chemical.ergGuide && { type: 'ERG', label: `ERG ${chemical.ergGuide}` },
-  ].filter(Boolean);
+    chemicalSearchDetail(chemical),
+    ...(chemical.sourceBadges || []),
+    ...(chemical.sourceLinks || []).map((source) => source.sourceName || source.source || ''),
+  ].filter(Boolean).join(' · ');
+}
+
+function reportedIdentifierValue(value) {
+  if (value === null || value === undefined) return '';
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = value;
+    }
+  }
+  if (Array.isArray(parsed)) return parsed.map(reportedIdentifierValue).find(Boolean) || '';
+  const text = String(parsed ?? '').trim();
+  return /^(?:N\/?A|Not available|No Current Data Exists)$/i.test(text) ? '' : text;
+}
+
+function chemicalSearchResultBadges(chemical) {
+  const identifiers = [
+    ['CAS', reportedIdentifierValue(chemical.cas ?? chemical.CasNumber)],
+    ['UN', reportedIdentifierValue(chemical.un ?? chemical.UnnaNumber)],
+    ['ERG', reportedIdentifierValue(chemical.ergGuide ?? chemical.erg ?? chemical.ErgNumber)],
+  ];
+  return identifiers.map(([type, value]) => ({
+    type,
+    label: `${type} ${value || 'Unavailable'}`,
+  }));
 }
 
 async function openChemicalById(chemicalId, facilityName = '') {
@@ -7916,51 +7972,19 @@ async function openFacility(facilityId) {
   window.clearTimeout(chemicalSearchTimer);
   clearChemicalSuggestions();
   setChemicalSearchStatus('Loading facility submission…', 'loading');
-  const facility = await fetchJson(`/api/facilities/${encodeURIComponent(facilityId)}`);
-  if (!facility || facility.error) {
+  try {
+    const facility = await fetchJson(`/api/facilities/${encodeURIComponent(facilityId)}`);
+    if (!facility || facility.error) throw new Error('Facility information could not be loaded.');
+    persistCommandFacilitySelection(facility);
+    showFacilityInventoryDialog(facility, chemicalSearchInput);
+    setChemicalSearchStatus(`Facility selected: ${facility.name}.`, 'success');
+  } catch (error) {
     setChemicalSearchStatus('Facility information could not be loaded.', 'error');
-    return;
+    console.error('[facility-inventory] facility detail retrieval failed', error);
   }
-
-  document.getElementById('facility-name').textContent = facility.name;
-  document.getElementById('facility-address').textContent = facility.address;
-  document.getElementById('facility-source').textContent = `${facility.source || 'Tier II'} submission`;
-
-  const list = document.getElementById('facility-chemical-list');
-  list.replaceChildren();
-  const chemicalRecords = await Promise.all(
-    facility.chemicals.map((item) => fetchJson(`/api/chemicals/${encodeURIComponent(item.chemicalId)}`)),
-  );
-  facility.chemicals.forEach((item, index) => {
-    const chemical = chemicalRecords[index];
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'facility-chemical-btn';
-    const name = document.createElement('strong');
-    name.textContent = chemical?.name || item.chemicalId.replaceAll('-', ' ');
-    const detail = document.createElement('span');
-    detail.textContent = `${Number(item.maxDailyAmountValue).toLocaleString()} ${item.maxDailyAmountUnit} · ${item.container || 'Container not reported'} · Reported ${item.lastReportedYear}`;
-    button.append(name, detail);
-    button.addEventListener('click', () => chemical && !chemical.error
-      ? openChemical(chemical, facility.name)
-      : openChemicalById(item.chemicalId, facility.name));
-    list.append(button);
-  });
-
-  if (!facility.chemicals.length) {
-    const empty = document.createElement('p');
-    empty.className = 'muted';
-    empty.textContent = 'No chemical inventory was included in this facility submission.';
-    list.append(empty);
-  }
-
-  if (facilityInventory) facilityInventory.hidden = false;
-  setHazardProfileMode('empty');
-  setChemicalSearchStatus(`${facility.chemicals.length} reported chemical${facility.chemicals.length === 1 ? '' : 's'} found for ${facility.name}.`, 'success');
-  facilityInventory?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function createSuggestion(kind, title, detail, onSelect, { identifiers = [], warning = '' } = {}) {
+function createSuggestion(kind, title, detail, onSelect, { identifiers = [], warning = '', provenance = '' } = {}) {
   const option = document.createElement('div');
   const isFacilitySuggestion = kind === 'Facility';
   option.className = `chemical-suggestion${isFacilitySuggestion ? ' is-facility-suggestion' : ' is-chemical-suggestion is-canonical-chemical-suggestion'}`;
@@ -7969,16 +7993,13 @@ function createSuggestion(kind, title, detail, onSelect, { identifiers = [], war
   button.type = 'button';
   button.className = 'chemical-suggestion-select';
 
-  const type = document.createElement('span');
-  type.className = 'chemical-suggestion-type';
-  type.textContent = kind;
   const text = document.createElement('span');
   const heading = document.createElement('strong');
   heading.textContent = title;
   const subtext = document.createElement('small');
-  const unIdentifier = identifiers.find((identifier) => /^(?:UN|NA|Transport)/i.test(String(identifier?.type || '')));
-  subtext.textContent = isFacilitySuggestion ? (unIdentifier?.label || detail) : detail;
-  text.append(heading, subtext);
+  subtext.textContent = detail;
+  text.append(heading);
+  if (isFacilitySuggestion && detail) text.append(subtext);
   if (identifiers.length) {
     const renderChips = (items) => {
       const chips = document.createElement('span');
@@ -7992,16 +8013,7 @@ function createSuggestion(kind, title, detail, onSelect, { identifiers = [], war
       });
       return chips;
     };
-    if (identifiers.length > 5) {
-      text.append(renderChips(identifiers.slice(0, 3)));
-      const linkedDetails = document.createElement('details');
-      linkedDetails.className = 'chemical-linked-identifiers';
-      const linkedSummary = document.createElement('summary');
-      linkedSummary.textContent = 'View linked identifiers';
-      linkedDetails.append(linkedSummary, renderChips(identifiers.slice(3)));
-      linkedDetails.addEventListener('click', (event) => event.stopPropagation());
-      option.append(linkedDetails);
-    } else text.append(renderChips(identifiers));
+    text.append(renderChips(identifiers));
   }
   if (warning) {
     const warningText = document.createElement('small');
@@ -8009,9 +8021,26 @@ function createSuggestion(kind, title, detail, onSelect, { identifiers = [], war
     warningText.textContent = warning;
     text.append(warningText);
   }
-  button.append(type, text);
+  if (!isFacilitySuggestion && /Transportation Identifier/i.test(kind)) {
+    const type = document.createElement('span');
+    type.className = 'chemical-suggestion-type';
+    type.textContent = kind;
+    button.append(type);
+  }
+  button.append(text);
   button.addEventListener('click', onSelect);
   option.prepend(button);
+  if (!isFacilitySuggestion && provenance) {
+    const sourceDetails = document.createElement('details');
+    sourceDetails.className = 'chemical-suggestion-provenance';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Source / match details';
+    const detailsText = document.createElement('p');
+    detailsText.textContent = provenance;
+    sourceDetails.append(summary, detailsText);
+    sourceDetails.addEventListener('click', (event) => event.stopPropagation());
+    option.append(sourceDetails);
+  }
   return option;
 }
 
@@ -8054,9 +8083,9 @@ async function searchChemicalId(value, { submit = false } = {}) {
   chemicalSearchSuggestions.replaceChildren();
   chemicals.slice(0, 5).forEach((chemical) => {
     chemicalSearchSuggestions.append(createSuggestion(
-      chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical Companion Master'),
+      chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
       chemical.name,
-      chemicalSearchDetail(chemical),
+      '',
       () => {
         if (chemicalSearchInput) chemicalSearchInput.value = chemical.name;
         if (facilityInventory) facilityInventory.hidden = true;
@@ -8067,8 +8096,9 @@ async function searchChemicalId(value, { submit = false } = {}) {
         } else void (window.HazMatIQ.openHazardProfile?.(chemical) || openChemical(chemical));
       },
       {
-        identifiers: chemicalSearchIdentifiers(chemical),
+        identifiers: chemicalSearchResultBadges(chemical),
         warning: isUnreviewedTransportationRecord(chemical) ? chemical.reviewWarning : '',
+        provenance: chemicalSearchProvenance(chemical),
       },
     ));
   });
@@ -8201,13 +8231,14 @@ async function searchIncidentProducts(value) {
   incidentProductSuggestions.replaceChildren();
   (data?.chemicals || []).map(companionChemicalForUi).slice(0, 8).forEach((chemical) => {
     incidentProductSuggestions.append(createSuggestion(
-      chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical Companion Master'),
+      chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
       chemical.name,
-      chemicalSearchDetail(chemical),
+      '',
       () => void selectIncidentProduct(chemical),
       {
-        identifiers: chemicalSearchIdentifiers(chemical),
+        identifiers: chemicalSearchResultBadges(chemical),
         warning: isUnreviewedTransportationRecord(chemical) ? chemical.reviewWarning : '',
+        provenance: chemicalSearchProvenance(chemical),
       },
     ));
   });
@@ -8275,13 +8306,14 @@ async function searchPlumeChemicals(value) {
   plumeChemicalSuggestions.replaceChildren();
   (data?.chemicals || []).map(companionChemicalForUi).slice(0, 8).forEach((chemical) => {
     plumeChemicalSuggestions.append(createSuggestion(
-      chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical Companion Master'),
+      chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
       chemical.name,
-      chemicalSearchDetail(chemical),
+      '',
       () => void selectPlumeChemical(chemical),
       {
-        identifiers: chemicalSearchIdentifiers(chemical),
+        identifiers: chemicalSearchResultBadges(chemical),
         warning: isUnreviewedTransportationRecord(chemical) ? chemical.reviewWarning : '',
+        provenance: chemicalSearchProvenance(chemical),
       },
     ));
   });
@@ -12772,7 +12804,6 @@ function saveLatestPlumeOverlay({ location, releaseType, windSpeed, windDirectio
 
 async function plotPlumeFromControls(locationOverride = null) {
   const plotButton = document.getElementById('plot-plume-btn');
-  const leftPlotButton = document.getElementById('plume-left-plot-btn');
   const plottingIncidentId = getActiveIncident()?.incidentId || null;
   const plotChemicalContext = getIncidentChemicalContext(getActiveIncident());
   const plotChemical = plotChemicalContext.chemical;
@@ -12902,7 +12933,6 @@ async function plotPlumeFromControls(locationOverride = null) {
       updatePlumeCommandPanel(modeled.result);
       setPlumeMapResultVisible(true);
       updatePlumeModeLabel();
-      if (leftPlotButton) leftPlotButton.textContent = 'Recalculate Plume';
       setText('plume-live-status', `ERG protective-action overlay displayed ${formatCentralZuluHtml()}.`);
       return;
     }
@@ -12959,7 +12989,6 @@ async function plotPlumeFromControls(locationOverride = null) {
     updatePlumeCommandPanel(modeled.result);
     setPlumeMapResultVisible(true);
     updatePlumeModeLabel();
-    if (leftPlotButton) leftPlotButton.textContent = 'Recalculate Plume';
     setText('plume-live-status', `Plume plotted ${formatCentralZuluHtml()}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The plume could not be plotted.';
@@ -13627,6 +13656,30 @@ window.setInterval(() => {
 document.querySelectorAll('[data-plume-map-view]').forEach((button) => {
   button.addEventListener('click', () => setPlumeMapView(button.dataset.plumeMapView));
 });
+function initializePlumeThreatZoneDialog() {
+  const dialog = document.getElementById('plume-threat-zone-dialog');
+  const dialogContent = document.getElementById('plume-threat-zone-dialog-content');
+  const threatZoneCard = document.querySelector('#plume .plume-v2-intelligence-column > .plume-intelligence-card:first-child');
+  const openButton = document.getElementById('plume-threat-zone-open-btn');
+  const closeButton = document.getElementById('plume-threat-zone-dialog-close');
+  if (!dialog || !dialogContent || !threatZoneCard || !openButton) return;
+
+  dialogContent.append(threatZoneCard);
+  const openDialog = () => {
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  };
+  const closeDialog = () => {
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+  };
+  openButton.addEventListener('click', openDialog);
+  closeButton?.addEventListener('click', closeDialog);
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) closeDialog();
+  });
+}
+initializePlumeThreatZoneDialog();
 document.querySelectorAll('[data-plume-card-toggle]').forEach((button) => {
   button.addEventListener('click', () => {
     const target = document.getElementById(button.getAttribute('aria-controls'));
@@ -13771,11 +13824,495 @@ document.getElementById('use-current-location-btn')?.addEventListener('click', a
 // ─── Tier II facilities: backed by the real /api/facilities data ───
 
 let tier2FacilitiesPromise = null;
-function getTier2Facilities() {
+function getTier2Facilities(query = '') {
+  const normalizedQuery = String(query || '').trim();
+  const endpoint = normalizedQuery
+    ? `/api/facilities?q=${encodeURIComponent(normalizedQuery)}`
+    : '/api/facilities';
+  const load = () => fetchJson(endpoint).then((data) => {
+      if (!Array.isArray(data?.facilities)) throw new Error('Facility search returned an invalid response.');
+      return data.facilities;
+    });
+  if (normalizedQuery) return load();
   if (!tier2FacilitiesPromise) {
-    tier2FacilitiesPromise = fetchJson('/api/facilities').then((data) => data?.facilities || []);
+    tier2FacilitiesPromise = load().catch((error) => {
+      tier2FacilitiesPromise = null;
+      throw error;
+    });
   }
   return tier2FacilitiesPromise;
+}
+
+const commandFacilityInput = document.getElementById('incident-facility-name');
+const commandFacilitySuggestions = document.getElementById('incident-facility-suggestions');
+const commandFacilitySearchStatus = document.getElementById('incident-facility-search-status');
+const facilityInventoryDialog = document.getElementById('incident-facility-inventory-dialog');
+const facilityInventoryList = document.getElementById('incident-facility-inventory-list');
+const facilityInventoryStatus = document.getElementById('incident-facility-inventory-status');
+const facilityInventorySelectedCount = document.getElementById('incident-facility-selected-count');
+const addFacilityChemicalsButton = document.getElementById('add-facility-chemicals-btn');
+let commandFacilitySearchTimer = null;
+let commandFacilitySearchRequest = 0;
+let facilityInventoryRequest = 0;
+let facilityInventorySelection = new Set();
+let activeFacilityInventory = null;
+let facilityInventoryOpener = null;
+
+function setCommandFacilitySearchStatus(message, state = '') {
+  if (!commandFacilitySearchStatus) return;
+  commandFacilitySearchStatus.textContent = message;
+  commandFacilitySearchStatus.dataset.state = state;
+}
+
+function clearCommandFacilitySuggestions() {
+  commandFacilitySuggestions?.replaceChildren();
+  if (commandFacilitySuggestions) commandFacilitySuggestions.hidden = true;
+  commandFacilityInput?.setAttribute('aria-expanded', 'false');
+}
+
+function renderIncidentInvolvedChemicals(incident = getActiveIncident()) {
+  const list = document.getElementById('incident-involved-chemical-list');
+  if (!list) return;
+  const chemicals = Array.isArray(incident?.involvedChemicals) ? incident.involvedChemicals : [];
+  if (!chemicals.length) {
+    const empty = document.createElement('li');
+    empty.className = 'incident-involved-chemical-empty';
+    empty.textContent = 'No chemicals have been identified as involved.';
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(...chemicals.map((chemical) => {
+    const row = document.createElement('li');
+    const name = document.createElement('strong');
+    name.textContent = chemical.chemicalName || chemical.name || 'Chemical name unavailable';
+    const identifiers = document.createElement('small');
+    identifiers.textContent = [
+      `CAS ${reportedIdentifierValue(chemical.cas) || 'Unavailable'}`,
+      `UN ${reportedIdentifierValue(chemical.un) || 'Unavailable'}`,
+      `ERG ${reportedIdentifierValue(chemical.ergGuide) || 'Unavailable'}`,
+      chemical.reportedQuantity
+        ? `Reported ${chemical.reportedQuantity}${chemical.reportedUnit ? ` ${chemical.reportedUnit}` : ''}`
+        : '',
+    ].filter(Boolean).join(' · ');
+    row.append(name, identifiers);
+    return row;
+  }));
+}
+
+function facilityChemicalIdentity(chemical) {
+  const id = chemical?.chemicalId ?? chemical?.selectedChemicalId ?? chemical?.chemicalCompanionId ?? chemical?.id;
+  const cas = reportedIdentifierValue(chemical?.cas ?? chemical?.casNumber);
+  const un = reportedIdentifierValue(chemical?.un ?? chemical?.unNumber);
+  const name = String(chemical?.chemicalName ?? chemical?.name ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+  return {
+    id: id === null || id === undefined || !String(id).trim() ? '' : String(id).trim().toLowerCase(),
+    cas: cas.toLowerCase(),
+    un: un.toLowerCase(),
+    name,
+  };
+}
+
+function isAlreadyIncidentChemical(chemical, incident = getActiveIncident()) {
+  const candidate = facilityChemicalIdentity(chemical);
+  return (incident?.involvedChemicals || []).some((existing) => {
+    const current = facilityChemicalIdentity(existing);
+    if (candidate.cas && current.cas) return candidate.cas === current.cas;
+    if (candidate.un && current.un) return candidate.un === current.un;
+    if (candidate.id && current.id) return candidate.id === current.id;
+    return Boolean(candidate.name && current.name && candidate.name === current.name);
+  });
+}
+
+function updateFacilityInventorySelectionStatus() {
+  const count = facilityInventorySelection.size;
+  const hasActive = Boolean(getActiveIncident());
+  if (facilityInventorySelectedCount) {
+    facilityInventorySelectedCount.textContent = `${count} selected${hasActive ? '' : ' · Start an incident to add chemicals'}`;
+  }
+  if (addFacilityChemicalsButton) addFacilityChemicalsButton.disabled = count === 0 || !hasActive;
+}
+
+function facilityInventoryItemIdentifier(item, index) {
+  return String(item.id ?? `${item.chemicalId || 'inventory'}-${index}`);
+}
+
+function renderFacilityInventoryRows(facility, chemicals) {
+  if (!facilityInventoryList) return;
+  if (!chemicals.length) {
+    const empty = document.createElement('p');
+    empty.className = 'facility-inventory-empty';
+    empty.textContent = 'No reported chemical inventory is available for this facility.';
+    facilityInventoryList.replaceChildren(empty);
+    if (facilityInventoryStatus) facilityInventoryStatus.textContent = 'Inventory is empty or was not reported.';
+    updateFacilityInventorySelectionStatus();
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  chemicals.forEach((item, index) => {
+    const row = document.createElement('article');
+    row.className = 'facility-inventory-row';
+    const checkbox = document.createElement('input');
+    const key = facilityInventoryItemIdentifier(item, index);
+    checkbox.type = 'checkbox';
+    checkbox.id = `facility-inventory-chemical-${index}`;
+    checkbox.checked = facilityInventorySelection.has(key);
+    checkbox.disabled = isAlreadyIncidentChemical(item);
+    checkbox.setAttribute('aria-label', `Select ${item.chemicalName || 'chemical name unavailable'} from the reported inventory`);
+    if (checkbox.disabled) checkbox.title = 'This chemical is already identified as involved in the incident.';
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) facilityInventorySelection.add(key);
+      else facilityInventorySelection.delete(key);
+      updateFacilityInventorySelectionStatus();
+    });
+
+    const content = document.createElement('label');
+    content.htmlFor = checkbox.id;
+    content.className = 'facility-inventory-row-content';
+    const name = document.createElement('strong');
+    name.textContent = item.chemicalName || 'Chemical name unavailable';
+    const identifiers = document.createElement('span');
+    identifiers.className = 'chemical-identifier-chips';
+    [
+      ['CAS', reportedIdentifierValue(item.cas)],
+      ['UN', reportedIdentifierValue(item.un)],
+      ['ERG', reportedIdentifierValue(item.ergGuide)],
+    ].forEach(([type, value]) => {
+      const badge = document.createElement('span');
+      badge.className = 'chemical-identifier-chip';
+      badge.dataset.identifierType = type;
+      badge.textContent = `${type} ${value || 'Unavailable'}`;
+      identifiers.append(badge);
+    });
+    const quantity = document.createElement('span');
+    quantity.className = 'facility-inventory-row-quantity';
+    const amount = reportedIdentifierValue(item.maxDailyAmountValue);
+    const unit = reportedIdentifierValue(item.maxDailyAmountUnit);
+    quantity.textContent = `Reported quantity: ${amount || 'Unavailable'}${unit ? ` ${unit}` : ''}`;
+    const reported = document.createElement('small');
+    reported.textContent = [
+      item.lastReportedYear ? `Reported ${item.lastReportedYear}` : '',
+      item.container ? `Container ${item.container}` : '',
+      checkbox.disabled ? 'Already identified as involved' : '',
+    ].filter(Boolean).join(' · ');
+    content.append(name, identifiers, quantity);
+    if (reported.textContent) content.append(reported);
+    row.append(checkbox, content);
+    fragment.append(row);
+  });
+  facilityInventoryList.replaceChildren(fragment);
+  if (facilityInventoryStatus) {
+    facilityInventoryStatus.textContent = `${chemicals.length} reported chemical${chemicals.length === 1 ? '' : 's'} in the ${facility.source || 'facility'} inventory.`;
+  }
+  updateFacilityInventorySelectionStatus();
+}
+
+async function loadFacilityInventory(facility) {
+  const request = ++facilityInventoryRequest;
+  if (facilityInventoryStatus) facilityInventoryStatus.textContent = 'Loading reported inventory…';
+  if (facilityInventoryList) {
+    const loading = document.createElement('p');
+    loading.className = 'facility-inventory-loading';
+    loading.textContent = 'Loading facility-linked chemical records…';
+    facilityInventoryList.replaceChildren(loading);
+  }
+  try {
+    const detail = await fetchJson(`/api/facilities/${encodeURIComponent(facility.id)}`);
+    if (request !== facilityInventoryRequest) return;
+    if (!detail || !Array.isArray(detail.chemicals)) throw new Error('Facility inventory response is unavailable.');
+    activeFacilityInventory = detail;
+    renderFacilityInventoryRows(detail, detail.chemicals);
+  } catch (error) {
+    if (request !== facilityInventoryRequest) return;
+    if (facilityInventoryStatus) facilityInventoryStatus.textContent = 'Facility inventory could not be retrieved.';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'ghost-btn';
+    retry.textContent = 'Retry inventory retrieval';
+    retry.addEventListener('click', () => void loadFacilityInventory(facility));
+    const message = document.createElement('p');
+    message.textContent = error instanceof Error ? error.message : 'The inventory request failed.';
+    facilityInventoryList?.replaceChildren(message, retry);
+    console.error('[facility-inventory] inventory retrieval failed', error);
+  }
+}
+
+function showFacilityInventoryDialog(facility, opener = commandFacilityInput) {
+  if (!facilityInventoryDialog) return;
+  facilityInventoryOpener = opener;
+  activeFacilityInventory = facility;
+  facilityInventorySelection = new Set();
+  const name = facility.name || 'Facility';
+  document.getElementById('incident-facility-inventory-title').textContent = `${name} — Reported Chemical Inventory`;
+  document.getElementById('incident-facility-inventory-address').textContent = facility.address || 'Facility location unavailable';
+  if (facilityInventoryList) facilityInventoryList.replaceChildren();
+  if (facilityInventoryStatus) facilityInventoryStatus.textContent = 'Loading reported inventory…';
+  updateFacilityInventorySelectionStatus();
+  if (typeof facilityInventoryDialog.showModal === 'function') {
+    if (!facilityInventoryDialog.open) facilityInventoryDialog.showModal();
+  } else {
+    facilityInventoryDialog.setAttribute('open', '');
+    facilityInventoryDialog.querySelector('button')?.focus();
+  }
+  void loadFacilityInventory(facility);
+}
+
+function closeFacilityInventoryDialog() {
+  if (!facilityInventoryDialog) return;
+  if (typeof facilityInventoryDialog.close === 'function' && facilityInventoryDialog.open) {
+    facilityInventoryDialog.close();
+  } else {
+    facilityInventoryDialog.removeAttribute('open');
+    facilityInventoryOpener?.focus?.({ preventScroll: true });
+  }
+}
+
+function persistCommandFacilitySelection(facility) {
+  const incident = getActiveIncident();
+  if (!incident) return null;
+  const setValue = (id, value) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value || '';
+  };
+  setValue('incident-facility-name', facility.name);
+  setValue('incident-address-input', facility.address);
+  setValue('incident-city', '');
+  setValue('incident-state', '');
+  setValue('incident-zip', '');
+  const latitude = Number(facility.lat ?? facility.latitude);
+  const longitude = Number(facility.lng ?? facility.longitude);
+  setValue('incident-coordinates-input', Number.isFinite(latitude) && Number.isFinite(longitude) ? `${latitude}, ${longitude}` : '');
+  syncIncidentAddressDownstream();
+
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (index < 0) return null;
+  const selectedFacility = {
+    id: String(facility.id),
+    name: facility.name || '',
+    address: facility.address || '',
+    source: facility.source || '',
+  };
+  incidents[index] = {
+    ...incidents[index],
+    ...getIncidentFormData(),
+    facilityId: selectedFacility.id,
+    selectedFacility,
+    updatedAt: new Date().toISOString(),
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentCommandSnapshot();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+  return incidents[index];
+}
+
+async function selectCommandFacility(facility, opener = commandFacilityInput) {
+  clearCommandFacilitySuggestions();
+  if (commandFacilityInput) commandFacilityInput.value = facility.name || '';
+  setCommandFacilitySearchStatus(`Loading reported inventory for ${facility.name || 'selected facility'}…`, 'loading');
+  try {
+    const detail = await fetchJson(`/api/facilities/${encodeURIComponent(facility.id)}`);
+    if (!detail || !Array.isArray(detail.chemicals)) throw new Error('Facility inventory could not be retrieved.');
+    persistCommandFacilitySelection(detail);
+    showFacilityInventoryDialog(detail, opener);
+    setCommandFacilitySearchStatus(`Selected facility: ${detail.name || facility.name}.`, 'success');
+  } catch (error) {
+    setCommandFacilitySearchStatus('Facility inventory could not be retrieved. The facility location was not changed.', 'error');
+    console.error('[facility-inventory] selected facility retrieval failed', error);
+  }
+}
+
+function renderCommandFacilityMatches(facilities) {
+  if (!commandFacilitySuggestions) return;
+  const matches = facilities.filter((facility) => String(facility.name || '').trim());
+  if (!matches.length) {
+    clearCommandFacilitySuggestions();
+    setCommandFacilitySearchStatus('No facility names matched that search.', 'error');
+    return;
+  }
+  commandFacilitySuggestions.replaceChildren(...matches.slice(0, 12).map((facility) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'facility-search-option';
+    option.setAttribute('role', 'option');
+    const name = document.createElement('strong');
+    name.textContent = facility.name;
+    const location = document.createElement('small');
+    location.textContent = facility.address || 'Address / location unavailable';
+    const inventory = document.createElement('small');
+    const chemicalSummary = facilityChemicalSummary(facility);
+    inventory.textContent = chemicalSummary.length
+      ? `Associated hazards: ${chemicalSummary.join(' · ')}`
+      : 'No associated chemical inventory reported';
+    option.append(name, location, inventory);
+    option.addEventListener('click', () => void selectCommandFacility(facility));
+    option.addEventListener('keydown', (event) => {
+      const options = [...commandFacilitySuggestions.querySelectorAll('button')];
+      const index = options.indexOf(option);
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        options[Math.min(index + 1, options.length - 1)]?.focus();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (index > 0) options[index - 1].focus();
+        else commandFacilityInput?.focus();
+      } else if (event.key === 'Escape') {
+        clearCommandFacilitySuggestions();
+        commandFacilityInput?.focus();
+      }
+    });
+    return option;
+  }));
+  commandFacilitySuggestions.hidden = false;
+  commandFacilityInput?.setAttribute('aria-expanded', 'true');
+  setCommandFacilitySearchStatus(`${matches.length} matching facility${matches.length === 1 ? '' : 'ies'}. Select a facility to view its reported inventory.`);
+}
+
+async function searchCommandFacilities(query) {
+  const request = ++commandFacilitySearchRequest;
+  const normalized = query.trim().toLocaleLowerCase();
+  if (normalized.length < 2) {
+    clearCommandFacilitySuggestions();
+    setCommandFacilitySearchStatus('');
+    return;
+  }
+  setCommandFacilitySearchStatus('Searching facility names and locations…', 'loading');
+  try {
+    const facilities = await getTier2Facilities(normalized);
+    if (request !== commandFacilitySearchRequest) return;
+    const matches = filterCommandFacilities(facilities, normalized);
+    renderCommandFacilityMatches(matches);
+  } catch (error) {
+    if (request !== commandFacilitySearchRequest) return;
+    clearCommandFacilitySuggestions();
+    setCommandFacilitySearchStatus('Facility search is unavailable. Check the connection and try again.', 'error');
+    console.error('[facility-search] search request failed', error);
+  }
+}
+
+commandFacilityInput?.addEventListener('input', () => {
+  window.clearTimeout(commandFacilitySearchTimer);
+  commandFacilitySearchTimer = window.setTimeout(() => {
+    void searchCommandFacilities(commandFacilityInput.value);
+  }, 180);
+});
+commandFacilityInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown' && commandFacilitySuggestions && !commandFacilitySuggestions.hidden) {
+    event.preventDefault();
+    commandFacilitySuggestions.querySelector('button')?.focus();
+  } else if (event.key === 'Escape') {
+    clearCommandFacilitySuggestions();
+  }
+});
+commandFacilityInput?.addEventListener('change', () => {
+  const incident = getActiveIncident();
+  if (!incident?.selectedFacility || commandFacilityInput.value.trim() === incident.selectedFacility.name) return;
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (index < 0) return;
+  incidents[index] = {
+    ...incidents[index],
+    facilityId: null,
+    selectedFacility: null,
+    updatedAt: new Date().toISOString(),
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentCommandSnapshot();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+});
+
+document.getElementById('close-incident-facility-inventory-btn')?.addEventListener('click', closeFacilityInventoryDialog);
+document.getElementById('incident-facility-inventory-dialog')?.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeFacilityInventoryDialog();
+});
+document.getElementById('incident-facility-inventory-dialog')?.addEventListener('close', () => {
+  facilityInventoryOpener?.focus?.({ preventScroll: true });
+  facilityInventoryOpener = null;
+});
+document.getElementById('incident-facility-inventory-dialog')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && facilityInventoryDialog?.open) {
+    event.preventDefault();
+    closeFacilityInventoryDialog();
+  }
+});
+function addSelectedFacilityChemicalsToIncident() {
+  const facility = activeFacilityInventory;
+  const incident = getActiveIncident();
+  if (!facility || !incident || facilityInventorySelection.size === 0) return;
+  const selected = facility.chemicals.filter((item, index) =>
+    facilityInventorySelection.has(facilityInventoryItemIdentifier(item, index)));
+  const incidents = readIncidents();
+  const incidentIndex = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (incidentIndex < 0) {
+    if (facilityInventoryStatus) facilityInventoryStatus.textContent = 'The active incident is no longer available. Select an active incident before adding chemicals.';
+    updateFacilityInventorySelectionStatus();
+    return;
+  }
+  const nextIncident = incidents[incidentIndex];
+  const involvedChemicals = Array.isArray(nextIncident.involvedChemicals) ? [...nextIncident.involvedChemicals] : [];
+  let added = 0;
+  selected.forEach((item) => {
+    const chemical = {
+      chemicalId: item.chemicalId || '',
+      chemicalName: item.chemicalName || '',
+      cas: reportedIdentifierValue(item.cas),
+      un: reportedIdentifierValue(item.un),
+      ergGuide: reportedIdentifierValue(item.ergGuide),
+      reportedQuantity: reportedIdentifierValue(item.maxDailyAmountValue),
+      reportedUnit: reportedIdentifierValue(item.maxDailyAmountUnit),
+      facilityChemicalId: item.id ?? null,
+      facilityId: String(facility.id),
+      facilityName: facility.name || '',
+      source: 'Facility-reported inventory',
+      identifiedAt: new Date().toISOString(),
+    };
+    if (isAlreadyIncidentChemical(chemical, { ...nextIncident, involvedChemicals })) return;
+    involvedChemicals.push(chemical);
+    added += 1;
+  });
+  incidents[incidentIndex] = {
+    ...nextIncident,
+    involvedChemicals,
+    selectedFacility: nextIncident.selectedFacility || {
+      id: String(facility.id),
+      name: facility.name || '',
+      address: facility.address || '',
+      source: facility.source || '',
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentInvolvedChemicals(incidents[incidentIndex]);
+  renderIncidentCommandSnapshot();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+  if (added) {
+    setIncidentStatus(`${added} chemical${added === 1 ? '' : 's'} added to the incident from ${facility.name || 'the selected facility'} inventory.`);
+    closeFacilityInventoryDialog();
+  } else if (facilityInventoryStatus) {
+    facilityInventoryStatus.textContent = 'All selected chemicals are already identified as involved; no duplicates were added.';
+  }
+}
+addFacilityChemicalsButton?.addEventListener('click', addSelectedFacilityChemicalsToIncident);
+
+function filterCommandFacilities(facilities, query) {
+  const normalized = String(query || '').trim().toLocaleLowerCase();
+  if (!normalized) return [];
+  return facilities.filter((facility) =>
+    [facility.name, facility.address].some((value) => String(value || '').toLocaleLowerCase().includes(normalized)));
+}
+
+function facilityChemicalSummary(facility) {
+  if (!Array.isArray(facility?.chemicals)) return [];
+  return facility.chemicals.map((chemical) => {
+    const name = String(chemical?.chemicalName || chemical?.name || chemical?.chemicalId || '').trim();
+    if (!name) return '';
+    const hazardClass = reportedIdentifierValue(chemical?.hazardClass);
+    return hazardClass ? `${name} (Class ${hazardClass})` : name;
+  }).filter(Boolean);
 }
 
 async function getFacilityChemicalNames(facilityId) {
