@@ -374,7 +374,6 @@
       return { state: 'UNAVAILABLE' };
     }
   }
-
   function showFloodPopup(gauge) {
     if (!weatherMap) return;
     closeWeatherPopups();

@@ -1349,7 +1349,6 @@ app.get("/api/hydrology/gauges/:id", async (c) => {
     clearTimeout(timeout);
   }
 });
-
 app.get("/api/hydrology/flood", async (c) => {
   const bounds = boundedWeatherLayer(weatherLayerBounds(c));
   const zoom = Number(c.req.query("zoom"));

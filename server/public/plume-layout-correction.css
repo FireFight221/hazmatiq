@@ -1,0 +1,401 @@
+/*
+ * EMERGENZ tactical layout correction.
+ *
+ * This file owns only the responsive shell geometry for the Plume Model. The
+ * existing plume controls, result IDs, map layers, and model interactions are
+ * intentionally left unchanged.
+ */
+
+/* Legacy desktop compression rules hid these optional surfaces when the
+   workspace was temporarily using a three-column composition. Keep them in
+   the document so their existing details and actions remain reachable. */
+#plume.view.active .plume-criteria-section,
+#plume.view.active .plume-v2-intelligence-column > .plume-readiness-card,
+#plume.view.active .plume-v2-intelligence-column > .plume-command-details,
+#plume.view.active .plume-v2-intelligence-column > .plume-command-actions {
+  display: block !important;
+}
+
+@media (min-width: 1200px) {
+  /* The header and workspace form one viewport-sized incident workstation. */
+  body:has(#plume.view.active),
+  .app-shell:has(#plume.view.active) {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .app-shell:has(#plume.view.active) {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+  }
+
+  .app-shell:has(#plume.view.active) > .command-header {
+    position: relative !important;
+    top: auto !important;
+  }
+
+  .app-shell:has(#plume.view.active) > .layout,
+  .app-shell:has(#plume.view.active) > .layout > .content-area,
+  #plume.view.active {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .app-shell:has(#plume.view.active) > .layout,
+  .app-shell:has(#plume.view.active) > .layout > .content-area {
+    overflow: visible !important;
+  }
+
+  #plume.view.active {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 8px !important;
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-global-action-bar {
+    min-height: 50px !important;
+    max-height: 58px !important;
+    overflow: hidden !important;
+  }
+
+  #plume.view.active .plume-v2-workspace {
+    display: grid !important;
+    grid-template-columns: minmax(340px, 28fr) minmax(0, 72fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    grid-template-areas: "inputs map" !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 8px 10px !important;
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-v2-input-column {
+    grid-area: inputs !important;
+    display: flex !important;
+    align-self: stretch !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding-right: 2px !important;
+  }
+
+  #plume.view.active .plume-model-controls {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+  }
+
+  #plume.view.active .plume-model-input-grid {
+    gap: 6px !important;
+  }
+
+  #plume.view.active .plume-criteria-section { display: block !important; }
+
+  #plume.view.active .plume-v2-intelligence-column > .plume-command-actions {
+    margin-top: 0 !important;
+  }
+
+  #plume.view.active .plume-model-section {
+    padding: 7px !important;
+  }
+
+  #plume.view.active .plume-model-section-heading {
+    min-height: 0 !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  #plume.view.active .plume-model-section-heading strong {
+    font-size: 17px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  #plume.view.active .plume-release-grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.2fr) minmax(78px, .75fr) !important;
+    gap: 6px !important;
+  }
+  #plume.view.active .plume-weather-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  #plume.view.active .plume-release-grid > .plume-chemical-field,
+  #plume.view.active .plume-release-grid > .container-profile,
+  #plume.view.active .plume-release-grid > .plume-input-review,
+  #plume.view.active .plume-weather-grid > .plume-weather-source-row,
+  #plume.view.active .plume-weather-grid > .plume-cws-sample,
+  #plume.view.active .plume-weather-grid > .plume-columbia-csv {
+    grid-column: 1 / -1 !important;
+  }
+
+  #plume.view.active .plume-weather-grid > .plume-model-field {
+    grid-column: auto !important;
+  }
+  #plume.view.active .plume-weather-grid > label[for="plume-surface-roughness"] {
+    grid-column: 1 !important;
+  }
+  #plume.view.active .plume-weather-grid > .plume-weather-review {
+    grid-column: 2 !important;
+  }
+
+  #plume.view.active .plume-release-grid > .plume-release-type-field {
+    grid-column: 1 !important;
+  }
+
+  #plume.view.active .plume-release-grid > .plume-release-quantity-field {
+    grid-column: 2 !important;
+  }
+
+  #plume.view.active .plume-release-grid > .plume-release-unit-field {
+    grid-column: 3 !important;
+  }
+
+  #plume.view.active .plume-release-grid > .plume-release-duration-field {
+    grid-column: 1 !important;
+  }
+
+  #plume.view.active .plume-release-grid > .plume-release-height-field {
+    grid-column: 2 / -1 !important;
+  }
+
+  #plume.view.active .plume-release-grid input:not([type="checkbox"]):not([type="file"]),
+  #plume.view.active .plume-release-grid select,
+  #plume.view.active .plume-weather-grid input:not([type="checkbox"]):not([type="file"]),
+  #plume.view.active .plume-weather-grid select {
+    min-height: 34px !important;
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+
+  #plume.view.active .plume-release-grid .plume-field-label-row,
+  #plume.view.active .plume-weather-grid .plume-model-field > span {
+    min-height: 0 !important;
+    margin-bottom: 3px !important;
+    font-size: 9px !important;
+  }
+
+  #plume.view.active .plume-release-grid .plume-linked-input button,
+  #plume.view.active .plume-weather-source-row .plume-weather-refresh {
+    min-height: 34px !important;
+  }
+
+  #plume.view.active .plume-weather-at-a-glance {
+    min-height: 104px !important;
+    gap: 6px !important;
+    padding: 7px 9px !important;
+  }
+
+  #plume.view.active .plume-weather-glance-main {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+    min-height: 64px !important;
+    gap: 8px !important;
+  }
+
+  #plume.view.active .plume-weather-glance-compass {
+    width: 64px !important;
+    height: 64px !important;
+  }
+
+  #plume.view.active .plume-weather-glance-compass > i {
+    height: 27px !important;
+    width: 4px !important;
+  }
+
+  #plume.view.active .plume-weather-glance-reading strong {
+    font-size: 12px !important;
+  }
+
+  #plume.view.active .plume-weather-glance-metrics {
+    gap: 5px !important;
+    padding-top: 5px !important;
+  }
+
+  #plume.view.active .plume-weather-glance-metrics span,
+  #plume.view.active .plume-weather-glance-metrics strong {
+    font-size: 8px !important;
+  }
+
+  #plume.view.active .plume-v2-map-column {
+    grid-area: map !important;
+    grid-row: 1 / -1 !important;
+    align-self: stretch !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  #plume.view.active .plume-v2-map-card {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  #plume.view.active .plume-v2-intelligence-column { display: none !important; }
+
+  #plume.view.active .plume-intelligence-card {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    padding: 7px !important;
+  }
+
+  #plume.view.active .plume-v2-intelligence-column > .plume-intelligence-card:first-child {
+    min-height: 0 !important;
+  }
+
+  #plume.view.active .plume-intelligence-heading {
+    margin-bottom: 5px !important;
+  }
+
+  #plume.view.active .plume-intelligence-heading h2 {
+    font-size: 13px !important;
+  }
+
+  #plume.view.active .plume-intelligence-note {
+    margin-bottom: 5px !important;
+    font-size: 9px !important;
+    line-height: 1.2 !important;
+  }
+
+  #plume.view.active .plume-zone-tabs {
+    gap: 4px !important;
+    margin-bottom: 5px !important;
+  }
+
+  #plume.view.active .plume-zone-tabs button {
+    min-height: 27px !important;
+    padding: 3px 4px !important;
+    font-size: 9px !important;
+  }
+
+  #plume.view.active .plume-zone-summary {
+    gap: 4px !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  #plume.view.active .plume-zone-result > div {
+    padding: 5px 7px !important;
+  }
+
+  #plume.view.active .plume-zone-result strong {
+    font-size: 11px !important;
+  }
+
+  #plume.view.active .plume-zone-result strong b {
+    font-size: 12px !important;
+  }
+
+  #plume.view.active .plume-zone-result small,
+  #plume.view.active .plume-zone-impact dt,
+  #plume.view.active .plume-zone-impact dd,
+  #plume.view.active .plume-zone-details summary,
+  #plume.view.active .plume-zone-facilities summary {
+    font-size: 8px !important;
+  }
+
+  #plume.view.active .plume-zone-impact {
+    gap: 2px 6px !important;
+    margin-top: 3px !important;
+  }
+}
+
+@media (max-width: 1199px) and (min-width: 951px) {
+  /* Keep the same two-column tactical layout on smaller desktop screens, but
+     let the existing compact header/menu breakpoint manage nav density. */
+  body:has(#plume.view.active),
+  .app-shell:has(#plume.view.active) {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .app-shell:has(#plume.view.active) {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+  }
+
+  .app-shell:has(#plume.view.active) > .layout,
+  .app-shell:has(#plume.view.active) > .layout > .content-area,
+  #plume.view.active {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .app-shell:has(#plume.view.active) > .layout,
+  .app-shell:has(#plume.view.active) > .layout > .content-area,
+  #plume.view.active {
+    overflow: visible !important;
+  }
+
+  #plume.view.active {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  #plume.view.active .plume-v2-workspace {
+    grid-template-columns: minmax(300px, 30fr) minmax(0, 70fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    grid-template-areas: "inputs map" !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-v2-input-column,
+  #plume.view.active .plume-v2-intelligence-column {
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-v2-intelligence-column { display: none !important; }
+
+  #plume.view.active .plume-v2-map-column,
+  #plume.view.active .plume-v2-map-card {
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+}
+
+@media (max-width: 950px) {
+  /* Stacked field layout is intentionally preserved for tablet and mobile. */
+  body:has(#plume.view.active) { overflow-x: hidden; }
+
+  #plume.view.active {
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-v2-workspace {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+    grid-template-areas: "inputs" "map" !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-v2-input-column,
+  #plume.view.active .plume-v2-intelligence-column,
+  #plume.view.active .plume-v2-map-column {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #plume.view.active .plume-v2-intelligence-column { display: none !important; }
+
+  #plume.view.active .plume-v2-map-card {
+    height: min(620px, 72vw) !important;
+    min-height: 380px !important;
+  }
+}
+
+@media (max-width: 620px) {
+  #plume.view.active .plume-v2-map-card {
+    height: 480px !important;
+    min-height: 360px !important;
+  }
+}
