@@ -44,3 +44,12 @@ Updated: 2026-10-15
 - GPS verification: source audit confirms `GPS LIVE` is only set after a successful browser geolocation callback with `acquiredAt`; failed permission/timeout paths show `UNAVAILABLE` and retain a saved map view. Browser permission could not be exercised because no browser-control runtime is installed in this Codespace.
 - Stage 4 audit: package dependencies are referenced by the application/test toolchain. Candidate legacy image files are retained because shared CSS, tests, or indirect/template conventions still reference the surrounding asset families; the hidden `monitor-legacy` markup remains coupled to monitoring selectors and IDs. No asset, source file, or dependency was deleted without proof.
 - Verification cleanup: removed the remaining inactive `.variant-plume` hero rules from `styles.css` and `hero-overrides.css`, and updated the two stale static-contract suites to assert the current compact shell, one-track toolbar/workspace geometry, live-map-only radar controls, and no Plume hero. Final full suite: 54 files, 572 tests passed.
+
+## Incident Command compact-card stage
+
+- Commit: `45a719fab72032b89c0849cabbacb3b37401a8ae` (`Compact Incident Command summary cards`)
+- The four Incident Command summary cards now use content-sized desktop grid tracks and responsive stacked tracks without fixed row stretching.
+- Involved chemicals now render in a separate compact full-width inventory band between the summary cards and Command Decision Flow. The preview shows a count and up to four rows; larger inventories remain available through the accessible “View all involved chemicals” dialog.
+- Facility inventory additions continue to update `involvedChemicals` only; the explicitly selected plume chemical remains canonical and independent.
+- Targeted Incident Command tests: 10 passed. Full Vitest: 54 files, 574 tests passed. Typecheck passed. Lint passed with the same 9 existing warnings.
+- Browser screenshots were not captured because this Codespace has no browser-control runtime.
