@@ -52,4 +52,5 @@ Updated: 2026-10-15
 - Involved chemicals now render in a separate compact full-width inventory band between the summary cards and Command Decision Flow. The preview shows a count and up to four rows; larger inventories remain available through the accessible “View all involved chemicals” dialog.
 - Facility inventory additions continue to update `involvedChemicals` only; the explicitly selected plume chemical remains canonical and independent.
 - Targeted Incident Command tests: 10 passed. Full Vitest: 54 files, 574 tests passed. Typecheck passed. Lint passed with the same 9 existing warnings.
+- Follow-up CSS consolidation removed 27 competing top-board geometry declarations from the older Incident Command passes; card sizing, inventory placement, and responsive tracks now have one authoritative scoped contract.
 - Browser screenshots were not captured because this Codespace has no browser-control runtime.

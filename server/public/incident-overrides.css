@@ -609,22 +609,6 @@
 #incident .incident-command-title { font-size: clamp(2.35rem, 4.4vw, 4.5rem); }
 #incident .incident-command-subtitle { margin-top: 6px !important; font-size: clamp(.82rem, 1.45vw, 1.25rem); }
 #incident .incident-command-hero-status { top: 12px; right: 20px; gap: 5px; padding: 9px 13px; font-size: .78rem; }
-#incident .incident-command-info-grid { gap: 8px; padding: 8px 10px 7px; }
-#incident .incident-info-card { min-height: 0; padding: 8px 10px; }
-#incident .incident-info-card-heading { min-height: 22px; }
-#incident .incident-info-card-heading h2 { font-size: .8rem; }
-#incident .incident-info-card-heading h2 span { font-size: 1.08rem; }
-#incident .incident-info-primary { margin: 7px 0 2px; font-size: clamp(1rem, 1.28vw, 1.32rem); }
-#incident .incident-info-card-divider { margin: 7px 0 8px; }
-#incident .incident-info-detail-grid { gap: 6px 10px; }
-#incident .incident-info-detail-grid strong { font-size: .76rem; }
-#incident .incident-info-detail-grid span,
-#incident .incident-info-mode-footer span { font-size: .6rem; }
-#incident .incident-info-detail-grid small { font-size: .6rem; }
-#incident .incident-info-card-mode select { min-height: 38px; margin-top: 7px; padding: 5px 8px; font-size: .78rem; }
-#incident .incident-info-mode-footer time { font-size: .66rem; }
-#incident .incident-info-chemical-details { gap: 5px 8px; }
-#incident .incident-command-weather-bar { margin-top: 5px; padding: 9px 8px; }
 #incident .incident-weather-lead,
 #incident .incident-weather-metric { padding: 1px 10px; gap: 7px; }
 #incident .incident-weather-icon { font-size: 1.35rem; }
@@ -633,7 +617,6 @@
 #incident .incident-weather-metric small { font-size: .6rem; }
 #incident .incident-weather-metric > div > span { font-size: .57rem; }
 #incident .incident-weather-metric strong { font-size: .76rem; }
-#incident .incident-command-flow { margin: 8px 8px; padding: 11px; }
 #incident .incident-command-flow-heading { margin-bottom: 8px; }
 #incident .incident-command-flow-steps { gap: 7px; }
 #incident .incident-command-flow-steps article { gap: 6px; padding: 8px; }
@@ -773,12 +756,10 @@
 #incident .incident-response-tabs-heading { padding: 0 0 4px; }
 #incident .incident-response-tabs { min-height: 40px; }
 #incident .incident-response-tab { min-height: 38px; padding: 5px 10px; border-radius: 5px 5px 0 0; }
-#incident .incident-command-info-grid { gap: 4px; padding: 0 4px; }
-#incident .incident-info-card { min-height: 0; padding: 7px 10px; border-width: 3px; border-color: #18c7ff; background: linear-gradient(145deg, #0e456b, #061d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(24, 199, 255, .18); }
+#incident .incident-info-card { border-width: 3px; border-color: #18c7ff; background: linear-gradient(145deg, #0e456b, #061d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(24, 199, 255, .18); }
 #incident .incident-info-card-chemical { border-color: #ff4056; background: linear-gradient(145deg, #3b1d35, #101d35); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 64, 86, .22); }
 #incident .incident-info-card-facility { border-color: #20e0ff; }
 #incident .incident-info-card-mode { border-color: #ffd400; background: linear-gradient(145deg, #164a61, #071e34); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 212, 0, .24); }
-#incident .incident-info-card-heading { min-height: 21px; }
 #incident .incident-info-card-heading h2 { color: #f7fdff; }
 #incident .incident-info-card-chemical .incident-info-card-heading h2 { color: #fff; }
 #incident .incident-info-badge { border: 1px solid #ff8a96; background: #e51d3b; }
@@ -795,10 +776,8 @@
 #incident .incident-info-card .chemical-search-input-wrap,
 #incident .incident-info-card .incident-address-autocomplete { min-width: 0; }
 #incident .incident-info-card .chemical-search-suggestions { top: calc(100% + 3px); z-index: 40; }
-#incident .incident-info-card-divider { margin: 5px 0 6px; background: rgba(157, 224, 255, .56); }
-#incident .incident-info-card-mode select { margin-top: 4px; border: 2px solid #fff; background: #fff; }
-#incident .incident-command-weather-bar { margin: 0 4px; padding: 6px 4px; border-width: 2px; border-radius: 4px; }
-#incident .incident-command-flow { margin: 8px 4px; padding: 8px; border-width: 2px; border-radius: 4px; background: #062a4a; }
+#incident .incident-command-weather-bar { border-width: 2px; border-radius: 4px; }
+#incident .incident-command-flow { border-width: 2px; border-radius: 4px; background: #062a4a; }
 #incident .incident-command-flow-heading { margin-bottom: 5px; }
 #incident .incident-command-flow-heading span { color: #ffd400; }
 #incident .incident-command-flow-steps { gap: 4px; }
@@ -821,9 +800,6 @@
 #incident .incident-command-tools { margin: 4px 4px 0; }
 
 @media (max-width: 720px) {
-  #incident .incident-command-info-grid { gap: 4px; padding-inline: 4px; }
-  #incident .incident-command-weather-bar { margin-inline: 4px; }
-  #incident .incident-command-flow { margin-inline: 4px; }
   #incident .incident-command-main-grid { padding-inline: 4px; }
   #incident .incident-command-tactical-row { grid-template-columns: minmax(0, 1fr) auto !important; grid-template-rows: auto auto !important; }
   #incident .incident-command-tactical-row > strong { grid-column: 1 !important; grid-row: 1 !important; }
