@@ -51,7 +51,7 @@ body,
 .weather-intelligence-page,
 .settings-page {
   min-width: 0;
-  padding: 10px 14px 24px;
+  padding: 0 14px 24px;
   background: transparent;
 }
 
@@ -230,7 +230,7 @@ body,
 
 @media (max-width: 640px) {
   .weather-intelligence-page,
-  .settings-page { padding: 6px; }
+  .settings-page { padding: 0 6px 6px; }
   .weather-condition-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .weather-location-form { grid-template-columns: 1fr 1fr; }
   .weather-location-form label,

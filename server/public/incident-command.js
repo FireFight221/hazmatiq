@@ -120,6 +120,7 @@
         decon: source.deconSummary || null,
         medical: source.medicalSummary || null,
       },
+      tacticalDecision: source.guidedResponseTacticalRecord || null,
       reporting: {
         forms: source.icsForms || {},
         notes: source.incidentNotes || [],
@@ -146,7 +147,25 @@
       source.notes,
       state.weather.summary,
     ].filter(Boolean).join(' · ');
-    const safety = [state.operational.ppe, state.operational.protectiveActions, state.operational.decon].filter(Boolean).join('\n');
+    const tactical = state.tacticalDecision || {};
+    const tacticalSupport = tactical.mitigationDecisionSupport || {};
+    const tacticalFlow = tactical.tacticalDecisionFlow || {};
+    const tacticalMitigation = tacticalFlow.mitigation?.specificValues || {};
+    const safety = [
+      tactical.selectedTacticalMode && `Tactical mode: ${tactical.selectedTacticalMode}`,
+      state.operational.ppe,
+      state.operational.protectiveActions,
+      state.operational.decon,
+      tacticalMitigation.entryDecision || tacticalSupport.entryDecision,
+      tacticalMitigation.requiredVerification || tacticalSupport.requiredVerification,
+    ].filter(Boolean).join('\n');
+    const tacticalDocumentation = [
+      tactical.selectedTacticalMode && `Selected tactical mode: ${tactical.selectedTacticalMode}`,
+      tacticalSupport.tacticalPostureSource && `Decision source: ${tacticalSupport.tacticalPostureSource}`,
+      tacticalMitigation.vaporFireControl && `Safety hazards / controls: ${tacticalMitigation.vaporFireControl}`,
+      tacticalMitigation.nonInterventionConsiderations && `Non-intervention considerations: ${tacticalMitigation.nonInterventionConsiderations}`,
+      tacticalMitigation.requiredVerification && `Required verification: ${Array.isArray(tacticalMitigation.requiredVerification) ? tacticalMitigation.requiredVerification.join(' · ') : tacticalMitigation.requiredVerification}`,
+    ].filter(Boolean).join('\n');
     return Object.freeze({
       incidentId: state.incidentId,
       shared: {
@@ -165,9 +184,9 @@
         '206': { incidentName: state.incidentName, medicalPlan: state.command.medicalPlan || state.operational.medical || '' },
         '208': { incidentName: state.incidentName, safetyMessage: safety },
         '209': { incidentName: state.incidentName, status: state.status, situationSummary: situation },
-        '214': { incidentName: state.incidentName, activityLog: state.reporting.notes.map((note) => note.text || note).join('\n') },
+        '214': { incidentName: state.incidentName, activityLog: [state.reporting.notes.map((note) => note.text || note).join('\n'), tacticalDocumentation].filter(Boolean).join('\n') },
         '215': { incidentName: state.incidentName, objectives, resources: state.command.stagingResources },
-        '215A': { incidentName: state.incidentName, safetyAnalysis: safety },
+        '215A': { incidentName: state.incidentName, safetyAnalysis: [safety, tacticalDocumentation].filter(Boolean).join('\n') },
       },
       source,
     });

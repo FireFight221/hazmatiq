@@ -183,6 +183,13 @@ describe('Incident Command operational hub', () => {
       objectives: 'Isolate release area\nIdentify leak point', commandStructure: 'IC / HazMat Group / Safety',
       communications: 'Channel 3', medicalPlan: 'EMS staging', stagingResources: 'South lot',
       notes: 'Initial size-up',
+      guidedResponseTacticalRecord: {
+        selectedTacticalMode: 'Offensive',
+        mitigationDecisionSupport: { tacticalPostureSource: 'Incident Command selection' },
+        tacticalDecisionFlow: {
+          mitigation: { specificValues: { vaporFireControl: 'Control ignition sources', requiredVerification: ['Field monitoring'] } },
+        },
+      },
     }) as Record<string, unknown>;
     expect(prefill).toMatchObject({
       incidentId: 'incident-2',
@@ -193,6 +200,8 @@ describe('Incident Command operational hub', () => {
         '205': { communications: 'Channel 3' },
         '206': { medicalPlan: 'EMS staging' },
         '204': { assignments: 'South lot' },
+        '208': { safetyMessage: expect.stringContaining('Tactical mode: Offensive') },
+        '215A': { safetyAnalysis: expect.stringContaining('Selected tactical mode: Offensive') },
       },
     });
     const form201 = (prefill.forms as Record<string, { situationSummary: string }>)['201'];

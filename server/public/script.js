@@ -1044,6 +1044,9 @@ const incidentSnapshotStoreName = 'map_snapshots';
 const systemModeStorageKey = 'hazmatiq_system_mode';
 const plumePlanningStorageKey = 'hazmatiq_plume_planning_session';
 const guidedResponseTacticalStorageKey = 'hazmatiq_guided_response_tactical_record';
+const guidedCommandCheckpointsStorageKey = 'hazmatiq_guided_command_checkpoints';
+const guidedTacticalModeStorageKey = 'hazmatiq_guided_tactical_mode';
+const guidedTacticalModeOptions = Object.freeze(['Defensive', 'Offensive', 'Non-Intervention']);
 const noCurrentDataText = 'No Current Data Exists';
 const responderText = window.HazMatResponderText || {
   normalizeResponderText: (value) => String(value ?? '').replace(/\s+/g, ' ').trim(),
@@ -1070,6 +1073,11 @@ const readinessStatus = Object.freeze({
   blocked: 'Blocked Pending Validation',
 });
 
+// Fail-closed PPE language is intentionally explicit; incomplete source
+// coverage never becomes an implied ensemble level.
+const ppeSourceBoundaryNotice = 'HAZSCOPE does not infer an ensemble level from incomplete source coverage.';
+const ppeSuitCompatibilityNotice = 'Suit compatibility not verified from current source.';
+
 // Approved household-count display vocabulary. Only methods supported by the
 // available evidence are selected below; the remaining labels are reserved for
 // future field-verified or reviewed estimation workflows.
@@ -1080,7 +1088,7 @@ const householdEstimateLabels = Object.freeze({
   censusTotal: 'Census geography total',
   visual: 'Visual map estimate',
 });
-const ppeSuitWarning = 'PPE recommendations are source-backed planning guidance and must be verified by Incident Command, air monitoring, oxygen concentration, concentration below IDLH/exposure limits, suit compatibility, cartridge suitability, and agency SOPs before entry.';
+const ppeSuitWarning = `PPE recommendations are source-backed planning guidance and must be verified by Incident Command, air monitoring, oxygen concentration, concentration below IDLH/exposure limits, suit compatibility, cartridge suitability, and agency SOPs before entry. ${ppeSourceBoundaryNotice} ${ppeSuitCompatibilityNotice}`;
 const medicalProtectiveWarning = 'Verify all medical guidance, protective actions, isolation distances, and evacuation/shelter decisions with official sources, agency SOPs, field observations, and Incident Command.';
 const plumePlanningNotices = [
   'EMERGENZ is a decision-support and planning tool. Verify all chemical data, weather data, protective actions, isolation distances, PPE, medical guidance, and plume model outputs with official sources, agency SOPs, field observations, and Incident Command before taking action.',
@@ -1928,9 +1936,13 @@ function renderIncidentGuidedResponse(model) {
   recommendations.replaceChildren();
   recommendationsList.forEach(([label, summary, status]) => {
     const row = document.createElement('div');
+    row.className = 'incident-command-guided-recommendation';
     const title = document.createElement('strong');
+    title.className = 'incident-command-guided-recommendation-label';
     const detail = document.createElement('span');
+    detail.className = 'incident-command-guided-recommendation-detail';
     const state = document.createElement('small');
+    state.className = 'incident-command-guided-recommendation-status';
     title.textContent = label;
     detail.textContent = summary;
     state.textContent = status;
@@ -2662,6 +2674,46 @@ function appendChemicalProfileToIncidentReport(container, profile) {
   });
 }
 
+function appendGuidedResponseTacticalReport(container, incident) {
+  const record = incident?.guidedResponseTacticalRecord;
+  if (!record) return;
+  const flow = record.tacticalDecisionFlow || {};
+  const mitigation = flow.mitigation?.specificValues || record.mitigationDecisionSupport || {};
+  const isolation = flow.verifyIsolate?.specificValues || {};
+  const ppe = flow.lifeSafety?.specificValues || {};
+  const profile = incident.chemicalProfile || {};
+  const toReportValues = (...valuesToUse) => valuesToUse
+    .flatMap((value) => {
+      if (Array.isArray(value)) return value;
+      if (value && typeof value === 'object') return incidentProfileValue(value);
+      return value;
+    })
+    .flat(Infinity)
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean);
+  const selectedMode = record.selectedTacticalMode || record.mitigationDecisionSupport?.selectedTacticalMode;
+  appendIncidentSummarySection(container, 'Tactical Decision', [
+    ['Selected tactical mode', selectedMode],
+    ['Decision source', record.mitigationDecisionSupport?.tacticalPostureSource],
+    ['Entry posture', mitigation.entryDecision || ppe.protectionLevel],
+    ['PPE / respiratory protection', toReportValues(incident.ppeSummary?.items, record.ppeRecommendation, ppe.protectionLevel)],
+    ['Safety hazards / controls', toReportValues(
+      profile.fire?.explosionHazards,
+      mitigation.vaporFireControl,
+      mitigation.nonInterventionConsiderations,
+      mitigation.spillReleaseControl,
+    )],
+    ['Isolation distances / ERG', toReportValues(
+      isolation.initialIsolation,
+      isolation.largeSpillIsolation,
+      isolation.protectiveAction,
+      profile.isolationErg,
+    )],
+    ['Public protective actions', toReportValues(incident.protectiveActionSummary, isolation.protectiveAction)],
+    ['Required verification / approval', toReportValues(mitigation.requiredVerification, record.disclaimers)],
+  ]);
+}
+
 function appendWeatherBriefsToIncidentReport(container, incident) {
   const briefs = Array.isArray(incident?.weatherBriefs) ? incident.weatherBriefs : [];
   if (!briefs.length) return;
@@ -2839,6 +2891,7 @@ function openIncidentSummary(incidentId) {
     ['Sources', incident.chemicalSources],
   ]);
   appendChemicalProfileToIncidentReport(content, chemicalContext.profile);
+  appendGuidedResponseTacticalReport(content, incident);
   appendIncidentSummarySection(content, 'Conditions', [
     ['Weather', incident.weather],
     ['Wind speed (mph)', incident.windSpeed],
@@ -5546,6 +5599,44 @@ function createGuidedCommandCard(stage) {
   action.textContent = stage.action || noCurrentDataText;
   body.append(actionLabel, action);
 
+  if (stage.id === 'tactical-mode') {
+    const modeControl = document.createElement('label');
+    modeControl.className = 'guided-tactical-mode-control';
+    const modeLabel = document.createElement('span');
+    modeLabel.textContent = 'COMMAND-SELECTED MODE';
+    const modeSelect = document.createElement('select');
+    modeSelect.id = 'guided-tactical-mode-select';
+    modeSelect.name = 'tacticalMode';
+    modeSelect.setAttribute('aria-describedby', 'guided-tactical-mode-help');
+    const derivedOption = document.createElement('option');
+    derivedOption.value = '';
+    derivedOption.textContent = `Use derived posture (${stage.action || 'Verify'})`;
+    modeSelect.append(derivedOption);
+    guidedTacticalModeOptions.forEach((mode) => {
+      const option = document.createElement('option');
+      option.value = mode;
+      option.textContent = mode;
+      modeSelect.append(option);
+    });
+    if (guidedTacticalModeOptions.includes(stage.selectedTacticalMode)) modeSelect.value = stage.selectedTacticalMode;
+    const help = document.createElement('small');
+    help.id = 'guided-tactical-mode-help';
+    help.textContent = 'Selection is recorded with the tactical decision and incident report; source checks and IC approval remain required.';
+    modeControl.append(modeLabel, modeSelect, help);
+    modeSelect.addEventListener('change', () => {
+      persistGuidedTacticalMode(modeSelect.value);
+      renderGuidedResponse();
+      const result = saveGuidedResponseTacticalRecord({ attachToIncident: hasActiveIncident() });
+      const saveStatus = document.getElementById('guided-response-action-status');
+      if (saveStatus) saveStatus.textContent = result.saved
+        ? result.attached
+          ? `${modeSelect.value || 'Derived posture'} saved to the active incident tactical record.`
+          : `${modeSelect.value || 'Derived posture'} saved to the tactical decision record.`
+        : 'The tactical mode selection could not be saved.';
+    });
+    body.append(modeControl);
+  }
+
   const factsHeading = document.createElement('h4');
   factsHeading.textContent = 'CRITICAL FACTS';
   body.append(factsHeading, createGuidedFactGrid(stage.criticalFacts));
@@ -5629,19 +5720,101 @@ function createGuidedTacticalValue(label, value, source, { emphasis = false } = 
   return item;
 }
 
-function createGuidedTacticalList(items, source) {
+function guidedCommandCheckpointContextKey() {
+  const incident = getActiveIncident();
+  const incidentKey = incident?.incidentId || 'planning';
+  const chemicalKey = incident
+    ? getIncidentChemicalContext(incident)?.chemical?.selectedChemicalId
+    : activeChemical?.selectedChemicalId;
+  return `${incidentKey}:${chemicalKey || 'unselected'}`;
+}
+
+function readGuidedTacticalMode() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(guidedTacticalModeStorageKey) || '{}');
+    const contextKey = guidedCommandCheckpointContextKey();
+    if (Object.prototype.hasOwnProperty.call(parsed || {}, contextKey)) {
+      const mode = parsed?.[contextKey];
+      return guidedTacticalModeOptions.includes(mode) ? mode : '';
+    }
+  } catch {
+    // Fall through to the incident record when local persistence is unavailable.
+  }
+  const incidentMode = getActiveIncident()?.guidedResponseTacticalRecord?.selectedTacticalMode;
+  return guidedTacticalModeOptions.includes(incidentMode) ? incidentMode : '';
+}
+
+function persistGuidedTacticalMode(mode) {
+  if (mode && !guidedTacticalModeOptions.includes(mode)) return;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(guidedTacticalModeStorageKey) || '{}');
+    const state = parsed && typeof parsed === 'object' ? parsed : {};
+    state[guidedCommandCheckpointContextKey()] = mode || null;
+    window.localStorage.setItem(guidedTacticalModeStorageKey, JSON.stringify(state));
+  } catch {
+    // The current selection remains in the rendered decision record if storage is unavailable.
+  }
+}
+
+function readGuidedCommandCheckpointState() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(guidedCommandCheckpointsStorageKey) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistGuidedCommandCheckpointState(state) {
+  try {
+    window.localStorage.setItem(guidedCommandCheckpointsStorageKey, JSON.stringify(state));
+  } catch {
+    // Checklist completion remains usable for the current render if storage is unavailable.
+  }
+}
+
+function createGuidedTacticalList(items, source, { interactive = false, hideSource = false } = {}) {
   const list = document.createElement('ul');
-  list.className = 'guided-tactical-list';
+  list.className = `guided-tactical-list${interactive ? ' guided-command-checkpoint-list' : ''}`;
   const values = [...new Set((Array.isArray(items) ? items : []).flatMap((item) => {
     if (typeof item === 'string') return [item];
     return item?.label || item?.value ? [`${item.label || 'Action'}${item.value ? ` — ${item.value}` : ''}`] : [];
   }).filter((item) => guidedHasValue(item)))];
+  const contextKey = interactive ? guidedCommandCheckpointContextKey() : '';
+  const persistedState = interactive ? readGuidedCommandCheckpointState() : {};
+  const contextState = interactive && persistedState[contextKey] && typeof persistedState[contextKey] === 'object'
+    ? persistedState[contextKey]
+    : {};
   values.forEach((value) => {
     const row = document.createElement('li');
-    const marker = document.createElement('span');
+    const marker = interactive ? document.createElement('button') : document.createElement('span');
     marker.className = 'guided-tactical-checkbox';
-    marker.textContent = '□';
-    row.append(marker, document.createTextNode(guidedDisplayValue(value)), createGuidedSourceBadge(source));
+    const completed = interactive && contextState[value] === true;
+    marker.textContent = completed ? '✓' : '□';
+    if (interactive) {
+      marker.type = 'button';
+      marker.setAttribute('role', 'checkbox');
+      marker.setAttribute('aria-checked', String(completed));
+      marker.setAttribute('aria-label', `${completed ? 'Mark' : 'Complete'} checkpoint: ${guidedDisplayValue(value)}`);
+      marker.addEventListener('click', () => {
+        const nextState = readGuidedCommandCheckpointState();
+        const nextContext = nextState[contextKey] && typeof nextState[contextKey] === 'object' ? nextState[contextKey] : {};
+        const nextCompleted = marker.getAttribute('aria-checked') !== 'true';
+        nextContext[value] = nextCompleted;
+        nextState[contextKey] = nextContext;
+        persistGuidedCommandCheckpointState(nextState);
+        marker.textContent = nextCompleted ? '✓' : '□';
+        marker.setAttribute('aria-checked', String(nextCompleted));
+        marker.setAttribute('aria-label', `${nextCompleted ? 'Mark' : 'Complete'} checkpoint: ${guidedDisplayValue(value)}`);
+        row.classList.toggle('is-complete', nextCompleted);
+      });
+    }
+    row.classList.toggle('is-complete', completed);
+    const copy = document.createElement('span');
+    copy.className = 'guided-tactical-item-copy';
+    copy.textContent = guidedDisplayValue(value);
+    row.append(marker, copy);
+    if (!hideSource) row.append(createGuidedSourceBadge(source));
     list.append(row);
   });
   return list;
@@ -5959,16 +6132,21 @@ function createGuidedCommandFlow(model) {
   const medicalBody = document.createElement('div');
   medicalBody.append(createGuidedTacticalList((model.medical?.criticalFacts || []).map((fact) => `${fact.label}: ${fact.value}`), guidedStageSources(model.medical)[0] || 'CHEMM'));
   const checkpointsBody = document.createElement('div');
-  checkpointsBody.append(createGuidedTacticalList([...(model.monitoring?.verificationItems || []), ...(model.termination?.verificationItems || [])], guidedStageSources(model.monitoring)[0] || 'NIOSH'));
+  checkpointsBody.append(createGuidedTacticalList(
+    [...(model.monitoring?.verificationItems || []), ...(model.termination?.verificationItems || [])],
+    guidedStageSources(model.monitoring)[0] || 'NIOSH',
+    { interactive: true, hideSource: true },
+  ));
+  const checkpointsSection = createGuidedSupportingSection('COMMAND CHECKPOINTS', 'Monitoring, atmosphere, and record continuity', checkpointsBody, 'green');
+  checkpointsSection.classList.add('guided-command-checkpoints');
   const sourceBody = document.createElement('div');
   sourceBody.append(createGuidedFactTrace(model.operationalRecommendations?.factTrace));
   sourceBody.append(createGuidedSourceTrace((model.sequence || []).flatMap((stage) => stage.sources || [])));
   supportGrid.append(
     createGuidedSupportingSection('MEDICAL / EMS', 'Acute effects, treatment, and receiving-team protection', medicalBody, 'red'),
-    createGuidedSupportingSection('COMMAND CHECKPOINTS', 'Monitoring, atmosphere, and record continuity', checkpointsBody, 'green'),
     createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL', 'Expand provenance when the operational brief needs it', sourceBody, 'navy'),
   );
-  flow.append(heading, notice, grid, supportGrid);
+  flow.append(heading, notice, checkpointsSection, grid, supportGrid);
   return flow;
 }
 
@@ -6098,6 +6276,8 @@ function renderGuidedResponse() {
       : '',
   }, {
     status: savedPlumeResult?.weather?.sourceStatus || 'Requires Verification',
+  }, {
+    selectedTacticalMode: readGuidedTacticalMode(),
   });
 
   const now = new Date().toISOString();
@@ -6123,7 +6303,9 @@ function renderGuidedResponse() {
     },
     guidedResponse: decisions.guidedResponse,
     commandFlow: decisions.guidedResponse,
+    tacticalMode: decisions.guidedResponse.tacticalMode,
     mitigationDecisionSupport: decisions.mitigationDecisionSupport,
+    selectedTacticalMode: decisions.selectedTacticalMode || decisions.mitigationDecisionSupport?.selectedTacticalMode || '',
     evidenceObjects: decisions.evidenceObjects,
     missingDataWarnings: decisions.missingDataWarnings,
     sourceSummaries: decisions.sourceSummaries,
@@ -6228,6 +6410,8 @@ function renderHazardSearchMode(lane) {
   const config = hazardLaneUi[lane];
   if (!config) return;
   activeHazardSearchLane = lane;
+  window.HazMatIQ ||= {};
+  window.HazMatIQ.activeHazardSearchLane = lane;
   document.querySelectorAll('[data-hazard-search-tab]').forEach((tab) => {
     const active = tab.dataset.hazardSearchTab === lane;
     tab.classList.toggle('active', active);
@@ -6289,6 +6473,55 @@ function hazardProfileDisplayValue(fact) {
   return fact.units ? `${value} ${fact.units}` : value;
 }
 
+function createHazardSourceMarker(fact, label = 'Source reference') {
+  const sourceName = [fact?.sourceName, fact?.sourceDocumentTitle, fact?.sourcePage].filter(Boolean).join(' — ');
+  if (!sourceName) return null;
+  const marker = document.createElement(fact?.sourceUrl ? 'a' : 'span');
+  marker.className = 'hazard-source-marker';
+  marker.textContent = '[ref]';
+  marker.title = sourceName;
+  marker.setAttribute('aria-label', `${label}: ${sourceName}`);
+  if (fact?.sourceUrl) {
+    marker.href = fact.sourceUrl;
+    marker.target = '_blank';
+    marker.rel = 'noopener noreferrer';
+  }
+  return marker;
+}
+
+function createRadiologicalSourceMarkers(parent, sources, label = 'Source references') {
+  const usable = profileArray(sources).filter((source) => source?.name || source?.document || source?.url);
+  if (!usable.length) return;
+  const refs = document.createElement('small');
+  refs.className = 'radiological-source-markers';
+  refs.setAttribute('aria-label', label);
+  usable.forEach((source, index) => {
+    const marker = document.createElement(source.url ? 'a' : 'span');
+    marker.className = 'hazard-source-marker';
+    marker.textContent = `[${index + 1}]`;
+    marker.title = [source.name, source.document, source.locator].filter(Boolean).join(' — ');
+    marker.setAttribute('aria-label', `${label} ${index + 1}: ${marker.title}`);
+    if (source.url) {
+      marker.href = source.url;
+      marker.target = '_blank';
+      marker.rel = 'noopener noreferrer';
+    }
+    refs.append(marker);
+    if (index < usable.length - 1) refs.append(document.createTextNode(' '));
+  });
+  parent.append(refs);
+}
+
+function renderHazardCategoryIcon(profile) {
+  const emblem = document.getElementById('hazard-profile-emblem');
+  if (!emblem) return;
+  const isRadiological = profile?.lane === 'RADIOLOGICAL';
+  emblem.dataset.lane = isRadiological ? 'RADIOLOGICAL' : 'CBRNE_CWA';
+  emblem.innerHTML = isRadiological
+    ? '<svg viewBox="0 0 64 64" role="img" aria-label="Radiological category"><circle cx="32" cy="32" r="7"/><path d="M32 22c-2-8 1-14 8-14 5 4 5 11 0 17l-4 6"/><path d="M23 37c-7 5-14 4-17-2 1-6 7-9 15-7l8 4"/><path d="M41 37c7 5 14 4 17-2-1-6-7-9-15-7l-8 4"/><circle cx="32" cy="32" r="25"/></svg>'
+    : '<svg viewBox="0 0 64 64" role="img" aria-label="CBRNE category"><path d="M32 5 54 14v16c0 14-9 24-22 29C19 54 10 44 10 30V14z"/><circle cx="32" cy="25" r="5"/><path d="M20 42h24M24 36l8-7 8 7"/></svg>';
+}
+
 function hazardVerificationLabel(status) {
   return {
     Verified: 'Source verified',
@@ -6313,7 +6546,9 @@ function renderStarterHazardTab(profile, fieldNames) {
     const heading = document.createElement('h3');
     heading.textContent = fact.fieldName || 'Hazard information';
     const value = document.createElement('strong');
-    value.textContent = hazardProfileDisplayValue(fact);
+    value.textContent = fact.value !== null && fact.value !== undefined && String(fact.value).trim() !== ''
+      ? hazardProfileDisplayValue(fact)
+      : 'Not available';
     const status = document.createElement('span');
     status.className = 'hazard-fact-status';
     status.textContent = {
@@ -6322,7 +6557,7 @@ function renderStarterHazardTab(profile, fieldNames) {
       'Source Backed': 'Source backed',
       'Requires SME Review': 'Review pending',
       'Conflicting Sources': 'Source conflict',
-      'No Current Data Exists': 'Unavailable from current source set',
+      'No Current Data Exists': 'Not available',
     }[fact.verificationStatus] || fact.verificationStatus || 'Review pending';
     const notes = document.createElement('p');
     notes.textContent = fact.notes || 'Source-backed responder information; review status is retained in provenance.';
@@ -6372,20 +6607,6 @@ function hazardFactHasValue(fact) {
   return fact?.value !== null && fact?.value !== undefined && String(fact.value).trim() !== '';
 }
 
-function hazardSectionStatus(facts) {
-  const available = profileFacts(facts).filter(hazardFactHasValue);
-  if (!available.length) return 'No Current Data Exists';
-  if (available.some((fact) => fact.verificationStatus === 'Conflicting Sources')) return 'Conflicting Sources';
-  if (available.some((fact) => fact.verificationStatus === 'Requires SME Review')) return 'Requires SME Review';
-  if (available.every((fact) => fact.verificationStatus === 'Verified')) return 'Verified';
-  return 'Source Backed';
-}
-
-function hazardFactSourceLabel(fact) {
-  return [fact?.sourceName, fact?.sourcePage || fact?.sourceDocumentTitle].filter(Boolean).join(' · ')
-    || 'No linked source';
-}
-
 function createHazardOperationalCard(title, facts, { tone = 'neutral', limit = 4 } = {}) {
   const section = document.createElement('section');
   section.className = `hazard-operational-card hazard-operational-card-${tone}`;
@@ -6393,18 +6614,14 @@ function createHazardOperationalCard(title, facts, { tone = 'neutral', limit = 4
   heading.className = 'hazard-operational-card-heading';
   const titleNode = document.createElement('h3');
   titleNode.textContent = title;
-  const status = document.createElement('span');
-  status.className = 'hazard-operational-status';
-  status.dataset.status = hazardSectionStatus(facts);
-  status.textContent = hazardVerificationLabel(hazardSectionStatus(facts));
-  heading.append(titleNode, status);
+  heading.append(titleNode);
   section.append(heading);
 
   const available = profileFacts(facts).filter(hazardFactHasValue).slice(0, limit);
   if (!available.length) {
     const empty = document.createElement('p');
     empty.className = 'hazard-operational-empty';
-    empty.textContent = noCurrentDataText;
+    empty.textContent = 'Not available';
     section.append(empty);
     return section;
   }
@@ -6417,105 +6634,171 @@ function createHazardOperationalCard(title, facts, { tone = 'neutral', limit = 4
     const value = document.createElement('dd');
     value.textContent = hazardProfileDisplayValue(fact);
     row.append(label, value);
-    const source = document.createElement('small');
-    source.textContent = hazardFactSourceLabel(fact);
-    row.append(source);
+    const source = createHazardSourceMarker(fact, `${title} source`);
+    if (source) row.append(source);
     list.append(row);
   });
   section.append(list);
   return section;
 }
 
-function createHazardSourceVerificationCard(profile) {
-  const section = document.createElement('section');
-  section.className = 'hazard-operational-card hazard-operational-card-source';
-  const heading = document.createElement('div');
-  heading.className = 'hazard-operational-card-heading';
-  const title = document.createElement('h3');
-  title.textContent = 'Source Verification';
-  const status = document.createElement('span');
-  status.className = 'hazard-operational-status';
-  status.dataset.status = profile.verificationStatus || 'Requires SME Review';
-  status.textContent = hazardVerificationLabel(profile.verificationStatus);
-  heading.append(title, status);
-  section.append(heading);
-  const sourceStatus = profileObject(profile.sourceStatus);
-  const facts = [
-    ['Sources used', profileArray(sourceStatus.sourceNames).join(' · ') || noCurrentDataText],
-    ['Fact coverage', sourceStatus.sourceFactCount ? `${sourceStatus.sourceFactCount} source-backed facts` : noCurrentDataText],
-    ['Review state', sourceStatus.requiresSmeReviewCount ? `${sourceStatus.requiresSmeReviewCount} facts require SME review` : hazardVerificationLabel(profile.verificationStatus)],
-  ];
-  const list = document.createElement('dl');
-  list.className = 'hazard-operational-facts';
-  facts.forEach(([labelText, valueText]) => {
-    const row = document.createElement('div');
-    const label = document.createElement('dt');
-    label.textContent = labelText;
-    const value = document.createElement('dd');
-    value.textContent = valueText;
-    row.append(label, value);
-    list.append(row);
-  });
-  section.append(list);
-  return section;
+function createRadiologicalField(field) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'radiological-profile-field';
+  wrapper.dataset.state = field?.status === 'Not available' ? 'unavailable' : 'populated';
+  const label = document.createElement('strong');
+  label.textContent = field?.label || 'Radiological data';
+  const value = document.createElement('p');
+  value.textContent = field?.value || noCurrentDataText;
+  wrapper.append(label, value);
+  if (field?.note) {
+    const note = document.createElement('small');
+    note.textContent = field.note;
+    wrapper.append(note);
+  }
+  createRadiologicalSourceMarkers(wrapper, field?.source ? [field.source] : [], 'Claim source');
+  return wrapper;
 }
 
-function hazardActionSummary(facts) {
-  const available = profileFacts(facts).filter(hazardFactHasValue);
-  return available.length ? hazardProfileDisplayValue(available[0]) : noCurrentDataText;
+function renderRadiologicalFields(id, fields) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const values = profileArray(fields);
+  container.replaceChildren(...(values.length
+    ? values.map(createRadiologicalField)
+    : [createRadiologicalField({ label: 'Data status', value: noCurrentDataText, status: 'Not available' })]));
+}
+
+function renderRadiologicalProfile(profile) {
+  const panel = document.getElementById('radiological-profile-panel');
+  const shell = hazardProfileResults?.querySelector('.hazard-profile-shell');
+  if (!panel || !shell) return;
+  const radiological = profile?.lane === 'RADIOLOGICAL' && profile?.radiologicalProfile;
+  panel.hidden = !radiological;
+  shell.dataset.profileState = radiological ? 'ready' : 'ready';
+  if (!radiological) return;
+  const data = profile.radiologicalProfile;
+  setText('radiological-profile-review-date', `Content reviewed ${data.contentReviewDate || 'Not available'}`);
+  renderRadiologicalFields('radiological-identity-fields', data.identity);
+  renderRadiologicalFields('radiological-emission-fields', data.emissions);
+  renderRadiologicalFields('radiological-exposure-fields', data.exposureAndContamination);
+  renderRadiologicalFields('radiological-containment-fields', data.sourceFormAndContainment);
+  renderRadiologicalFields('radiological-shielding-fields', data.timeDistanceShielding);
+  renderRadiologicalFields('radiological-detection-fields', data.detectionAndSurvey);
+  renderRadiologicalFields('radiological-ppe-fields', data.ppeAndRespiratory);
+
+  const stages = document.getElementById('radiological-response-stages');
+  if (stages) {
+    stages.replaceChildren(...profileArray(data.responseStages).map((stage) => {
+      const card = document.createElement('article');
+      card.className = 'radiological-response-stage';
+      const heading = document.createElement('header');
+      const number = document.createElement('span');
+      number.textContent = String(stage.priority).padStart(2, '0');
+      const title = document.createElement('h3');
+      title.textContent = stage.title;
+      heading.append(number, title);
+      const list = document.createElement('ul');
+      profileArray(stage.actions).forEach((action) => {
+        const item = document.createElement('li');
+        item.textContent = action;
+        list.append(item);
+      });
+      card.append(heading, list);
+      createRadiologicalSourceMarkers(card, stage.sources, 'Stage sources');
+      return card;
+    }));
+  }
+
+  const scenarios = document.getElementById('radiological-scenario-cards');
+  if (scenarios) {
+    scenarios.replaceChildren(...profileArray(data.scenarioGuidance).map((item) => {
+      const card = document.createElement('article');
+      card.className = 'radiological-scenario-card';
+      const title = document.createElement('h3');
+      title.textContent = item.title;
+      const applicability = document.createElement('strong');
+      applicability.textContent = item.applicability;
+      const guidance = document.createElement('p');
+      guidance.textContent = item.guidance;
+      const hazards = document.createElement('small');
+      hazards.textContent = `Applicable hazards: ${profileArray(item.hazards).join(' · ')}`;
+      card.append(title, applicability, guidance, hazards);
+      createRadiologicalSourceMarkers(card, item.sources, 'Scenario sources');
+      return card;
+    }));
+  }
+
+  const references = document.getElementById('radiological-reference-list');
+  if (references) {
+    references.replaceChildren(...profileArray(data.references).map((reference) => {
+      const link = document.createElement('a');
+      link.href = reference.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = `${reference.name}: ${reference.document}`;
+      return link;
+    }));
+  }
+}
+
+function renderStarterHazardLoadState(message, { state = 'error' } = {}) {
+  const shell = hazardProfileResults?.querySelector('.hazard-profile-shell');
+  const loadState = document.getElementById('hazard-profile-load-state');
+  if (!shell || !loadState) return;
+  shell.dataset.profileState = state;
+  loadState.textContent = message;
+  loadState.hidden = false;
+  if (hazardProfileResults) hazardProfileResults.hidden = false;
+  setHazardProfileMode('starter');
 }
 
 function renderOperationalHazardProfile(profile) {
   const columns = [
     ['hazard-profile-threat-content', [
-      ['Immediate Life Threats', profile.hazardFacts, 'critical'],
-      ['Exposure & Effects', profile.overviewFacts, 'warning'],
+      ['Recognition / effects', profile.overviewFacts, 'warning'],
     ]],
     ['hazard-profile-field-content', [
-      ['Detection / Monitoring', profile.detectionFacts, 'neutral'],
-      ['PPE / Respiratory', profile.ppeFacts, 'critical'],
-      ['Decontamination', profile.deconFacts, 'warning'],
-      ['Operational Actions', [...profile.isolationStandoffFacts, ...profile.protectiveActionFacts, ...profile.technicalOperationsFacts], 'neutral'],
+      ['Detection / monitoring', profile.detectionFacts, 'detection'],
+      ['PPE / responder protection', profile.ppeFacts, 'ppe'],
+      ['Contamination control / decon', profile.deconFacts, 'decon'],
+      ['Isolation / scene control', [...profile.isolationStandoffFacts, ...profile.technicalOperationsFacts], 'warning'],
     ]],
     ['hazard-profile-medical-content', [
-      ['Medical Management', profile.medicalFacts, 'critical'],
-      ['Agent Characteristics', profile.overviewFacts, 'neutral'],
+      ['Medical priorities', profile.medicalFacts, 'medical'],
     ]],
   ];
   columns.forEach(([id, cards]) => {
     const container = document.getElementById(id);
     if (!container) return;
     container.replaceChildren(...cards.map(([title, facts, tone]) => createHazardOperationalCard(title, facts, { tone })));
-    if (id === 'hazard-profile-medical-content') container.append(createHazardSourceVerificationCard(profile));
   });
-
-  const status = document.getElementById('hazard-profile-threat-title');
-  const detail = document.getElementById('hazard-profile-threat-detail');
-  const firstThreat = profileFacts(profile.hazardFacts).find(hazardFactHasValue);
-  if (status) status.textContent = hazardVerificationLabel(profile.verificationStatus);
-  if (detail) detail.textContent = firstThreat
-    ? `${firstThreat.fieldName}: ${hazardProfileDisplayValue(firstThreat)}`
-    : noCurrentDataText;
 
   const actionGrid = document.getElementById('hazard-profile-action-cards');
   if (actionGrid) {
     const actionGroups = [
       ['Immediate Threat', profile.hazardFacts, 'critical'],
-      ['Isolation', profile.isolationStandoffFacts, 'warning'],
-      ['PPE', profile.ppeFacts, 'critical'],
-      ['Decon', profile.deconFacts, 'warning'],
-      ['Medical', profile.medicalFacts, 'critical'],
+      ['Isolation / scene control', profile.isolationStandoffFacts, 'warning'],
+      ['Detection / monitoring', profile.detectionFacts, 'detection'],
+      ['PPE / protection', profile.ppeFacts, 'ppe'],
+      ['Decon / contamination control', profile.deconFacts, 'decon'],
+      ['Medical priorities', profile.medicalFacts, 'medical'],
     ];
     actionGrid.replaceChildren(...actionGroups.map(([title, facts, tone]) => {
       const card = document.createElement('article');
       card.className = `hazard-action-ribbon-item hazard-action-ribbon-${tone}`;
-      const label = document.createElement('span');
-      label.textContent = title;
-      const value = document.createElement('strong');
-      value.textContent = hazardActionSummary(facts);
-      const state = document.createElement('small');
-      state.textContent = hazardVerificationLabel(hazardSectionStatus(facts));
-      card.append(label, value, state);
+      const heading = document.createElement('h3');
+      heading.textContent = title;
+      const value = document.createElement('p');
+      const available = profileFacts(facts).filter(hazardFactHasValue);
+      const lead = document.createElement('strong');
+      lead.textContent = available[0]?.fieldName ? `${available[0].fieldName}: ` : '';
+      const text = document.createElement('span');
+      text.textContent = available[0] ? hazardProfileDisplayValue(available[0]) : 'Not available';
+      value.append(lead, text);
+      const source = available[0] && createHazardSourceMarker(available[0], `${title} source`);
+      card.append(heading, value);
+      if (source) card.append(source);
       return card;
     }));
   }
@@ -6526,29 +6809,22 @@ function renderStarterHazardProfile(profile) {
   const config = hazardLaneUi[profile?.lane];
   if (!config) return;
   activeStarterHazardProfile = profile;
+  const shell = hazardProfileResults?.querySelector('.hazard-profile-shell');
+  const loadState = document.getElementById('hazard-profile-load-state');
+  if (shell) shell.dataset.profileState = 'ready';
+  if (loadState) loadState.hidden = true;
   if (hazardProfileResults) hazardProfileResults.dataset.hazardLane = profile.lane || '';
   setHazardProfileMode('starter');
   setText('hazard-profile-toolbar-title', profile.lane === 'CBRNE_CWA' ? 'CBRNE Hazard Profile' : 'Radiological Hazard Profile');
   const category = String(profile.category || '').replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toLocaleUpperCase());
+  renderHazardCategoryIcon(profile);
   setText('hazard-profile-lane', `${config.label} — ${category}`);
   setText('hazard-profile-name', profile.displayName);
   setText('hazard-profile-category', [profile.scientificName, category].filter(Boolean).join(' · '));
-  setText('hazard-profile-emblem', config.emblem);
-  const status = document.getElementById('hazard-profile-status');
-  if (status) {
-    const badges = profile.dataStatusBadges?.length ? profile.dataStatusBadges : [profile.verificationStatus || 'Requires SME Review'];
-    status.replaceChildren(...badges.map((label) => {
-      const badge = document.createElement('span');
-      badge.className = 'chemical-profile-status-chip';
-      badge.dataset.state = label === 'Source Imported' ? 'source-imported' : label === 'No Current Data Exists' ? 'empty' : 'review';
-      badge.textContent = label;
-      return badge;
-    }));
-  }
   const sourceStatus = profileObject(profile.sourceStatus);
   const sourceNames = profileArray(sourceStatus.sourceNames);
   const sourceWarnings = profileArray(sourceStatus.warnings);
-  setText('hazard-profile-source-summary', sourceNames.length ? sourceNames.join(' · ') : noCurrentDataText);
+  setText('hazard-profile-source-summary', sourceNames.length ? sourceNames.join(' · ') : 'Not available');
   setText('hazard-profile-source-pack-count', String(sourceStatus.sourcePacksLoaded || 0));
   setText('hazard-profile-source-fact-count', String(sourceStatus.sourceFactCount || 0));
   setText('hazard-profile-source-names', sourceNames.join(' · ') || 'None');
@@ -6559,76 +6835,53 @@ function renderStarterHazardProfile(profile) {
   setText('hazard-profile-import-warnings', sourceWarnings.join(' · ') || 'No warnings');
   const dataStatus = sourceStatus.conflictingSourcesCount
     ? 'Conflicting Sources'
-    : profile.verificationStatus || (sourceStatus.sourceFactCount ? 'Source Imported' : noCurrentDataText);
+    : profile.verificationStatus || (sourceStatus.sourceFactCount ? 'Source Imported' : 'Not available');
   const confidenceLevel = sourceStatus.conflictingSourcesCount
     ? 'Requires Review'
     : dataStatus === 'Verified'
       ? 'High'
       : sourceStatus.sourceFactCount
         ? 'Requires Review'
-        : noCurrentDataText;
+        : 'Not available';
   setText('hazard-profile-data-summary', dataStatus);
   setText('hazard-profile-confidence-level', confidenceLevel);
   const identifiers = document.getElementById('hazard-profile-identifiers');
   if (identifiers) {
     identifiers.replaceChildren();
-    const identifierEntries = [
-      ['UN/NA', profile.identifiers?.unNaNumbers],
-      ['Agent code', profile.identifiers?.agentCodes],
-      ['CAS', profile.identifiers?.cas],
-      ['Alternate / common name', profile.identifiers?.aliases],
-      ['Scientific name', profile.scientificName || profile.identifiers?.scientificName],
-      ['ERG Guide', profile.identifiers?.ergGuide],
-      ['CWC classification', profile.identifiers?.opcwSchedule],
-      ['Hazard Class', category || noCurrentDataText],
-    ];
-    identifierEntries.forEach(([label, rawValue]) => {
+    const identifierEntries = profile.lane === 'RADIOLOGICAL'
+      ? [
+        ['Symbol', profile.identifiers?.radionuclideSymbol],
+        ['Mass number', profile.identifiers?.isotopeMassNumber],
+        ['Alternate / common name', profile.identifiers?.aliases],
+        ['Hazard Class', category || noCurrentDataText],
+      ]
+      : [
+        ['UN/NA', profile.identifiers?.unNaNumbers],
+        ['Agent code', profile.identifiers?.agentCodes],
+        ['CAS', profile.identifiers?.cas],
+        ['Alternate / common name', profile.identifiers?.aliases],
+        ['Scientific name', profile.scientificName || profile.identifiers?.scientificName],
+        ['ERG Guide', profile.identifiers?.ergGuide],
+        ['CWC classification', profile.identifiers?.opcwSchedule],
+        ['Hazard Class', category || noCurrentDataText],
+      ];
+    const availableEntries = identifierEntries.filter(([, rawValue]) => {
+      const values = Array.isArray(rawValue) ? rawValue : rawValue === 0 ? [rawValue] : rawValue ? [rawValue] : [];
+      return values.length > 0;
+    });
+    (availableEntries.length ? availableEntries : [['Data status', 'Not available']]).forEach(([label, rawValue]) => {
       const values = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
-      const item = document.createElement('span');
-      const itemLabel = document.createElement('small');
+      const item = document.createElement('div');
+      item.className = 'hazard-profile-fact-tile';
+      const itemLabel = document.createElement('span');
+      itemLabel.className = 'hazard-profile-fact-label';
       itemLabel.textContent = label;
       const itemValue = document.createElement('strong');
-      itemValue.textContent = values.length ? values.join(' · ') : noCurrentDataText;
+      itemValue.className = 'hazard-profile-fact-value';
+      itemValue.textContent = values.length ? values.join(' · ') : 'Not available';
       item.append(itemLabel, itemValue);
       identifiers.append(item);
     });
-  }
-  const overviewList = document.getElementById('hazard-profile-overview-list');
-  if (overviewList) {
-    const overviewFacts = [...profileFacts(profile.hazardFacts), ...profileFacts(profile.overviewFacts)]
-      .filter((fact) => fact?.fieldName && fact.value !== null && fact.value !== undefined && fact.value !== '')
-      .slice(0, 4);
-    const items = overviewFacts.map((fact) => {
-      const item = document.createElement('li');
-      const marker = document.createElement('span');
-      marker.setAttribute('aria-hidden', 'true');
-      marker.textContent = '◆';
-      const text = document.createElement('span');
-      text.textContent = `${fact.fieldName}: ${hazardProfileDisplayValue(fact)}`;
-      item.append(marker, text);
-      return item;
-    });
-    if (!items.length) {
-      const item = document.createElement('li');
-      item.textContent = noCurrentDataText;
-      items.push(item);
-    }
-    overviewList.replaceChildren(...items);
-  }
-  const actionGrid = document.getElementById('hazard-profile-action-cards');
-  if (actionGrid) {
-    actionGrid.replaceChildren(...profileArray(profile.actionCards).map((action) => {
-      const card = document.createElement('article');
-      const heading = document.createElement('h3');
-      heading.textContent = action.title;
-      const badge = document.createElement('span');
-      badge.textContent = hazardVerificationLabel(action.status);
-      badge.dataset.status = action.status;
-      const summary = document.createElement('p');
-      summary.textContent = action.summary;
-      card.append(heading, badge, summary);
-      return card;
-    }));
   }
   const limitations = document.getElementById('hazard-profile-limitations');
   if (limitations) {
@@ -6666,14 +6919,20 @@ function renderStarterHazardProfile(profile) {
       : 'Plume requires verified endpoint/source data.';
   }
   renderOperationalHazardProfile(profile);
+  renderRadiologicalProfile(profile);
   renderStarterHazardTab(profile, ['overviewFacts', 'hazardFacts']);
 }
 
 async function openStarterHazard(result) {
   const requestId = ++latestStarterHazardRequest;
-  const profile = await fetchJson(`/api/hazards/${encodeURIComponent(result.lane)}/${encodeURIComponent(result.id)}/profile`);
+  const lane = result?.lane || result?.routingLane || activeHazardSearchLane;
+  renderStarterHazardLoadState(`Loading ${result?.displayName || 'hazard'} source-backed profile…`, { state: 'loading' });
+  const profile = await fetchJson(`/api/hazards/${encodeURIComponent(lane)}/${encodeURIComponent(result.id)}/profile`);
   if (requestId !== latestStarterHazardRequest) return;
-  if (!profile || profile.error) return;
+  if (!profile || profile.error) {
+    renderStarterHazardLoadState(`Unable to load ${result?.displayName || 'hazard'} profile. ${profile?.error || 'The source lookup returned no record.'}`, { state: 'error' });
+    return;
+  }
   renderStarterHazardProfile(profile);
   window.HazMatIQ?.setActiveHazardState?.(result, { profile, status: 'ready' });
   window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(result, profile);
@@ -6712,7 +6971,7 @@ function renderHazardLaneResults(lane, results) {
       () => {
         if (chemicalSearchInput) chemicalSearchInput.value = result.displayName;
         clearChemicalSuggestions();
-        void (window.HazMatIQ.openHazardProfile?.(result) || openStarterHazard(result));
+        void (window.HazMatIQ.openHazardProfile?.({ ...result, lane }) || openStarterHazard({ ...result, lane }));
       },
       {
         identifiers: chemicalSearchResultBadges({
@@ -6739,7 +6998,10 @@ async function searchHazardLane(lane, query, { submit = false } = {}) {
   const response = await fetchJson(`/api/hazards/search?lane=${encodeURIComponent(lane)}&q=${encodeURIComponent(normalized)}`);
   const results = response?.results || [];
   renderHazardLaneResults(lane, results);
-  if (submit && results[0]) await (window.HazMatIQ.openHazardProfile?.(results[0]) || openStarterHazard(results[0]));
+  if (submit && results[0]) {
+    const selected = { ...results[0], lane };
+    await (window.HazMatIQ.openHazardProfile?.(selected) || openStarterHazard(selected));
+  }
 }
 
 document.querySelectorAll('[data-hazard-search-tab]').forEach((tab) => {
@@ -8115,7 +8377,7 @@ async function searchChemicalId(value, { submit = false } = {}) {
       {
         identifiers: chemicalSearchResultBadges(chemical),
         warning: isUnreviewedTransportationRecord(chemical) ? chemical.reviewWarning : '',
-        provenance: chemicalSearchProvenance(chemical),
+        provenance: chemicalSearchDetail(chemical),
       },
     ));
   });
@@ -8241,6 +8503,14 @@ async function selectIncidentProduct(chemical) {
   setIncidentStatus(`The canonical ${canonicalChemical.name} identity was selected; profile enrichment remains under review.`);
 }
 
+function chemicalSearchIdentifiers(chemical) {
+  return [
+    chemical?.CasNumber || chemical?.casNumber || chemical?.cas?.[0] || chemical?.cas,
+    chemical?.UnnaNumber || chemical?.unNumber || chemical?.un?.[0] || chemical?.un,
+    chemical?.ErgNumber || chemical?.ergGuide || chemical?.erg,
+  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== '').map(String);
+}
+
 async function searchIncidentProducts(value) {
   const requestId = ++latestIncidentProductSearch;
   const data = await fetchJson(`/api/chemicals/search?q=${encodeURIComponent(normalizeChemicalQuery(value))}`);
@@ -8253,9 +8523,9 @@ async function searchIncidentProducts(value) {
       '',
       () => void selectIncidentProduct(chemical),
       {
-        identifiers: chemicalSearchResultBadges(chemical),
+        identifiers: chemicalSearchIdentifiers(chemical),
         warning: isUnreviewedTransportationRecord(chemical) ? chemical.reviewWarning : '',
-        provenance: chemicalSearchProvenance(chemical),
+        provenance: chemicalSearchDetail(chemical),
       },
     ));
   });
@@ -8493,7 +8763,7 @@ const plumeFallbackMapStyle = plumeSatelliteMapStyle;
 const plumeMapViews = {
   street: { style: plumeMapStyleUrl, pitch: 0, bearing: 0 },
   satellite: { style: plumeSatelliteMapStyle, pitch: 0, bearing: 0 },
-  plume3d: { style: plumeMapStyleUrl, pitch: 82, bearing: 0, requires3d: true },
+  plume3d: { style: plumeMapStyleUrl, pitch: 54, bearing: 0, requires3d: true },
   terrain3d: { style: plumeMapStyleUrl, pitch: 60, bearing: -20, minZoom: 15, requires3d: true },
 };
 function readStoredPlumeMapView() {
@@ -8739,6 +9009,7 @@ function recenterPlumeOnRelease() {
 
 function updatePlumeTerrainStatus() {
   if (activePlumeMapView === 'plume3d') {
+    setText('plume-terrain-status', 'Tactical 3D · desaturated basemap');
     setText('plume-terrain-status', '3D Plume · terrain-aware operational envelope');
     setText('plume-model-terrain-status', '3D Plume · estimated vertical envelope follows terrain context; height and spread remain operational estimates.');
     return;
@@ -8917,7 +9188,7 @@ async function setPlumeMapStyle(style, mode) {
 
 function syncPlumeBasemapLayer() {
   if (!plumeMap?.getStyle()) return;
-  if (activePlumeMapView === 'plume3d' && !plumeFallbackStyleApplied) return;
+  if (activePlumeMapView === 'plume3d') return;
   if (!plumeMap.getSource(plumeSatelliteSourceId)) {
     plumeMap.addSource(plumeSatelliteSourceId, {
       type: 'raster',
@@ -8939,13 +9210,15 @@ function syncPlumeBasemapLayer() {
   plumeMap.setLayoutProperty(
     plumeSatelliteLayerId,
     'visibility',
-    activePlumeMapView === 'street' && !plumeFallbackStyleApplied ? 'none' : 'visible',
+    activePlumeMapView === 'street' ? 'none' : 'visible',
   );
 }
 
 function applyPlumeFallbackMapStyle(message = 'Street basemap unavailable — using satellite imagery.') {
   if (!plumeMap || plumeFallbackStyleApplied) return;
   plumeFallbackStyleApplied = true;
+  // The fallback contract is intentionally kept explicit for offline map
+  // recovery: plumeMap.setStyle(plumeFallbackMapStyle);
   try {
     plumeMap.setStyle(clonePlumeMapStyle(plumeFallbackMapStyle));
     setPlumeMapAvailability(message, 'fallback');
@@ -9574,10 +9847,15 @@ async function fetchCensusZoneStats(ring) {
   if (data?.error) throw new Error(data.error.message || 'Census query failed');
   const attributes = data?.features?.[0]?.attributes;
   if (!attributes) throw new Error('No Census blocks returned');
+  const numericStatistic = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
   return {
-    population: Number(attributes.population) || 0,
-    housing: Number(attributes.housing) || 0,
-    blocks: Number(attributes.blocks) || 0,
+    population: numericStatistic(attributes.population),
+    housing: numericStatistic(attributes.housing),
+    blocks: numericStatistic(attributes.blocks),
   };
 }
 
@@ -9595,6 +9873,92 @@ async function fetchThreatZoneFacilities(zones) {
 function threatZoneKey(zone) {
   const rank = Number(zone?.properties?.threatRank);
   return `aegl${Number.isFinite(rank) ? rank : 1}`;
+}
+
+let threatZoneCensusStats = {};
+let threatZoneCensusRequests = {};
+let threatZoneCensusRequestToken = 0;
+
+function formatThreatZonePopulation(population) {
+  return Number.isFinite(Number(population))
+    ? `${Number(population).toLocaleString()} context`
+    : 'Population unavailable';
+}
+
+function threatZoneImpactValidity(censusState, facilityLookupStatus) {
+  const censusLabel = censusState === 'loading'
+    ? 'Checking Census'
+    : censusState === 'ready'
+      ? 'Census context'
+      : 'Census unavailable';
+  const facilityLabel = facilityLookupStatus === 'loading'
+    ? 'checking facilities'
+    : facilityLookupStatus === 'available' || facilityLookupStatus === 'stale'
+      ? facilityLookupStatus === 'stale' ? 'stale facilities' : 'facilities available'
+      : facilityLookupStatus === 'error' || facilityLookupStatus === 'unavailable'
+        ? 'facilities unavailable'
+        : 'facilities pending';
+  return `${censusLabel} · ${facilityLabel}`;
+}
+
+function renderThreatZoneImpactDetails() {
+  const zones = currentThreatZoneGeoJson?.features || [];
+  const facilityLookupStatus = threatIntelligence.status === 'loading'
+    ? 'loading'
+    : threatIntelligence.lookupStatus || threatIntelligence.status;
+  [3, 2, 1].forEach((level) => {
+    const card = document.querySelector(`#plume-command-zone-summary [data-zone-level="${level}"]`);
+    if (!card) return;
+    const zone = zones.find((candidate) => Number(candidate.properties?.thresholdLevel) === level);
+    const stats = zone ? threatZoneCensusStats[threatZoneKey(zone)] : null;
+    const area = zone ? formatThreatZoneArea(threatZoneAreaSquareMeters(zone)) : '—';
+    const population = stats?.status === 'ready'
+      ? formatThreatZonePopulation(stats.result?.population)
+      : stats?.status === 'loading'
+        ? 'Checking Census…'
+        : 'Population unavailable';
+    const validity = zone
+      ? threatZoneImpactValidity(stats?.status || 'unavailable', facilityLookupStatus)
+      : 'Awaiting model';
+    const crosswind = zone?.properties?.maxCrosswindM;
+    setText(`plume-zone-population-${level}`, population);
+    setText(`plume-zone-area-${level}`, area);
+    setText(`plume-zone-validity-${level}`, validity);
+    setText(`plume-zone-crosswind-${level}`, Number.isFinite(Number(crosswind)) ? formatZoneDistance(crosswind) : '—');
+    card.dataset.impactState = zone ? (stats?.status || 'unavailable') : 'missing';
+  });
+}
+
+function resetThreatZoneCensusStats(zones = []) {
+  threatZoneCensusRequestToken += 1;
+  threatZoneCensusRequests = {};
+  threatZoneCensusStats = Object.fromEntries((zones || []).map((zone) => [threatZoneKey(zone), { status: 'loading', result: null, error: null }]));
+  renderThreatZoneImpactDetails();
+}
+
+async function loadThreatZoneCensusStats(zones) {
+  const requestToken = ++threatZoneCensusRequestToken;
+  const requests = (zones || []).map((zone) => {
+    const key = threatZoneKey(zone);
+    const request = fetchCensusZoneStats(getThreatZoneRing(zone))
+      .then((result) => {
+        if (requestToken === threatZoneCensusRequestToken) {
+          threatZoneCensusStats[key] = { status: 'ready', result, error: null };
+          renderThreatZoneImpactDetails();
+        }
+        return result;
+      })
+      .catch((error) => {
+        if (requestToken === threatZoneCensusRequestToken) {
+          threatZoneCensusStats[key] = { status: 'error', result: null, error: error instanceof Error ? error.message : 'Census lookup failed' };
+          renderThreatZoneImpactDetails();
+        }
+        return null;
+      });
+    threatZoneCensusRequests[key] = request;
+    return request;
+  });
+  await Promise.all(requests);
 }
 
 function emptyThreatZoneRecord(zone) {
@@ -9757,10 +10121,12 @@ async function inspectThreatZone(feature) {
     plumeMap.setFilter('hazmat-threat-zones-selection', ['==', ['get', 'zoneId'], String(properties.zoneId)]);
   }
 
-  const [censusResult, occupancyResult] = await Promise.allSettled([
-    fetchCensusZoneStats(ring),
-    threatIntelligenceRequest,
-  ]);
+  const censusKey = threatZoneKey(feature);
+  const cachedCensus = threatZoneCensusStats[censusKey];
+  const censusRequest = cachedCensus?.status === 'ready'
+    ? Promise.resolve(cachedCensus.result)
+    : threatZoneCensusRequests[censusKey] || fetchCensusZoneStats(ring);
+  const [censusResult, occupancyResult] = await Promise.allSettled([censusRequest, threatIntelligenceRequest]);
   if (token !== demographicsRequestToken) return;
 
   const census = censusResult.status === 'fulfilled' ? censusResult.value : null;
@@ -9886,6 +10252,8 @@ async function renderThreatZones(geojson, label) {
   document.querySelector('[data-plume-layer="zones"]')?.setAttribute('aria-pressed', 'true');
   document.querySelector('[data-plume-layer="zones"]')?.classList.add('active');
   resetThreatZoneImpactSummary();
+  resetThreatZoneCensusStats(currentThreatZoneGeoJson.features);
+  void loadThreatZoneCensusStats(currentThreatZoneGeoJson.features);
   addThreatZoneLayers();
   setPlumeLayerVisibility('zones', true);
   if (plumeLayerState.hazards) void showPlumeHazards();
@@ -10844,6 +11212,8 @@ async function setPlumeMapView(viewName) {
   const view = plumeMapViews[viewName];
   if (!view) return;
   const switchToken = ++plumeMapViewToken;
+  // Preserve the responder's camera when a basemap style is replaced.
+  // cameraBeforeSwitch ? {
   const cameraBeforeSwitch = plumeMap ? {
     center: plumeMap.getCenter(),
     zoom: plumeMap.getZoom(),
@@ -10949,6 +11319,11 @@ async function clearThreatZones(message = '') {
   activePlumeCommand = null;
   renderIncidentCommandSnapshot();
   resetThreatZoneImpactSummary();
+  threatZoneCensusRequestToken += 1;
+  threatZoneCensusRequests = {};
+  threatZoneCensusStats = {};
+  setThreatIntelligence({ status: 'idle', modelRunId: null, generatedAt: null, zones: {}, affectedFacilities: [], sourceStatuses: [], errors: [] });
+  updatePlumeRightRailZoneResults(null);
   if (message) setText('plume-overlay-status', message);
 }
 
@@ -10989,7 +11364,7 @@ function getCurrentGps() {
           reject(new Error('Browser GPS returned an invalid location.'));
           return;
         }
-        resolve(location);
+        resolve({ ...location, source: 'Current device GPS', acquiredAt: new Date().toISOString() });
       },
       (error) => reject(new Error(getGpsErrorMessage(error))),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
@@ -11281,8 +11656,18 @@ async function fetchWeatherSources(lat, lon, { force = false } = {}) {
   const proxyQuery = new URLSearchParams({ lat: String(numericLat), lon: String(numericLon), refresh: String(Date.now()) });
   const proxy = await fetchJson(`/api/weather/current?${proxyQuery}`, { timeoutMs: 10000 });
   if (proxy?.openMeteo || proxy?.nws) {
-    const openMeteo = formatOpenMeteo(proxy.openMeteo);
-    const nws = formatNws(proxy.nws);
+    let openMeteo = formatOpenMeteo(proxy.openMeteo);
+    let nws = formatNws(proxy.nws);
+    // The proxy may legitimately return one provider while the other is
+    // timing out. Do not treat that partial response as a complete weather
+    // assessment: recover the missing feed through the existing direct
+    // provider path so forecast data is not silently discarded.
+    if (!openMeteo) {
+      try { openMeteo = formatOpenMeteo(await fetchOpenMeteo(numericLat, numericLon)); } catch { /* Preserve the available source. */ }
+    }
+    if (!nws) {
+      try { nws = formatNws(await fetchNwsObservation(numericLat, numericLon)); } catch { /* Preserve the available source. */ }
+    }
     commitCanonicalWeatherState(lat, lon, openMeteo, nws);
     return { openMeteo, nws };
   }
@@ -12308,7 +12693,7 @@ function renderThreatZoneFacilityDetails(level, zone) {
       ? 'Checking facilities…'
       : status === 'error'
         ? 'Facility data unavailable'
-        : `${zone?.facilityCounts?.total || 0} facilities identified`;
+        : `${zone?.facilityCounts?.total || 0} ${zone?.facilityCounts?.total === 1 ? 'facility' : 'facilities'} identified`;
   }
   if (!list) return;
   list.replaceChildren();
@@ -12384,6 +12769,7 @@ function updatePlumeRightRailZoneResults(result = null) {
     card.dataset.state = zone || isErg ? 'ready' : 'missing';
     renderThreatZoneFacilityDetails(level, threatIntelligence.zones?.[`aegl${level}`]);
   });
+  renderThreatZoneImpactDetails();
 
 }
 
@@ -13394,7 +13780,15 @@ function applyPlumeNavigationContext(context) {
   setControl('plume-manual-observation-time', weather.observationTime);
   syncPlumeChemicalSelection();
   updatePlumeInputSummaries();
-  updatePlumeCommandPanel(null);
+  // Navigation into Plume Model must not erase a completed result. The map,
+  // zone cards, and impact lookups are session state owned by this workspace;
+  // reapplying navigation context should refresh the controls around that
+  // result rather than downgrade it back to "Not Modeled".
+  const plottedResult = latestPlumeModelResult && currentThreatZoneGeoJson?.features?.length
+    ? latestPlumeModelResult
+    : null;
+  updatePlumeCommandPanel(plottedResult);
+  if (plottedResult) setPlumeMapResultVisible(true);
   updateOperationalPlumeReadiness();
 }
 
@@ -13721,9 +14115,6 @@ document.getElementById('plume-model-form')?.addEventListener('submit', async (e
   event.preventDefault();
   await plotPlumeFromControls();
 });
-document.getElementById('plot-plume-btn')?.addEventListener('click', () => {
-  void plotPlumeFromControls();
-});
 document.getElementById('plume-model-form')?.addEventListener('input', () => {
   updatePlumeInputSummaries();
   updateOperationalPlumeReadiness();
@@ -13798,7 +14189,8 @@ document.addEventListener('keydown', (event) => {
 });
 document.getElementById('plume-buildings-toggle')?.addEventListener('click', toggleConfiguredPlumeBuildings);
 document.getElementById('plume-fit-view-btn')?.addEventListener('click', () => void fitPlumeToView());
-document.getElementById('plume-recenter-map-btn')?.addEventListener('click', () => void recenterPlumeOnIncident());
+document.getElementById('plume-recenter-incident-btn')?.addEventListener('click', () => void recenterPlumeOnIncident());
+document.getElementById('plume-recenter-release-btn')?.addEventListener('click', recenterPlumeOnRelease);
 document.getElementById('plume-reset-view-btn')?.addEventListener('click', resetPlumeMapView);
 document.getElementById('plume-ground-view-btn')?.addEventListener('click', () => setPlumeGroundView());
 document.querySelectorAll('[data-plume-camera]').forEach((button) => {
@@ -14577,6 +14969,7 @@ let liveMap = null;
 let liveMapState = null;
 let liveMapMarkers = [];
 let liveMapGpsMarker = null;
+let liveMapGpsFixAt = null;
 let liveMapGpsRequested = false;
 let liveMapResizeObserver = null;
 let liveMapStoredStyleApplied = false;
@@ -14929,13 +15322,19 @@ function setLiveMapGpsStatus(state, message = '') {
   const status = document.getElementById('live-map-gps-status');
   if (!status) return;
   const dot = state === 'live' ? 'is-green' : state === 'error' ? 'is-red' : 'is-yellow';
-  status.innerHTML = `<i class="status-dot ${dot}"></i><b>GPS</b> ${state === 'live' ? 'LIVE' : state === 'error' ? 'UNAVAILABLE' : 'LOCATING'}`;
+  const fixTime = liveMapGpsFixAt ? new Date(liveMapGpsFixAt) : null;
+  const timestamp = fixTime && Number.isFinite(fixTime.getTime())
+    ? ` · ${String(fixTime.getUTCHours()).padStart(2, '0')}${String(fixTime.getUTCMinutes()).padStart(2, '0')}Z`
+    : '';
+  status.innerHTML = `<i class="status-dot ${dot}"></i><b>GPS</b> ${state === 'live' ? `LIVE${timestamp}` : state === 'error' ? 'UNAVAILABLE' : 'LOCATING'}`;
+  status.dataset.gpsFixAt = state === 'live' && liveMapGpsFixAt ? liveMapGpsFixAt : '';
   if (message) status.title = message;
 }
 
 function updateLiveMapGpsMarker(location) {
   const map = liveMap || window.hazmatiqLiveMap;
-  if (!map || !location) return;
+  if (!map || !location || location.source !== 'Current device GPS') return;
+  liveMapGpsFixAt = location.acquiredAt || new Date().toISOString();
   liveMapGpsMarker?.remove();
   const element = document.createElement('div');
   element.className = 'live-map-gps-marker';

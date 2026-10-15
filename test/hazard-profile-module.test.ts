@@ -14,7 +14,9 @@ function moduleApi() {
 
 describe('Hazard ID / Profile module ownership', () => {
   it('loads after the shared runtime and participates in the canonical page lifecycle', () => {
-    expect(html.indexOf('<script src="hazard-profile.js"></script>')).toBeGreaterThan(html.indexOf('<script src="script.js'));
+    const hazardProfileScript = html.match(/<script src="hazard-profile\.js(?:\?[^"]+)?"><\/script>/)?.[0] ?? '';
+    expect(hazardProfileScript).toBeTruthy();
+    expect(html.indexOf(hazardProfileScript)).toBeGreaterThan(html.indexOf('<script src="script.js'));
     expect(script).toContain("if (targetId === 'lookup') window.HazMatIQ.initializeHazardProfilePage?.(context);");
     expect(script).toContain('window.HazMatIQ.hazardProfileLegacy = {');
     expect(module).toContain('window.HazMatIQ.normalizeProfileForUi = normalizeProfileForUi;');

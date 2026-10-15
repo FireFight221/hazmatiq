@@ -8,7 +8,7 @@ import { BIOLOGICAL_SOURCE_HIERARCHY, CWA_SOURCE_HIERARCHY, RADIOLOGICAL_SOURCE_
 import { cbrneProfileById } from "../src/lib/cbrne/cbrneProfileAdapter.js";
 import { containsBiologicalMisuseContent, isInverseSquareInputComplete } from "../src/lib/cbrne/cbrneSafetyGates.js";
 import { hydrateCbrneDatabase } from "../src/lib/cbrne/hydrateCbrneDatabase.js";
-import { searchCbrneRecords } from "../src/lib/cbrne/searchCbrneRecords.js";
+import { canonicalCbrneRecordId, searchCbrneRecords } from "../src/lib/cbrne/searchCbrneRecords.js";
 import { stageCbrneImportPackage, validateCbrneImportPackage } from "../src/lib/cbrne/validateCbrneImport.js";
 import type { CbrneImportPackage } from "../src/lib/cbrne/cbrneImportTypes.js";
 import type { CbrneSourceFact } from "../src/lib/cbrne/cbrneTypes.js";
@@ -98,6 +98,16 @@ describe("CBRNE search and hydrated fail-closed profiles", () => {
     expect(searchCbrneRecords("Cs-137", { lane: "RADIOLOGICAL" })[0]?.id).toBe("cesium-137");
     expect(searchCbrneRecords("Dirty Bomb", { lane: "RADIOLOGICAL" })[0]?.id).toBe("radiological-dispersal-device");
     expect(searchCbrneRecords("Anthrax", { lane: "RADIOLOGICAL" })).toEqual([]);
+  });
+
+  it("canonicalizes Cesium-137 aliases into the dedicated radiological profile", () => {
+    for (const alias of ["cesium-137", "caesium-137", "Cs-137", "Cs137"]) {
+      expect(canonicalCbrneRecordId(alias, "RADIOLOGICAL")).toBe("cesium-137");
+      const profile = cbrneProfileById("RADIOLOGICAL", alias);
+      expect(profile?.radiologicalProfile).toMatchObject({ schemaVersion: "radiological-profile-v1" });
+      expect(profile?.radiologicalProfile?.responseStages).toHaveLength(5);
+      expect(profile?.radiologicalProfile?.emissions.some((field) => field.value.includes("Ba-137m"))).toBe(true);
+    }
   });
 
   it("hydrates Anthrax with source-backed sections and biological action cards", () => {

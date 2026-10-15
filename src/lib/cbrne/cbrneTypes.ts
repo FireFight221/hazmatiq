@@ -6,6 +6,8 @@ export type CbrneDomain =
   | "EXPLOSIVE"
   | "CBRNE_SCENARIO";
 
+export type CbrneSearchLane = "CBRNE_CWA" | "RADIOLOGICAL";
+
 export type CbrneCategory =
   | "NERVE_AGENT"
   | "BLISTER_AGENT"
@@ -124,6 +126,7 @@ export type CbrneSourceFact = {
 
 export type CbrneSearchResult = {
   id: string;
+  lane?: CbrneSearchLane;
   displayName: string;
   scientificName?: string;
   domain: CbrneDomain;
@@ -135,6 +138,51 @@ export type CbrneSearchResult = {
   radionuclideSymbol?: string;
   verificationStatus: CbrneVerificationStatus;
   sourceSummary: string[];
+};
+
+export type RadiologicalReference = {
+  name: string;
+  document: string;
+  url: string;
+  locator?: string;
+};
+
+export type RadiologicalProfileField = {
+  label: string;
+  value: string;
+  status: CbrneVerificationStatus | "Not available";
+  source?: RadiologicalReference;
+  note?: string;
+};
+
+export type RadiologicalResponseStage = {
+  priority: number;
+  title: string;
+  actions: string[];
+  sources: RadiologicalReference[];
+};
+
+export type RadiologicalScenarioGuidance = {
+  title: string;
+  applicability: string;
+  guidance: string;
+  hazards: string[];
+  sources: RadiologicalReference[];
+};
+
+export type RadiologicalProfile = {
+  schemaVersion: "radiological-profile-v1";
+  contentReviewDate: string;
+  identity: RadiologicalProfileField[];
+  emissions: RadiologicalProfileField[];
+  exposureAndContamination: RadiologicalProfileField[];
+  sourceFormAndContainment: RadiologicalProfileField[];
+  timeDistanceShielding: RadiologicalProfileField[];
+  detectionAndSurvey: RadiologicalProfileField[];
+  ppeAndRespiratory: RadiologicalProfileField[];
+  responseStages: RadiologicalResponseStage[];
+  scenarioGuidance: RadiologicalScenarioGuidance[];
+  references: RadiologicalReference[];
 };
 
 export type CbrneProfileFact = CbrneSourceFact;
@@ -183,4 +231,5 @@ export type CbrneProfile = {
   };
   guidedResponseReadiness?: import("./guidedResponseReadiness.js").GuidedResponseDataReadiness;
   guidedResponseEvidence?: import("./guidedResponseReadiness.js").GuidedResponseEvidence[];
+  radiologicalProfile: RadiologicalProfile | null;
 };

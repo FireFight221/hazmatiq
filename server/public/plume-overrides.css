@@ -6,6 +6,9 @@
  * remain owned by the existing contract in index.html/script.js.
  */
 
+/* Retired three-column contract (documentation only; never applied):
+   grid-template-columns: minmax(280px, 23fr) minmax(0, 54fr) minmax(280px, 23fr); */
+
 #plume.view.active {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -19,11 +22,19 @@
   display: grid;
   width: 100%;
   max-width: none;
-  grid-template-columns: minmax(260px, 20fr) minmax(0, 56fr) minmax(290px, 24fr);
   gap: 12px;
   min-height: 0;
   align-items: stretch;
   box-sizing: border-box;
+}
+
+.plume-map-shell {
+  height: 100% !important;
+}
+
+#plume.view.active #plume-gis-map,
+#plume.view.active .plume-map-shell {
+  min-height: 430px;
 }
 #plume.view.active .plume-v2-workspace > .plume-v2-input-column { grid-column: 1; min-width: 0; min-height: 0; }
 #plume.view.active .plume-v2-workspace > .plume-v2-map-column { grid-column: 2; min-width: 0; min-height: 0; }
@@ -223,13 +234,9 @@
 #plume.view.active .container-bubble-grid { padding: 0 9px 9px; }
 #plume.view.active .plume-v2-map-card { display: flex; min-height: 0; height: 100%; flex: 1 1 auto; flex-direction: column; overflow: hidden; border: 1px solid #1d648f; border-radius: 10px; background: #020f1d; }
 
-/* The map toolbar is one control surface: a wide location anchor followed by
-   four equally weighted actions. */
+/* Shared toolbar surface styling. Geometry is owned by
+   plume-layout-correction.css. */
 #plume.view.active .plume-v2-location-toolbar {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(112px, .82fr));
-  gap: 8px;
-  align-items: end;
   padding: 8px 10px;
   border-bottom: 1px solid #1d648f;
   background: linear-gradient(180deg, rgba(8, 37, 61, .78), rgba(2, 15, 29, .82));
@@ -481,17 +488,11 @@
 }
 
 @media (max-width: 1300px) and (min-width: 951px) {
-  #plume.view.active .plume-v2-workspace { grid-template-columns: minmax(260px, 20fr) minmax(0, 56fr) minmax(270px, 24fr); }
-  #plume.view.active .plume-v2-location-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #plume.view.active .plume-compass-control { right: 452px; }
-  #plume.view.active .plume-location-field { grid-column: 1 / -1; }
 }
 @media (max-width: 950px) {
   #plume.view.active { overflow: visible; }
-  #plume.view.active .plume-v2-workspace { grid-template-columns: 1fr; }
   #plume.view.active .plume-v2-map-column { min-height: 0; }
-  #plume.view.active .plume-v2-location-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #plume.view.active .plume-location-field { grid-column: 1 / -1; }
   #plume.view.active .plume-compass-control { top: auto; right: 12px; bottom: 78px; }
 }
 @media (max-width: 620px) {
@@ -501,8 +502,6 @@
   #plume.view.active .plume-compass-control { right: 8px; bottom: 78px; }
   #plume.view.active .plume-release-grid > *,
   #plume.view.active .plume-weather-grid > * { grid-column: 1 !important; }
-  #plume.view.active .plume-v2-location-toolbar { grid-template-columns: 1fr 1fr; }
-  #plume.view.active .plume-location-field { grid-column: 1 / -1; }
   #plume.view.active .plume-v2-map-column { min-height: 0; }
 }
 
@@ -1232,7 +1231,7 @@ body.plume-map-maximized-open { overflow: hidden; }
   }
 }
 
-@container plume-input (max-width: 520px) {
+@container plume-input (max-width: 480px) {
   #plume.view.active .plume-release-grid {
     grid-template-columns: 1fr;
   }
@@ -1411,8 +1410,8 @@ body.plume-map-maximized-open { overflow: hidden; }
   color: #fff;
 }
 
-/* Reference dashboard composition: a 35% command rail beside a large,
-   near-square map. The calculation form and existing map DOM remain intact. */
+/* Shared map-card styling. Page geometry is owned by
+   plume-layout-correction.css. */
 #plume.view.active {
   grid-template-rows: auto auto minmax(0, 1fr);
   overflow: auto;
@@ -1420,7 +1419,6 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-global-action-bar {
   grid-column: 1;
   display: grid;
-  grid-template-columns: minmax(260px, 2.2fr) minmax(300px, 2.4fr) repeat(5, minmax(106px, 1fr));
   gap: 8px;
   align-items: end;
   padding: 8px 10px;
@@ -1432,13 +1430,13 @@ body.plume-map-maximized-open { overflow: hidden; }
   min-height: 40px;
   border-radius: 7px;
 }
-#plume.view.active .plume-global-action-bar .guided-response-toolbar-button {
+#plume.view.active .plume-map-action-group .guided-response-toolbar-button {
   border-color: #1ba676;
   background: linear-gradient(180deg, #0ca968, #087444);
   color: #fff;
 }
-#plume.view.active .plume-global-action-bar .guided-response-toolbar-button:hover,
-#plume.view.active .plume-global-action-bar .guided-response-toolbar-button:focus-visible {
+#plume.view.active .plume-map-action-group .guided-response-toolbar-button:hover,
+#plume.view.active .plume-map-action-group .guided-response-toolbar-button:focus-visible {
   border-color: #7ff0c2;
   background: linear-gradient(180deg, #16c17b, #0a8b53);
 }
@@ -1464,7 +1462,6 @@ body.plume-map-maximized-open { overflow: hidden; }
 }
 
 #plume.view.active .plume-v2-workspace {
-  grid-template-columns: minmax(310px, 35fr) minmax(0, 65fr);
   grid-template-rows: auto;
   grid-template-areas: "inputs map";
   align-items: start;
@@ -1569,15 +1566,9 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-weather-glance-reading strong { white-space: pre-line; }
 
 @media (max-width: 1100px) and (min-width: 951px) {
-  #plume.view.active .plume-global-action-bar { grid-template-columns: minmax(220px, 1.8fr) minmax(260px, 2fr) repeat(5, minmax(86px, 1fr)); }
-  #plume.view.active .plume-v2-workspace { grid-template-columns: minmax(280px, 38fr) minmax(0, 62fr); }
 }
 @media (max-width: 950px) {
-  #plume.view.active .plume-global-action-bar { grid-template-columns: minmax(0, 1fr) repeat(5, minmax(0, 1fr)); }
-  #plume.view.active .plume-global-action-bar .plume-location-field { grid-column: 1 / -1; }
-  #plume.view.active .plume-global-action-bar .plume-map-mode-controls { grid-column: 1 / -1; }
   #plume.view.active .plume-v2-workspace {
-    grid-template-columns: 1fr;
     grid-template-rows: auto auto;
     grid-template-areas: "inputs" "map";
   }
@@ -1585,9 +1576,6 @@ body.plume-map-maximized-open { overflow: hidden; }
   #plume.view.active .plume-v2-map-card { height: min(720px, 76vw); min-height: 500px; }
 }
 @media (max-width: 620px) {
-  #plume.view.active .plume-global-action-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #plume.view.active .plume-global-action-bar .plume-location-field,
-  #plume.view.active .plume-global-action-bar .guided-response-toolbar-button { grid-column: 1 / -1; }
   #plume.view.active .plume-v2-map-card { height: 520px; min-height: 520px; }
   #plume.view.active .plume-zone-tabs button { font-size: 9px; }
 }
@@ -1595,9 +1583,6 @@ body.plume-map-maximized-open { overflow: hidden; }
 /* Final Plume control contract: keep the location editor in the elongated
    page-level strip, while Map Mode shares the map toolbar with Layers and
    Actions. */
-#plume.view.active .plume-global-action-bar {
-  grid-template-columns: minmax(280px, 2.1fr) repeat(3, minmax(106px, 1fr));
-}
 #plume.view.active .plume-v2-map-controls {
   display: grid;
   grid-template-columns: max-content max-content max-content;
@@ -1664,15 +1649,7 @@ body.plume-map-maximized-open { overflow: hidden; }
   display: none;
 }
 
-@media (max-width: 1100px) and (min-width: 951px) {
-  #plume.view.active .plume-global-action-bar {
-    grid-template-columns: minmax(260px, 1.8fr) repeat(3, minmax(86px, 1fr));
-  }
-}
 @media (max-width: 950px) {
-  #plume.view.active .plume-global-action-bar {
-    grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 1fr));
-  }
   #plume.view.active .plume-global-action-bar > .plume-map-location-control {
     grid-column: 1 / -1;
   }
@@ -1691,11 +1668,11 @@ body.plume-map-maximized-open { overflow: hidden; }
   }
 }
 @media (max-width: 620px) {
-  #plume.view.active .plume-global-action-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   #plume.view.active .plume-global-action-bar > .plume-map-location-control {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #plume.view.active .plume-global-action-bar > .plume-map-location-control .plume-location-actions {
+    justify-content: flex-end;
   }
 }
 
@@ -1707,30 +1684,47 @@ body.plume-map-maximized-open { overflow: hidden; }
   gap: 8px;
   min-height: 0;
 }
-#plume.view.active .plume-global-action-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-}
-#plume.view.active .plume-global-action-bar .plume-map-mode-controls {
-  flex: 1 1 auto;
-  min-height: 34px;
-  flex-wrap: wrap;
-  overflow: visible;
+#plume.view.active .plume-global-action-bar > .plume-map-location-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: end;
+  gap: 4px 8px;
+  min-width: 0;
+  margin: 0;
   padding: 0;
   border: 0;
 }
-#plume.view.active .plume-global-action-bar .plume-map-button,
-#plume.view.active .plume-global-action-bar .plume-layer-button {
+#plume.view.active .plume-global-action-bar > .plume-map-location-control .plume-location-field { min-width: 0; }
+#plume.view.active .plume-global-action-bar > .plume-map-location-control .plume-location-actions {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+}
+#plume.view.active .plume-global-action-bar > .plume-map-location-control .plume-map-button {
   width: auto;
+  min-width: 0;
   min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+#plume.view.active .plume-map-action-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+#plume.view.active .plume-map-action-group .plume-map-button {
+  width: auto;
+  min-width: 112px;
+  min-height: 34px;
+  flex: 0 1 auto;
   padding: 6px 10px;
   font-size: 12px;
 }
 #plume.view.active .plume-v2-workspace {
-  grid-template-columns: clamp(360px, 27vw, 390px) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "inputs map";
   height: 100%;
@@ -1772,7 +1766,7 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-model-section-heading strong { font-size: 14px; line-height: 1.2; white-space: nowrap; }
 #plume.view.active .plume-model-section-heading .plume-card-accent { display: none; }
 #plume.view.active .plume-stage-number { flex: 0 0 24px; width: 24px; height: 24px; font-size: 14px; }
-#plume.view.active .plume-release-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#plume.view.active .plume-release-grid { gap: 6px; }
 #plume.view.active .plume-release-grid .plume-field-label-row { gap: 4px; margin-bottom: 3px; }
 #plume.view.active .plume-release-grid .plume-field-label-row > label,
 #plume.view.active .plume-model-field > span { font-size: 12px; letter-spacing: 0; line-height: 1.25; }
@@ -1808,9 +1802,12 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-intelligence-card { flex: 0 0 auto; }
 #plume.view.active .plume-v2-intelligence-column > .plume-readiness-card { display: block; }
 #plume.view.active .plume-v2-workspace > .plume-v2-map-column {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   grid-area: map;
   grid-row: 1;
   height: 100%;
+  gap: 6px;
   min-height: 0;
 }
 #plume.view.active .plume-v2-map-card {
@@ -1915,8 +1912,12 @@ body.plume-map-maximized-open { overflow: hidden; }
 }
 @media (max-width: 620px) {
   #plume.view.active .plume-global-action-bar .plume-map-mode-controls { flex-basis: 100%; }
-  #plume.view.active .plume-global-action-bar .plume-map-button,
-  #plume.view.active .plume-global-action-bar .plume-layer-button { min-height: 40px; }
+  #plume.view.active .plume-map-action-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #plume.view.active .plume-map-action-group .plume-map-button { min-width: 0; }
+  #plume.view.active .plume-map-action-group .guided-response-toolbar-button { grid-column: 1 / -1; }
   #plume.view.active .plume-v2-map-controls .plume-map-action-controls { margin-left: 0; }
   #plume.view.active .plume-v2-map-controls .plume-map-control-label { display: none; }
   #plume.view.active .plume-3d-model-facts { right: 8px; width: calc(100% - 160px); }
@@ -1934,10 +1935,6 @@ body.plume-map-maximized-open { overflow: hidden; }
 }
 #plume.view.active .plume-weather-glance-compass > span { font-size: 8px; }
 #plume.view.active .plume-weather-glance-compass i { height: 16px; }
-#plume.view.active .plume-release-grid > .plume-release-quantity-field { grid-column: 1; }
-#plume.view.active .plume-release-grid > .plume-release-unit-field { grid-column: 2; }
-#plume.view.active .plume-release-grid > .plume-release-duration-field { grid-column: 1; }
-#plume.view.active .plume-release-grid > .plume-release-height-field { grid-column: 2; }
 #plume.view.active .plume-release-grid .plume-field-label-row > label { overflow-wrap: normal; }
 #plume.view.active .plume-weather-source-row { display: grid; align-items: end; }
 @media (min-width: 1101px) {
@@ -1971,20 +1968,20 @@ body.plume-map-maximized-open { overflow: hidden; }
 /* Threat Zone is a compact hazard action in the page toolbar. Its existing
    live result card is moved into the dialog by script, so every value remains
    connected to the same model and facility-detail elements. */
-#plume.view.active .plume-global-action-bar .plume-threat-zone-button {
+#plume.view.active .plume-map-action-group .plume-threat-zone-button {
   border-color: #ffd18a;
   background: linear-gradient(180deg, #ff9f1c 0%, #f97316 52%, #d9480f 100%);
   color: #fff;
   box-shadow: inset 0 -3px 0 rgba(126, 32, 3, .48), 0 4px 0 #8f2d08, 0 7px 16px rgba(231, 92, 18, .34);
 }
-#plume.view.active .plume-global-action-bar .plume-threat-zone-button:hover,
-#plume.view.active .plume-global-action-bar .plume-threat-zone-button:focus-visible {
+#plume.view.active .plume-map-action-group .plume-threat-zone-button:hover,
+#plume.view.active .plume-map-action-group .plume-threat-zone-button:focus-visible {
   border-color: #ffe2ae;
   background: linear-gradient(180deg, #ffb347 0%, #fb7c18 52%, #e85d04 100%);
   color: #fff;
   transform: translateY(-1px);
 }
-#plume.view.active .plume-global-action-bar .plume-threat-zone-button:active {
+#plume.view.active .plume-map-action-group .plume-threat-zone-button:active {
   box-shadow: inset 0 -2px 0 rgba(126, 32, 3, .5), 0 1px 0 #8f2d08, 0 3px 8px rgba(231, 92, 18, .28);
   transform: translateY(2px);
 }

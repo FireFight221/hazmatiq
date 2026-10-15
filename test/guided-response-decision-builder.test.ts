@@ -10,6 +10,7 @@ type BuilderApi = {
     linkedSources?: Record<string, unknown>,
     plumeState?: Record<string, unknown>,
     weatherState?: Record<string, unknown>,
+  options?: Record<string, unknown>,
   ) => Record<string, any>;
 };
 
@@ -313,5 +314,21 @@ describe("Guided Response tactical decision builder", () => {
     expect(record.guidedResponse.decon.status).toBe("VERIFY");
     expect(record.guidedResponse.decon.action).toMatch(/verify/i);
     expect(record.guidedResponse.sequence.every((stage: Record<string, any>) => stage.sources.length > 0)).toBe(true);
+  });
+
+  it.each(["Defensive", "Offensive", "Non-Intervention"])("persists the Incident Command tactical mode choice: %s", (mode) => {
+    const record = builder.buildGuidedResponseDecisions({
+      masterLinked: true,
+      masterChemicalId: 22,
+      chemicalName: "Chlorine",
+      transportationIdentifier: "1017",
+    }, {
+      profile: queryChemicalProfile(22),
+      approvedSources: ["Chemical Companion", "ERG"],
+    }, {}, {}, { selectedTacticalMode: mode });
+    expect(record.selectedTacticalMode).toBe(mode);
+    expect(record.mitigationDecisionSupport.tacticalPosture).toBe(mode);
+    expect(record.guidedResponse.tacticalMode.selectedTacticalMode).toBe(mode);
+    expect(record.mitigation.specificValues.selectedTacticalMode).toBe(mode);
   });
 });

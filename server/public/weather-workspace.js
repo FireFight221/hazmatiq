@@ -126,6 +126,7 @@
     }
     writeText('weather-radar-service-status', state.enabled ? (state.error ? 'Unavailable' : 'Connected') : 'Off');
     if (state.error) writeText('weather-map-status', 'Radar temporarily unavailable · basemap remains available.');
+    else if (state.enabled && Number(state.frameCount) > 0) writeText('weather-map-status', `${state.providerName || 'Weather radar'} ready · latest frame loaded.`);
   }
 
   function ensureRadar() {
@@ -722,6 +723,10 @@
       add({ id: `alert-${alertKey}`, alertKey, category: 'ALERTS', severity, title: event.toUpperCase(), summary, detail: properties.description || properties.instruction || properties.headline || 'Review the active NWS alert for full details.', values: `${properties.areaDesc || 'Area unavailable'} · ${category.label}`, timeWindow: formatAlertTimeWindow(properties), alert: true });
     });
     if (!current) return impacts.length ? sortImpacts() : [{ id: 'weather-data-required', category: 'GENERAL OPERATIONS', severity: 'informational', title: 'WEATHER DATA REQUIRED', summary: 'Choose a Weather location to calculate operational impacts.', detail: 'Weather remains independent from Incident Command and requires an explicit workspace location.', values: 'Awaiting current conditions' }];
+
+    if (!Array.isArray(weatherState?.openMeteo?.forecast) || !weatherState.openMeteo.forecast.length) {
+      add({ id: 'forecast-data-unavailable', category: 'GENERAL OPERATIONS', severity: 'advisory', title: 'FORECAST DATA UNAVAILABLE', summary: 'Current observations are available, but the forecast feed is missing; this is not a complete weather assessment.', detail: 'Retry the Weather workspace or verify the external forecast provider before relying on near-term trends.', values: 'Forecast feed unavailable' });
+    }
 
     const currentWind = Number(current.windDirDeg);
     const forecastWind = Number(f3?.windDirDeg);

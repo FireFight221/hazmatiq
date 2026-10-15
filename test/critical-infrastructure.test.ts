@@ -65,6 +65,15 @@ describe("critical infrastructure threat-zone classification", () => {
     expect(result.zones.find((zone) => zone.id === "orange")?.facilityCounts.hospital).toBe(0);
   });
 
+  it("retains the more specific fire-station category when public layers overlap", () => {
+    const result = classifyFacilitiesByThreatZone([redZone], [
+      facility({ id: "medical", name: "Station 5", category: "ems", latitude: 5, longitude: 5 }),
+      facility({ id: "fire", name: "Station 5", category: "fire_station", latitude: 5, longitude: 5 }),
+    ]);
+    expect(result.zones[0].facilityCounts.fire_station).toBe(1);
+    expect(result.zones[0].facilityCounts.ems).toBe(0);
+  });
+
   it("returns zero for a successful empty query", async () => {
     const fetchEmpty = async () => new Response(JSON.stringify({ features: [] }), { status: 200 });
     const result = await lookupCriticalInfrastructure([redZone], fetchEmpty);

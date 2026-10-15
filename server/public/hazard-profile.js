@@ -15,7 +15,7 @@
     return null;
   }
 
-  function normalizeSearchResult(result, lane = result?.lane || result?.routingLane || 'CHEMICAL') {
+  function normalizeSearchResult(result, lane = result?.lane || result?.routingLane || window.HazMatIQ?.activeHazardSearchLane || 'CHEMICAL') {
     const source = result && typeof result === 'object' ? result : {};
     const routingLane = String(lane || 'CHEMICAL').toUpperCase();
     const isHazard = routingLane !== 'CHEMICAL';

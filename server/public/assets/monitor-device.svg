@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80" fill="none">
+  <symbol id="monitor-device-header" viewBox="0 0 64 80">
+    <rect x="7" y="5" width="50" height="70" rx="8" fill="#071623" stroke="#FFD45A" stroke-width="2.6"/>
+    <path d="M14 18h36" stroke="#7FDDF2" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>
+    <circle cx="19" cy="12" r="1.6" fill="#7FDDF2"/>
+    <circle cx="25.5" cy="12" r="1.6" fill="#7FDDF2"/>
+    <circle cx="32" cy="12" r="1.6" fill="#7FDDF2"/>
+    <circle cx="38.5" cy="12" r="1.6" fill="#7FDDF2"/>
+    <circle cx="45" cy="12" r="1.6" fill="#7FDDF2"/>
+    <rect x="14" y="22" width="36" height="28" rx="3.5" fill="#092A43" stroke="#47C8E8" stroke-width="1.8"/>
+    <path d="M19 32h15M19 39h22" stroke="#8BE9FF" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="24" cy="59" r="3.2" fill="#0A2031" stroke="#FFD45A" stroke-width="1.5"/>
+    <circle cx="40" cy="59" r="3.2" fill="#0A2031" stroke="#FFD45A" stroke-width="1.5"/>
+    <path d="M20 69h24" stroke="#65B9D2" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="monitor-device-nav" viewBox="0 0 24 24">
+    <rect x="5" y="3" width="14" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/>
+    <path d="M8.5 6.5h.01M12 6.5h.01M15.5 6.5h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="8" y="9" width="8" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M9.5 10.8h2.5M9.5 12.5h4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="10" cy="17" r="1.2" stroke="currentColor" stroke-width="1.35"/>
+    <circle cx="14" cy="17" r="1.2" stroke="currentColor" stroke-width="1.35"/>
+  </symbol>
+</svg>

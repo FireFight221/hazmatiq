@@ -78,7 +78,6 @@ body {
   color: var(--hazmat-text);
   box-shadow: 0 10px 28px rgba(6, 26, 46, 0.24);
 }
-
 .hazmat-command-identity {
   display: flex;
   align-items: center;
@@ -449,7 +448,7 @@ textarea::placeholder {
 
 .app-shell {
   min-height: 100vh;
-  padding: 8px;
+  padding: var(--app-top-space, 8px);
   background: #d4d6d8;
 }
 
@@ -6166,7 +6165,6 @@ button:focus-visible {
 }
 
 @media (max-width: 620px) {
-  .app-shell { padding: 12px; }
   .topbar { padding: 18px; }
   .brand { gap: 13px; }
   .brand-emblem { width: 44px; height: 44px; flex-basis: 44px; border-width: 3px; }
@@ -6978,7 +6976,7 @@ textarea {
 }
 
 .app-shell {
-  padding: 8px;
+  padding: var(--app-top-space, 8px);
   background: var(--hazmat-gutter);
 }
 
@@ -7634,7 +7632,6 @@ body.workspace-drawer-open { overflow: hidden; }
 }
 
 @media (max-width: 620px) {
-  .app-shell { padding: 5px; }
   .hazmat-command-identity { align-items: flex-start; flex-direction: column; gap: 4px; }
   .hazmat-command-bar .brand-logo { width: 138px; height: 42px; }
   .hazmat-command-incident { padding-left: 0; border-left: 0; }
@@ -10113,7 +10110,7 @@ body,
   color: var(--text);
 }
 
-.app-shell { padding: 10px; }
+.app-shell { padding: var(--app-top-space, 8px); }
 
 .hazmat-command-bar.topbar {
   position: relative;
@@ -10515,7 +10512,6 @@ body,
 }
 
 @media (max-width: 560px) {
-  .app-shell { padding: 6px; }
   .hazmat-command-bar.topbar { min-height: 0; padding: 7px; }
   .brand-logo-command { width: 100%; }
   .command-center-launch { gap: 8px; }
@@ -12057,7 +12053,6 @@ body:has(#overview.view.active),
   min-width: 0;
   min-height: 100vh;
   margin: 0;
-  padding: 0;
   background-color: #020d17;
   background-image:
     linear-gradient(rgba(103, 156, 197, 0.045) 1px, transparent 1px),
@@ -12351,8 +12346,20 @@ body:has(#overview.view.active),
 }
 
 #overview .overview-promo-strip .overview-promo-box > span {
+  display: grid;
+  place-items: center;
   font-size: 0.9rem;
   font-weight: 950;
+}
+
+#overview .overview-promo-strip .promo-monitor > span {
+  color: #d59cff;
+}
+
+#overview .overview-promo-strip .promo-monitor .monitor-device-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
 }
 
 body:has(#overview.view.active) .workspace-drawer-backdrop.workspace-drawer-home {
@@ -12421,11 +12428,6 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   #overview .overview-action-layout {
     min-height: clamp(170px, 46vw, 205px);
   }
-}
-
-/* Internal pages begin with their own title banner; the homepage alone keeps the global brand header. */
-.app-shell:not(:has(#overview.view.active)) > .command-header {
-  display: none !important;
 }
 
 .view:not(#overview) > .hazmat-page-hero,
@@ -12627,7 +12629,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
 
   .view:not(#overview) :is(
     .panel-card,
-    [class$="-card"],
+    [class$="-card"]:not(.erg-review-distance-card),
     [class*="-card "],
     [class$="-panel"],
     [class*="-panel "]
@@ -13128,13 +13130,28 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
 }
 
 #map .live-map-tactical-header {
-  display: block;
-  min-height: 82px;
-  padding: 12px 18px 10px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0 !important;
   border-bottom: 1px solid var(--map-line);
-  background:
-    linear-gradient(90deg, rgba(6, 26, 46, .98), rgba(8, 40, 65, .92) 68%, rgba(7, 28, 47, .98)),
-    repeating-linear-gradient(135deg, transparent 0 18px, rgba(118, 190, 230, .035) 19px 20px);
+  background: #061a2e;
+}
+
+#map .live-map-tactical-header::before,
+#map .live-map-tactical-header::after {
+  display: none;
+}
+
+#map .live-map-hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  object-fit: contain;
+  object-position: left center;
 }
 
 #map .live-map-control-label,
@@ -13428,7 +13445,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
 
 @media (max-width: 620px) {
   #map .live-map-stage { overflow: visible; }
-  #map .live-map-tactical-header { min-height: 0; padding: 12px 13px 9px; }
+  #map .live-map-tactical-header { min-height: 0; padding: 0; }
   #map .live-map-operations { padding: 8px 13px; }
   #map .live-map-control-groups { display: grid; grid-template-columns: 1fr; }
   #map .live-map-control-buttons { width: 100%; }
@@ -13484,6 +13501,11 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   #map.active .live-map-stage {
     min-height: 420px;
     height: 100%;
+  }
+
+  #map.active .live-map-stage,
+  #map.active #live-gis-map {
+    min-width: 0;
   }
 
   #map.active #live-gis-map {

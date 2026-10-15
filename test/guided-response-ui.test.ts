@@ -136,6 +136,22 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain("@media (max-width: 900px)");
   });
 
+  it("puts the command checkpoints first and makes them interactive", () => {
+    expect(script).toContain("const checkpointsSection = createGuidedSupportingSection('COMMAND CHECKPOINTS'");
+    expect(script).toContain("checkpointsSection.classList.add('guided-command-checkpoints')");
+    expect(script).toContain("{ interactive: true, hideSource: true }");
+    expect(script).toContain("if (!hideSource) row.append(createGuidedSourceBadge(source));");
+    expect(script).toContain("marker.setAttribute('role', 'checkbox')");
+    expect(script).toContain("guidedCommandCheckpointsStorageKey");
+    expect(script).toContain("flow.append(heading, notice, checkpointsSection, grid, supportGrid)");
+    expect(styles).toContain(".guided-command-checkpoints");
+    expect(styles).toContain(".guided-command-checkpoint-list");
+    expect(styles).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(styles).toContain("width: 28px");
+    expect(styles).toContain("font-size: .9rem");
+    expect(styles).toContain("grid-template-columns: 1fr;");
+  });
+
   it("keeps the Guided Response title box compact", () => {
     expect(styles).toContain("padding: 5px 12px");
     expect(styles).toContain("height: 62px");

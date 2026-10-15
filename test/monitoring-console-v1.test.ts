@@ -21,16 +21,18 @@ describe('EMERGENZ Monitoring V1', () => {
     expect(html).toContain('class="em-monitor-right"');
     expect(html).toContain('id="monitor-map-style"');
     expect(html).toContain('id="monitor-location-count"');
-    expect(html).toContain('src="monitoring-console.js?v=2"');
+    expect(html).toContain('src="monitoring-console.js?v=5"');
   });
 
-  it('seeds precisely 17 starter slots without inventing sensor packages, GPS, or readings', () => {
+  it('seeds starter slots without inventing sensor packages, GPS, or readings', () => {
     expect(consoleSource).toContain("...Array.from({length:4}, (_,i)=>['MultiRAE',i+1");
     expect(consoleSource).toContain("...Array.from({length:2}, (_,i)=>['MultiRAE Pro',i+1");
     expect(consoleSource).toContain("...Array.from({length:4}, (_,i)=>['AreaRAE',i+1");
     expect(consoleSource).toContain("['Ludlum RAD',null,'Ludlum Measurements']");
     expect(consoleSource).toContain("...Array.from({length:2}, (_,i)=>['ToxiRAE',i+1");
     expect(consoleSource).toContain("...Array.from({length:4}, (_,i)=>['RadEye',i+1");
+    expect(consoleSource).toContain("['Rigaku Raman',null,'Rigaku']");
+    expect(consoleSource).toContain("['HazMatID FTIR',null,'Smiths Detection']");
     expect(consoleSource).toContain("status:'Available', readinessDataMode:'Unverified'");
     expect(consoleSource).toContain("serialNumber:'', sensorPackage:''");
     expect(consoleSource).toContain('inventory.some(v=>v.id===id');
@@ -63,6 +65,15 @@ describe('EMERGENZ Monitoring V1', () => {
   it('keeps manufacturer variants honest, and the device panel independently scrollable', () => {
     expect(consoleSource).toContain('MODEL PHOTO PENDING');
     expect(consoleSource).toContain('manufacturer reference product photograph');
+    expect(consoleSource).toContain("'AreaRAE': {src:'assets/monitor-arearae-pro.png'");
+    expect(consoleSource).toContain("'Ludlum RAD': {src:'assets/monitor-ludlum-rad.png'");
+    expect(consoleSource).toContain("'RadEye': {src:'assets/monitor-radeye-prd4.png'");
+    expect(consoleSource).toContain("'ToxiRAE': {src:'assets/monitor-toxirae-pro.png'");
+    expect(consoleSource).toContain("'Rigaku Raman': {src:'assets/monitor-rigaku-raman.png'");
+    expect(consoleSource).toContain("'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.png'");
+    expect(consoleSource).toContain("if(n.includes('rigaku') || n.includes('cql max id') || n.includes('raman')) return 'Rigaku Raman'");
+    expect(consoleSource).toContain("if(n.includes('hazmatid') || /smiths\\s+detection.*ftir/.test(n)) return 'HazMatID FTIR'");
+    expect(consoleCss).toContain('object-fit:contain');
     expect(consoleSource).toContain("if(n.includes('multirae lite')) return ''");
     expect(consoleCss).toContain('em-monitor-scroll');
     expect(consoleCss).toContain('grid-template-columns:minmax(360px,43fr) minmax(245px,20fr) minmax(370px,37fr)');

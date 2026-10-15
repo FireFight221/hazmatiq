@@ -212,6 +212,19 @@ function facilityDedupeKey(facility: CriticalFacility): string {
 }
 
 function preferFacility(current: CriticalFacility, candidate: CriticalFacility): CriticalFacility {
+  // The same public point often appears in both the medical-facility and
+  // fire-station HIFLD layers. Keep the more operationally specific category
+  // so a fire station is not hidden behind a generic healthcare/EMS record.
+  const categoryPriority: Record<CriticalFacilityCategory, number> = {
+    fire_station: 7,
+    hospital: 6,
+    school: 6,
+    nursing_home: 5,
+    ems: 4,
+    healthcare: 3,
+    critical_facility: 2,
+  };
+  if (categoryPriority[candidate.category] > categoryPriority[current.category]) return candidate;
   if (current.category === "healthcare" && candidate.category === "hospital") return candidate;
   if (current.category === "healthcare" && candidate.category === "nursing_home") return candidate;
   return current;

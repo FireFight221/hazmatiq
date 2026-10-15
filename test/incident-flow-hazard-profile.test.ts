@@ -28,6 +28,17 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     expect(incidentStyles).toContain("grid-template-columns: repeat(5, minmax(0, 1fr));");
   });
 
+  it("keeps recommended action labels, details, and status in one organized row", () => {
+    expect(script).toContain("row.className = 'incident-command-guided-recommendation';");
+    expect(script).toContain("title.className = 'incident-command-guided-recommendation-label';");
+    expect(script).toContain("detail.className = 'incident-command-guided-recommendation-detail';");
+    expect(script).toContain("state.className = 'incident-command-guided-recommendation-status';");
+    expect(incidentStyles).toContain("grid-template-columns: minmax(150px, .72fr) minmax(0, 1.75fr) max-content;");
+    expect(incidentStyles).toContain("container: incident-guided-panel / inline-size;");
+    expect(incidentStyles).toContain("@container incident-guided-panel (min-width: 340px) and (max-width: 560px)");
+    expect(incidentStyles).toContain("@media (max-width: 560px)");
+  });
+
   it("renders the authoritative chemical profile independently of optional enrichment", () => {
     const loader = script.slice(
       script.indexOf("async function openChemical(chemical"),

@@ -42,7 +42,7 @@ describe("unified Hazard ID workspace", () => {
   it("keeps Chemical Companion controls and safely gates non-chemical plume actions", () => {
     expect(html).toContain('id="chemical-search-form"');
     expect(html).toContain('id="chemical-id-results"');
-    expect(html).toContain('script.js?v=command-facility-inventory-2');
+    expect(html).toContain('script.js?v=hazard-radiological-profile-1');
     expect(html).toContain('id="open-plume-btn"');
     expect(html).toContain('id="hazard-profile-plume-btn" type="button" disabled');
     expect(script).toContain("Plume requires verified endpoint/source data.");
@@ -53,7 +53,8 @@ describe("unified Hazard ID workspace", () => {
     for (const tab of ["Overview", "Health / Exposure", "PPE / Respiratory", "Detection", "Sampling / Analysis", "Decon", "Medical", "Protective Actions", "Command / Coordination", "Sources", "Physics", "Radiation Operations", "PPE / Contamination", "Detection / Survey"]) {
       expect(script).toContain(`['${tab}'`);
     }
-    expect(html).toContain('id="hazard-profile-overview-list"');
+    expect(script).toContain("item.className = 'hazard-profile-fact-tile'");
+    expect(html).toContain('id="hazard-profile-action-cards"');
     expect(profileModule).toContain("window.HazMatIQ.openHazardProfile = openHazardProfile");
     expect(script).toContain("function setHazardProfileMode(mode)");
     expect(script).toContain("function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = false } = {})");
@@ -83,8 +84,8 @@ describe("unified Hazard ID workspace", () => {
   });
 
   it("keeps the Hazard ID shell fluid from desktop through tablet widths", () => {
-    expect(html).toContain('styles.css?v=live-map-responsive-2');
-    expect(html).toContain('chemical-intel.css?v=hazard-profile-panel-28');
+    expect(html).toContain('styles.css?v=live-map-responsive-6');
+    expect(html).toContain('chemical-intel.css?v=hazard-profile-panel-30');
     expect(styles).toContain('#lookup > .hazard-id-page-hero');
     expect(styles).toContain('#lookup > .hazard-id-command-console.chemical-id-search-card');
     expect(styles).toContain('@media (max-width: 700px)');

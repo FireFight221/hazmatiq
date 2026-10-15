@@ -227,7 +227,9 @@
     });
   }
 
-  function buildMitigation(linkedSources, lifeSafety, plumeState, weatherState, sources) {
+  const TACTICAL_MODE_OPTIONS = ['Defensive', 'Offensive', 'Non-Intervention'];
+
+  function buildMitigation(linkedSources, lifeSafety, plumeState, weatherState, sources, selectedTacticalMode = '') {
     const profile = linkedSources.profile || {};
     const spillFacts = unique([profile.spillResponse, profile.releaseControl, linkedSources.responderGuide?.emergencyResponse?.spillOrLeak]);
     const fireFacts = unique([profile.vaporControl, profile.fire?.firefightingPrecautions, linkedSources.responderGuide?.emergencyResponse?.fire]);
@@ -257,7 +259,9 @@
         ? 'plume confidence requires field verification' : '',
       lifeSafety.missingData.includes('Suit compatibility') ? 'suit compatibility is not verified' : '',
     ]);
-    const tacticalPosture = defensiveTriggers.length ? 'Defensive' : REVIEW;
+    const commanderMode = TACTICAL_MODE_OPTIONS.includes(selectedTacticalMode) ? selectedTacticalMode : '';
+    const derivedTacticalPosture = defensiveTriggers.length ? 'Defensive' : REVIEW;
+    const tacticalPosture = commanderMode || derivedTacticalPosture;
     const spillReleaseControl = spillFacts.length ? spillFacts.join(' · ') : NO_DATA;
     const neutralization = neutralizationFacts.length ? neutralizationFacts.join(' · ') : 'Neutralization Requires Source-Backed Verification';
     const vaporFireControl = unique([vaporFacts, fireFacts]).length ? unique([vaporFacts, fireFacts]).join(' · ') : NO_DATA;
@@ -265,9 +269,11 @@
     const entryDecision = lifeSafety.specificValues.scbaDecision === 'SCBA MANDATED'
       ? `Entry only with ${lifeSafety.specificValues.protectionLevel === NO_DATA ? 'verified respiratory and chemical protection' : lifeSafety.specificValues.protectionLevel}; otherwise remain non-entry.`
       : REVIEW;
-    const directGuidance = tacticalPosture === 'Defensive'
-      ? `Operate defensively until ${defensiveTriggers.join(', ')} are resolved through approved-source review and field verification.`
-      : 'Select the final tactical posture from the displayed source guidance, field conditions, and specialist review.';
+    const directGuidance = commanderMode
+      ? `Incident Command selected ${commanderMode}. Preserve the source-backed controls below and verify ${defensiveTriggers.length ? defensiveTriggers.join(', ') : 'field conditions, monitoring, and agency SOP'} before execution.`
+      : tacticalPosture === 'Defensive'
+        ? `Operate defensively until ${defensiveTriggers.join(', ')} are resolved through approved-source review and field verification.`
+        : 'Select the final tactical posture from the displayed source guidance, field conditions, and specialist review.';
     const requiredVerification = unique([
       missingData,
       values(plumeState?.missingInputs),
@@ -290,6 +296,8 @@
         ],
         specificValues: {
           tacticalPosture,
+          selectedTacticalMode: commanderMode,
+          tacticalPostureSource: commanderMode ? 'Incident Command selection' : 'Derived verification rule',
           entryDecision,
           spillReleaseControl,
           neutralization,
@@ -305,6 +313,8 @@
       }),
       support: {
         tacticalPosture,
+        selectedTacticalMode: commanderMode,
+        tacticalPostureSource: commanderMode ? 'Incident Command selection' : 'Derived verification rule',
         entryDecision,
         spillReleaseControl,
         neutralization,
@@ -640,7 +650,7 @@
     };
   }
 
-  function stage({ id, number, title, action, status, criticalFacts, verificationItems, sources: stageSources, why, requiresICApproval = false, branches = [] }) {
+  function stage({ id, number, title, action, status, criticalFacts, verificationItems, sources: stageSources, why, requiresICApproval = false, branches = [], selectedTacticalMode = '' }) {
     return {
       id,
       number,
@@ -653,6 +663,7 @@
       why: why || '',
       requiresICApproval,
       branches,
+      selectedTacticalMode,
     };
   }
 
@@ -841,6 +852,7 @@
         sources: sourceDetails(profile, sourceSummary(sources, ['Chemical Companion', 'ERG', 'CAMEO']), 'Tactical posture derived from source completeness and verified incident conditions'),
         why: 'Derived decision rule: incomplete source data, mandated SCBA, or unverified field conditions keep the initial posture defensive.',
         requiresICApproval: true,
+        selectedTacticalMode: mitigation.selectedTacticalMode,
       }),
       stage({
         id: 'control-mitigation', number: 6, title: 'CONTROL / MITIGATION',
@@ -982,7 +994,7 @@
     };
   }
 
-  function buildGuidedResponseDecisions(selectedChemical, linkedSources = {}, plumeState = {}, weatherState = {}) {
+  function buildGuidedResponseDecisions(selectedChemical, linkedSources = {}, plumeState = {}, weatherState = {}, options = {}) {
     if (!selectedChemical?.masterLinked || !selectedChemical?.masterChemicalId) {
       return {
         blocked: true,
@@ -992,7 +1004,14 @@
     const sources = approvedSources(linkedSources);
     const lifeSafetyResult = buildLifeSafety(selectedChemical, linkedSources, sources);
     const verifyIsolate = buildVerifyIsolate(linkedSources, plumeState, weatherState, sources);
-    const mitigationResult = buildMitigation(linkedSources, lifeSafetyResult.decision, plumeState, weatherState, sources);
+    const mitigationResult = buildMitigation(
+      linkedSources,
+      lifeSafetyResult.decision,
+      plumeState,
+      weatherState,
+      sources,
+      options.selectedTacticalMode,
+    );
     lifeSafetyResult.decision.specificValues.plumePlanningImpact = text(plumeState?.endpointSelected)
       ? `${text(plumeState.endpointSelected)} indicates a modeled downwind AEGL planning concern; it does not select or downgrade PPE.`
       : 'No AEGL plume endpoint is available; plume output cannot determine PPE.';
@@ -1042,6 +1061,7 @@
     const operationalRecommendations = buildOperationalRecommendations(selectedChemical, linkedSources, {
       ...decisions,
       mitigationDecisionSupport: mitigationResult.support,
+      selectedTacticalMode: mitigationResult.support.selectedTacticalMode,
     });
     guidedResponse.operationalRecommendations = operationalRecommendations;
     return {
@@ -1050,6 +1070,7 @@
       guidedResponse,
       operationalRecommendations,
       mitigationDecisionSupport: mitigationResult.support,
+      selectedTacticalMode: mitigationResult.support.selectedTacticalMode,
       evidenceObjects,
       missingDataWarnings: unique(Object.values(decisions).flatMap((decision) => decision.missingData.map((field) => `${field}: ${NO_DATA}`))),
       sourceSummaries: Object.fromEntries(Object.entries(decisions).map(([key, decision]) => [key, decision.sourceSummary])),

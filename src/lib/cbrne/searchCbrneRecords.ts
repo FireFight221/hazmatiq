@@ -1,7 +1,5 @@
-import type { CbrneDomain, CbrneMasterRecord, CbrneSearchResult } from "./cbrneTypes.js";
+import type { CbrneDomain, CbrneMasterRecord, CbrneSearchLane, CbrneSearchResult } from "./cbrneTypes.js";
 import { hydrateCbrneDatabase } from "./hydrateCbrneDatabase.js";
-
-export type CbrneSearchLane = "CBRNE_CWA" | "RADIOLOGICAL";
 
 const CBRNE_LANE_DOMAINS: readonly CbrneDomain[] = ["CHEMICAL_WARFARE", "BIOLOGICAL", "EXPLOSIVE"];
 const RADIOLOGICAL_LANE_DOMAINS: readonly CbrneDomain[] = ["RADIOLOGICAL", "NUCLEAR", "CBRNE_SCENARIO"];
@@ -36,9 +34,10 @@ function sourceSummary(record: CbrneMasterRecord) {
   return sources.length ? sources : ["Starter identity record — authoritative source facts pending import"];
 }
 
-function toSearchResult(record: CbrneMasterRecord): CbrneSearchResult {
+function toSearchResult(record: CbrneMasterRecord, lane?: CbrneSearchLane): CbrneSearchResult {
   return {
     id: record.id,
+    lane,
     displayName: record.displayName,
     scientificName: record.scientificName,
     domain: record.domain,
@@ -72,5 +71,22 @@ export function searchCbrneRecords(
         || Number(rightStarts) - Number(leftStarts)
         || left.displayName.localeCompare(right.displayName);
     })
-    .map(toSearchResult);
+    .map((record) => toSearchResult(record, options.lane));
+}
+
+function normalizedIdentifier(value: unknown) {
+  return normalized(value).replace(/[^a-z0-9]+/g, "");
+}
+
+export function canonicalCbrneRecordId(id: string, lane?: CbrneSearchLane) {
+  const raw = normalized(id);
+  const compact = normalizedIdentifier(id);
+  const allowedDomains = lane ? domainsForCbrneLane(lane) : undefined;
+  const record = hydrateCbrneDatabase().records.find((candidate) => {
+    if (allowedDomains && !allowedDomains.includes(candidate.domain)) return false;
+    return candidate.id === raw
+      || exactTerms(candidate).includes(raw)
+      || exactTerms(candidate).some((term) => normalizedIdentifier(term) === compact);
+  });
+  return record?.id ?? null;
 }

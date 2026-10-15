@@ -13,16 +13,21 @@
     ...Array.from({length:4}, (_,i)=>['AreaRAE',i+1,'Honeywell / RAE Systems']),
     ['Ludlum RAD',null,'Ludlum Measurements'],
     ...Array.from({length:2}, (_,i)=>['ToxiRAE',i+1,'Honeywell / RAE Systems']),
-    ...Array.from({length:4}, (_,i)=>['RadEye',i+1,'Thermo Scientific'])
+    ...Array.from({length:4}, (_,i)=>['RadEye',i+1,'Thermo Scientific']),
+    ['Rigaku Raman',null,'Rigaku'],
+    ['HazMatID FTIR',null,'Smiths Detection']
   ];
   const PRODUCT_REFERENCE = {
     'MultiRAE': {src:'https://s7d1.scene7.com/is/image/Honeywell65/his-rae-multirae-front-hires?wid=190', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/photoionization-detectors-pid/multirae-portable-multi-gas-monitor', verified:true},
     'MultiRAE Pro': {src:'https://s7d1.scene7.com/is/image/Honeywell65/his-rae-multirae-pro-front-hires?wid=190', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/multi-gas/multirae-pro-portable-multi-gas-monitor', verified:true},
-    'AreaRAE': {url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/transportable-area-monitoring/arearae-pro-portable-gas-monitor'},
-    'ToxiRAE': {url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables'},
-    'Ludlum RAD': {url:'https://ludlums.com/products/health-physics/category/survey-meters-mp'},
-    'RadEye': {url:'https://www.thermofisher.com/TFS-Assets/LSG/brochures/D16620~.pdf'}
+    'AreaRAE': {src:'assets/monitor-arearae-pro.png', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/transportable-area-monitoring/arearae-pro-portable-gas-monitor', verified:true},
+    'ToxiRAE': {src:'assets/monitor-toxirae-pro.png', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables', verified:true},
+    'Ludlum RAD': {src:'assets/monitor-ludlum-rad.png', url:'https://ludlums.com/products/health-physics/category/survey-meters-mp', verified:true},
+    'RadEye': {src:'assets/monitor-radeye-prd4.png', url:'https://www.thermofisher.com/TFS-Assets/LSG/brochures/D16620~.pdf', verified:true},
+    'Rigaku Raman': {src:'assets/monitor-rigaku-raman.png', url:'https://rigaku.com/products/handheld-raman/cql-max-id', verified:true},
+    'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.png', url:'https://www.smithsdetection.com/press-releases/major-u-s-emergency-response-team-boosts-capabilities-hazmatid-elite-chemical-identifier/', verified:true}
   };
+  const CUSTOM_PHOTO_FIELDS = ['customPhoto','customPhotoUrl','photoDataUrl','photoUrl','photo','imageDataUrl','imageUrl','imageSrc'];
   const SENSOR_UNITS = {
     'NH3':['ppm'], 'Cl2':['ppm'], 'CO':['ppm'], 'H2S':['ppm'], 'SO2':['ppm'],
     'HCN':['ppm'], 'VOC / PID':['ppm','ppb'], 'O2':['%'], 'LEL':['% LEL'],
@@ -70,6 +75,12 @@
       });
       changed=true;
     });
+    inventory=inventory.map(item=>{
+      const family=familyOf(item);
+      if(!family || item.modelFamily===family)return item;
+      changed=true;
+      return {...item,modelFamily:family};
+    });
     if(changed && !save(KEYS.inventory,inventory)) status('Starter inventory is currently session-only; local storage unavailable.');
     assignments=load(KEYS.assignments); readings=load(KEYS.readings); activity=load(KEYS.activity);
   }
@@ -80,22 +91,37 @@
   }
   function latestFor(id) { return latestReading(activeAssignment(id)); }
   function readingText(r) { return r ? [r.sensor,r.readingValue,r.unit].filter(v=>v!==undefined&&v!=='').join(' ') : 'NO READINGS RECORDED'; }
-  function familyOf(item) {
-    const n=(item.model||item.deviceName||'').toLowerCase();
+  function familyOf(item={}) {
+    const n=[item.model,item.deviceName,item.productName,item.modelName].filter(Boolean).join(' ').toLowerCase().replace(/[-_]+/g,' ');
     if(n.includes('multirae lite')) return '';
     if(n.includes('multirae pro')) return 'MultiRAE Pro';
     if(n.includes('multirae')) return 'MultiRAE';
-    if(n.includes('arearae')) return 'AreaRAE';
+    if(/area\s*rae/.test(n)) return 'AreaRAE';
     if(n.includes('toxirae')) return 'ToxiRAE';
-    if(n.includes('ludlum')) return 'Ludlum RAD';
+    if(/ludlum\s+rad/.test(n)) return 'Ludlum RAD';
     if(n.includes('radeye')) return 'RadEye';
+    if(n.includes('rigaku') || n.includes('cql max id') || n.includes('raman')) return 'Rigaku Raman';
+    if(n.includes('hazmatid') || /smiths\s+detection.*ftir/.test(n)) return 'HazMatID FTIR';
     return '';
   }
+  function validPhotoSource(value) {
+    return typeof value==='string' && value.trim()!=='' && !/model photo pending|image unavailable|placeholder/i.test(value)
+      && /^(?:data:image\/|blob:|https?:\/\/|\/|\.\.?\/|assets\/)/i.test(value.trim());
+  }
+  function customPhotoOf(item) {
+    return CUSTOM_PHOTO_FIELDS.map(field=>item?.[field]).find(validPhotoSource)||'';
+  }
+  function photoReferenceOf(item) {
+    const family=familyOf(item), reference=PRODUCT_REFERENCE[family];
+    const customPhoto=customPhotoOf(item);
+    if(customPhoto)return reference ? {...reference,src:customPhoto,custom:true} : {src:customPhoto,custom:true};
+    return reference||null;
+  }
   function setUnitPhoto(box,item) {
-    const fam=familyOf(item), ref=PRODUCT_REFERENCE[fam];
+    const fam=familyOf(item), ref=photoReferenceOf(item);
     box.replaceChildren();
-    if(ref?.verified) {
-      const image=h('img','monitor-unit-photo'); image.src=ref.src; image.alt=fam+' manufacturer reference product photograph'; image.loading='lazy';
+    if(ref?.src) {
+      const image=h('img','monitor-unit-photo'); image.src=ref.src; image.alt=(fam||item.model||'Monitor')+(ref.custom?' custom product photograph':' manufacturer reference product photograph'); image.loading='lazy';
       image.onerror=()=>{image.remove(); box.append(h('span','monitor-image-pending','IMAGE UNAVAILABLE'));};
       box.append(image);
     } else box.append(h('span','monitor-image-pending','MODEL PHOTO PENDING'));
@@ -220,6 +246,9 @@
       sensorPackage:$('monitor-unit-sensors').value.trim(),status:$('monitor-unit-status').value,
       sourceSystem:previous.sourceSystem||'Manual EMERGENZ Entry',readinessDataMode:'Unverified',
       updatedAt:new Date().toISOString()};
+    const family=familyOf(item);
+    if(family)item.modelFamily=family;
+    else delete item.modelFamily;
     const next=inventory.some(m=>m.id===id)?inventory.map(m=>m.id===id?item:m):[...inventory,item];
     if(!save(KEYS.inventory,next))return;
     inventory=next;$('monitor-unit-dialog').close();refreshAll();status(name+' inventory details saved.');

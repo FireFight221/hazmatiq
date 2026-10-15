@@ -5,12 +5,14 @@ import type {
   CbrneMasterRecord,
   CbrneProfile,
   CbrneSourceFact,
+  CbrneSearchLane,
 } from "./cbrneTypes.js";
-import { domainsForCbrneLane, type CbrneSearchLane } from "./searchCbrneRecords.js";
+import { canonicalCbrneRecordId, domainsForCbrneLane } from "./searchCbrneRecords.js";
 import { hydrateCbrneDatabase } from "./hydrateCbrneDatabase.js";
 import { authoritativeFactsForRecord } from "../../data/cbrne/authoritative/authoritativeSourceFacts.js";
 import { findRadionuclidePhysicsRecord } from "../../data/cbrne/authoritative/radionuclidePhysics.js";
 import { guidedResponseEvidenceForRecord, guidedResponseReadinessForRecord } from "./guidedResponseReadiness.js";
+import { buildRadiologicalProfile } from "./radiologicalProfile.js";
 
 const SECTION_GROUPS = Object.freeze({
   overviewFacts: ["IDENTITY"] as readonly CbrneFieldGroup[],
@@ -173,12 +175,16 @@ export function adaptCbrneProfile(
     },
     guidedResponseReadiness: guidedResponseReadinessForRecord(record.id),
     guidedResponseEvidence: guidedResponseEvidenceForRecord(record.id),
+    radiologicalProfile: selectedLane === "RADIOLOGICAL"
+      ? buildRadiologicalProfile(record, facts, findRadionuclidePhysicsRecord(record.id))
+      : null,
   };
 }
 
 export function cbrneProfileById(lane: CbrneSearchLane, id: string): CbrneProfile | null {
   const database = hydrateCbrneDatabase();
-  const record = database.records.find((candidate) => candidate.id === id) ?? null;
+  const canonicalId = canonicalCbrneRecordId(id, lane);
+  const record = database.records.find((candidate) => candidate.id === canonicalId) ?? null;
   if (!record || !domainsForCbrneLane(lane).includes(record.domain)) return null;
   return adaptCbrneProfile(record, database.sourceFacts.filter((fact) => fact.recordId === record.id), lane);
 }

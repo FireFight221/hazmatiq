@@ -1,7 +1,7 @@
 /* EMERGENZ Monitoring — canonical V1 workspace styling. Legacy Equipment CSS is scoped separately. */
 #monitor.emergenz-monitoring-page{
   --em-border:#174866;--em-ink:#e7f4ff;--em-muted:#9dbed4;--em-bg:#051425;--em-surface:#071e32;
-  color:var(--em-ink);padding:12px 14px 26px;background:linear-gradient(160deg,#06182b,#031322 72%);
+  color:var(--em-ink);padding:0 14px 26px;background:linear-gradient(160deg,#06182b,#031322 72%);
   min-width:0;font-family:inherit;
 }
 #monitor .em-monitor-header{display:flex;align-items:center;justify-content:space-between;gap:18px;
@@ -45,7 +45,7 @@
 #monitor .monitor-unit-card:has(.is-deployed){border-left-color:#36d899;}
 #monitor .monitor-unit-card:has(.is-oos){border-left-color:#e16a68;}
 #monitor .monitor-unit-photo-wrap{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
-#monitor img.monitor-unit-photo{display:block;max-width:70px;max-height:112px;width:auto;height:auto;object-fit:contain;border:0;}
+#monitor img.monitor-unit-photo{display:block;width:100%;max-width:70px;height:112px;object-fit:contain;object-position:center;border:0;}
 #monitor .monitor-image-pending{display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed #345876;
   border-radius:5px;min-height:74px;max-width:74px;font-size:.52rem;font-weight:750;color:#a5bdd0;padding:4px;}
 #monitor .monitor-photo-source{font-size:.53rem;font-weight:750;color:#80c3e8;text-align:center;text-decoration:underline;}
@@ -128,7 +128,7 @@
  #monitor .em-monitor-head-state{display:none;}
 }
 @media(max-width:540px){
- #monitor.emergenz-monitoring-page{padding:9px;}
+ #monitor.emergenz-monitoring-page{padding:0 9px 18px;}
  #monitor .em-monitor-header{padding:11px;}
  #monitor .em-monitor-screen-icon{width:33px;min-width:33px;}
  #monitor .em-monitor-screen-icon svg{width:31px;height:31px;}
@@ -136,7 +136,7 @@
  #monitor .em-monitor-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
  #monitor .em-monitor-kpis strong{font-size:1.45rem;}
  #monitor .monitor-unit-card{grid-template-columns:60px minmax(0,1fr);gap:7px;}
- #monitor img.monitor-unit-photo{max-width:55px;max-height:85px;}
+ #monitor img.monitor-unit-photo{max-width:55px;height:85px;}
  #monitor .monitor-unit-actions button{flex:1 1 45%;}
  #monitor .em-monitor-form-grid,#monitor .em-monitor-deploy-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
  #monitor .em-monitor-full{grid-column:span 2;}
@@ -150,7 +150,7 @@
  * Operational counts are driven by saved records; colors never imply live links.
  */
 #monitor.emergenz-monitoring-page {
-  padding: 8px 12px 18px;
+  padding: 0 12px 18px;
   --em-cyan: #35bfff;
   --em-gold: #ffd237;
   background: radial-gradient(ellipse at 74% -6%, rgba(19,92,154,.18),transparent 60%), #020e1d;
@@ -178,7 +178,7 @@
   padding:2px;
   filter:drop-shadow(0 0 13px rgba(255,184,10,.28));
 }
-#monitor .em-monitor-screen-icon svg {width:61px;height:68px;}
+#monitor .em-monitor-screen-icon svg {width:61px;height:76px;}
 #monitor .em-monitor-title h1 {
   text-shadow:0 3px 5px #000, 0 0 15px rgba(132,186,215,.24);
   color:#eef7ff;
@@ -384,6 +384,7 @@
  #monitor .em-monitor-title{gap:6px;}
  #monitor .em-monitor-screen-icon{width:49px;min-width:49px;height:58px;}
  #monitor .em-monitor-screen-icon svg{width:41px;height:48px;}
+ #monitor .em-monitor-screen-icon .monitor-device-icon{width:41px;height:51px;}
  #monitor .em-monitor-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
  #monitor .em-monitor-kpis > div{min-height:78px;grid-template-columns:46px 1fr;}
  #monitor .em-monitor-kpis .em-kpi-icon{width:42px;height:42px;}

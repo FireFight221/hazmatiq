@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EMERGENZ | Incident Intelligence + Response Planning</title>
     <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css" />
-    <link rel="stylesheet" href="styles.css?v=live-map-responsive-4" />
-    <link rel="stylesheet" href="hero-overrides.css?v=11" />
+    <link rel="stylesheet" href="styles.css?v=live-map-responsive-6" />
+    <link rel="stylesheet" href="hero-overrides.css?v=13" />
     <link rel="stylesheet" href="hazard-id-overrides.css?v=3" />
-    <link rel="stylesheet" href="global-ui-overrides.css?v=20" />
-    <link rel="stylesheet" href="incident-overrides.css?v=5" />
+    <link rel="stylesheet" href="global-ui-overrides.css?v=21" />
+    <link rel="stylesheet" href="incident-overrides.css?v=6" />
     <link rel="stylesheet" href="preplan-overrides.css?v=1" />
-    <link rel="stylesheet" href="chemical-intel.css?v=hazard-profile-panel-28" />
-    <link rel="stylesheet" href="guided-response-overrides.css?v=1" />
-    <link rel="stylesheet" href="hazard-profile-page.css?v=1" />
+    <link rel="stylesheet" href="chemical-intel.css?v=hazard-profile-panel-30" />
+    <link rel="stylesheet" href="guided-response-overrides.css?v=2" />
+    <link rel="stylesheet" href="hazard-profile-page.css?v=radiological-profile-1" />
     <link rel="stylesheet" href="page-shell.css?v=1" />
     <link rel="stylesheet" href="plume-overrides.css?v=23&canonical-grid=1" />
-    <link rel="stylesheet" href="navigation-weather.css?v=6" />
-    <link rel="stylesheet" href="monitoring-console.css?v=3" />
-    <link rel="stylesheet" href="plume-layout-correction.css?v=12" />
-    <link rel="stylesheet" href="dashboard-header.css?v=6" />
+    <link rel="stylesheet" href="navigation-weather.css?v=7" />
+    <link rel="stylesheet" href="monitoring-console.css?v=4" />
+    <link rel="stylesheet" href="plume-layout-correction.css?v=14" />
+    <link rel="stylesheet" href="dashboard-header.css?v=16" />
   </head>
   <body>
     <div class="app-shell">
@@ -29,8 +29,8 @@
           <div class="brand">
             <button class="module-btn command-brand-home" id="command-brand-home" type="button" aria-label="Return to the EMERGENZ Home Page" title="Return to EMERGENZ Home">
               <span class="brand-logo-mark" aria-hidden="true">
-                <img class="brand-logo-emblem" src="assets/emergenz-compass-tight.png?v=1" alt="" />
-                <img class="brand-logo-wordmark" src="assets/emergenz-wordmark-tight.png?v=1" alt="" />
+                <img class="brand-logo-emblem" src="assets/emergenz-compass-tight.png?v=1" width="604" height="589" alt="" />
+                <img class="brand-logo-wordmark" src="assets/emergenz-wordmark-tight.png?v=1" width="1524" height="295" alt="" />
               </span>
             </button>
           </div>
@@ -53,7 +53,7 @@
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 21s6-5.1 6-10.1a6 6 0 1 0-12 0C6 15.9 12 21 12 21Z" /><circle cx="12" cy="10.8" r="2.1" /><path d="M3 10.8h3m12 0h3M12 2.8v2.1M12 16.7v3" /></svg></span><span class="app-nav-label label">Live Map</span>
           </button>
           <button class="module-btn app-nav-item app-nav-secondary" type="button" data-view="monitor" aria-label="Open Monitoring">
-            <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="3.3" width="18" height="18" rx="3" /><path d="M12 6.5 18 12l-6 5.5L6 12Z" /><path d="M12 6.5V12h6M6 12h6v5.5M8.5 19h7" /></svg></span><span class="app-nav-label label">Monitoring</span>
+            <span class="app-nav-icon icon" aria-hidden="true"><svg class="monitor-device-icon monitor-device-icon--nav" viewBox="0 0 24 24" focusable="false"><use href="assets/monitor-device.svg#monitor-device-nav"></use></svg></span><span class="app-nav-label label">Monitoring</span>
           </button>
           <button class="module-btn app-nav-item" type="button" data-view="weather" aria-label="Open Weather Intelligence">
             <span class="app-nav-icon icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 18h10.2a3.8 3.8 0 0 0 .5-7.6A5.9 5.9 0 0 0 6.4 9.2 4.4 4.4 0 0 0 7 18Z" /><path d="M8 21h.01M12 21h.01M16 21h.01" /></svg></span><span class="app-nav-label label">Weather</span>
@@ -154,7 +154,7 @@
                 <article class="overview-promo-box promo-guided"><span aria-hidden="true">✚</span><div><strong>Guided Response</strong><small>Tactical decision support</small></div></article>
                 <article class="overview-promo-box promo-plume"><span aria-hidden="true">◉</span><div><strong>Plume Modeling</strong><small>Weather-aware threat zones</small></div></article>
                 <article class="overview-promo-box promo-map"><span aria-hidden="true">⌖</span><div><strong>Live Mapping</strong><small>Operational scene mapping</small></div></article>
-                <article class="overview-promo-box promo-monitor"><span aria-hidden="true">◌</span><div><strong>Monitoring</strong><small>Equipment and live readings</small></div></article>
+                <article class="overview-promo-box promo-monitor"><span aria-hidden="true"><svg class="monitor-device-icon monitor-device-icon--nav" viewBox="0 0 24 24" focusable="false"><use href="assets/monitor-device.svg#monitor-device-nav"></use></svg></span><div><strong>Monitoring</strong><small>Equipment and live readings</small></div></article>
                 <article class="overview-promo-box promo-reports"><span aria-hidden="true">▣</span><div><strong>ICS Reports</strong><small>Forms, exports, and archives</small></div></article>
               </section>
             </article>
@@ -266,8 +266,8 @@
           </section>
 
           <section id="incident" class="view incident-command-page" data-page-root="incident-command" data-page-name="Incident Command">
-            <header class="hazmat-page-hero variant-incident incident-command-hero">
-              <div class="hazmat-page-hero-content"><span class="sr-only">Incident Command Dashboard</span><div><h1 class="hazmat-hero-title incident-command-title">Incident Command</h1><p class="hazmat-hero-subtitle incident-command-subtitle">Real-Time Operational Overview.</p></div></div>
+            <header class="hazmat-page-hero emergenz-page-header variant-incident incident-command-hero">
+              <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><circle cx="28" cy="31" r="17"/><circle cx="28" cy="31" r="6"/><path d="M28 4v10M28 48v10M4 31h10M42 31h10"/><path d="m16 19 7 7m16 16 7 7M40 19l-7 7M23 36l-7 7"/></svg></span><span class="sr-only">Incident Command Dashboard</span><div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title incident-command-title">Incident Command</h1><p class="hazmat-hero-subtitle incident-command-subtitle">Real-Time Operational Overview.</p></div></div>
               <aside class="incident-command-hero-status" aria-live="polite"><span class="incident-command-hero-status-line"><i id="ic-hero-status-dot" aria-hidden="true"></i><strong id="ic-hero-status-label">INCIDENT ACTIVE</strong></span><span id="ic-hero-mode">Research &amp; Assessment</span></aside>
             </header>
             <section class="incident-command-dashboard" aria-label="Incident command operational dashboard">
@@ -669,12 +669,12 @@
           </dialog>
 
           <section id="lookup" class="view hazard-id-page" data-page-root="hazard-id" data-page-name="Hazard ID" data-hazard-page-state="search">
-            <header class="hazmat-page-hero variant-chemical hazard-id-page-hero" id="hazard-id-search-hero">
+            <header class="hazmat-page-hero emergenz-page-header variant-chemical hazard-id-page-hero" id="hazard-id-search-hero">
               <span class="hazard-id-hero-atmosphere" aria-hidden="true"></span>
-              <div class="hazmat-page-hero-content">
+              <div class="hazmat-page-hero-content emergenz-page-header-content">
                         <img class="hazard-id-hero-logo" src="assets/emergenz-hero-header.png?v=3" alt="EMERGENZ — Incident Intelligence + Response Planning" hidden />
-                <h1 class="hazmat-hero-title">HAZARD ID</h1>
-                <p class="hazmat-hero-subtitle">Search, Identify, Verify, Respond.</p>
+                <span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><path d="m28 4 21 21-21 21L7 25 28 4Z"/><path d="M28 15v16"/><circle cx="28" cy="38.5" r="1.8" fill="currentColor" stroke="none"/></svg></span>
+                <div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title">HAZARD ID</h1><p class="hazmat-hero-subtitle">Search, Identify, Verify, Respond.</p></div>
               </div>
             </header>
             <article class="hazard-id-command-console chemical-id-search-card" id="hazard-id-search-workspace" aria-label="Hazard identification command console">
@@ -794,6 +794,7 @@
 
             <div id="hazard-profile-results" class="hazard-profile-results" hidden>
               <div class="hazard-profile-shell">
+                <div id="hazard-profile-load-state" class="hazard-profile-load-state" role="status" aria-live="polite" hidden></div>
                 <header class="hazard-profile-toolbar">
                   <button class="ghost-btn" id="hazard-profile-back-btn" type="button">← Back to Search</button>
                   <strong id="hazard-profile-toolbar-title">Hazard Profile</strong>
@@ -804,21 +805,45 @@
                   </div>
                 </header>
                 <article class="hazard-profile-header-card">
-                  <div class="hazard-profile-emblem" id="hazard-profile-emblem" aria-hidden="true">ID</div>
+                  <div class="hazard-profile-emblem" id="hazard-profile-emblem" aria-hidden="true"></div>
                   <div class="hazard-profile-identity">
                     <p class="eyebrow" id="hazard-profile-lane">Hazard ID</p>
-                    <div class="hazard-profile-title-line"><h2 id="hazard-profile-name">Select a hazard</h2><div class="hazard-profile-data-status" id="hazard-profile-status" aria-label="Profile data status"><span class="chemical-profile-status-chip" data-state="review">Requires Review</span></div></div>
+                    <div class="hazard-profile-title-line"><h2 id="hazard-profile-name">Select a hazard</h2></div>
                     <p id="hazard-profile-category"></p>
                     <div id="hazard-profile-identifiers" class="hazard-profile-identifiers"></div>
                   </div>
-                  <aside class="hazard-profile-threat-status" aria-labelledby="hazard-profile-threat-status-title">
-                    <p id="hazard-profile-threat-status-title">Operational threat status</p>
-                    <strong id="hazard-profile-threat-title">Requires Review</strong>
-                    <span id="hazard-profile-threat-detail">Select a hazard to load source-backed threat information.</span>
-                  </aside>
-                  <aside class="hazard-profile-overview" aria-labelledby="hazard-profile-overview-title"><strong id="hazard-profile-overview-title">Profile Highlights</strong><ul id="hazard-profile-overview-list"></ul></aside>
                 </article>
-                <section class="hazard-profile-action-grid" id="hazard-profile-action-cards" aria-label="Responder action status"></section>
+                <section id="radiological-profile-panel" class="radiological-profile-panel" hidden aria-label="Radiological hazard profile">
+                  <header class="radiological-profile-heading">
+                    <div><p class="eyebrow">Dedicated radiological schema</p><h2>Radiation identity and response picture</h2></div>
+                    <span id="radiological-profile-review-date">Content reviewed —</span>
+                  </header>
+                  <div class="radiological-profile-section-grid">
+                    <article class="radiological-profile-section"><h3>Identity &amp; half-life</h3><div id="radiological-identity-fields" class="radiological-profile-fields"></div></article>
+                    <article class="radiological-profile-section"><h3>Radiation emissions</h3><div id="radiological-emission-fields" class="radiological-profile-fields"></div></article>
+                    <article class="radiological-profile-section"><h3>Exposure &amp; contamination</h3><div id="radiological-exposure-fields" class="radiological-profile-fields"></div></article>
+                    <article class="radiological-profile-section"><h3>Source form &amp; containment</h3><div id="radiological-containment-fields" class="radiological-profile-fields"></div></article>
+                    <article class="radiological-profile-section"><h3>Time, distance &amp; shielding</h3><div id="radiological-shielding-fields" class="radiological-profile-fields"></div></article>
+                    <article class="radiological-profile-section"><h3>Detection &amp; survey</h3><div id="radiological-detection-fields" class="radiological-profile-fields"></div></article>
+                    <article class="radiological-profile-section"><h3>PPE &amp; respiratory protection</h3><div id="radiological-ppe-fields" class="radiological-profile-fields"></div></article>
+                  </div>
+                  <section id="radiological-guided-response" class="radiological-guided-response" aria-labelledby="radiological-guided-response-title">
+                    <header><div><p class="eyebrow">Prioritized field sequence</p><h2 id="radiological-guided-response-title">Guided radiological response</h2></div><span>Scenario-dependent · source-backed</span></header>
+                    <div id="radiological-response-stages" class="radiological-response-stages"></div>
+                  </section>
+                  <section class="radiological-scenarios" aria-labelledby="radiological-scenarios-title">
+                    <header><div><p class="eyebrow">Incident category distinctions</p><h2 id="radiological-scenarios-title">Nuclear and radiological scenarios</h2></div><span>Nuclear is an incident category, not an emission type.</span></header>
+                    <div id="radiological-scenario-cards" class="radiological-scenario-cards"></div>
+                  </section>
+                  <details class="radiological-reference-drawer">
+                    <summary>Sources &amp; content status <span>Full references, review date, and provenance</span></summary>
+                    <footer class="radiological-reference-footer"><div><p class="eyebrow">Reviewed references</p><h2>Source trail</h2></div><div id="radiological-reference-list" class="radiological-reference-list"></div></footer>
+                  </details>
+                </section>
+                <section class="hazard-profile-priorities" aria-labelledby="hazard-profile-priorities-title">
+                  <header class="hazard-profile-section-heading"><div><p class="eyebrow">Field priorities</p><h2 id="hazard-profile-priorities-title">Immediate priorities</h2></div><span>Use current measurements, scene conditions, and authority guidance.</span></header>
+                  <div class="hazard-profile-action-grid" id="hazard-profile-action-cards" aria-label="Immediate responder priorities"></div>
+                </section>
                 <section class="hazard-profile-operational-grid" aria-label="Operational hazard intelligence">
                   <div class="hazard-profile-column hazard-profile-column-threat">
                     <header class="hazard-profile-column-heading"><span>01</span><h2>Threat / Exposure</h2></header>
@@ -834,16 +859,19 @@
                   </div>
                 </section>
                 <details class="hazard-profile-detail-drawer">
-                  <summary>Detailed source fact views <span>Use the original grouped profile sections</span></summary>
+                  <summary>Technical details <span>Original grouped profile facts and safety gates</span></summary>
                   <nav id="hazard-profile-tabs" class="chemical-profile-tabs hazard-profile-tabs" aria-label="Hazard profile sections"></nav>
                   <article class="hazard-profile-content-card"><div id="hazard-profile-content" class="hazard-profile-content"></div></article>
                 </details>
                 <aside class="hazard-profile-limitations" id="hazard-profile-limitations" aria-label="Safety limitations"></aside>
-                <footer class="hazard-profile-source-footer" aria-label="Source status">
-                  <div><span>Source Summary</span><strong id="hazard-profile-source-summary">No Current Data Exists</strong><small><b id="hazard-profile-source-pack-count">0</b> source packs · <b id="hazard-profile-source-fact-count">0</b> facts · <b id="hazard-profile-source-names">None</b></small></div>
-                  <div><span>Data Status</span><strong id="hazard-profile-data-summary">No Current Data Exists</strong><small><b id="hazard-profile-review-count">0</b> require review · <b id="hazard-profile-conflict-count">0</b> conflicts · <b id="hazard-profile-missing-count">0</b> missing</small></div>
-                  <div><span>Confidence Level</span><strong id="hazard-profile-confidence-level">No Current Data Exists</strong><small>Updated <b id="hazard-profile-last-import">Not imported</b> · <b id="hazard-profile-import-warnings">No warnings</b></small></div>
-                </footer>
+                <details class="hazard-profile-source-drawer">
+                  <summary>Sources &amp; content status <span>Provenance, links, applicable dates, and review metadata</span></summary>
+                  <footer class="hazard-profile-source-footer" aria-label="Source status">
+                    <div><span>Source Summary</span><strong id="hazard-profile-source-summary">Not available</strong><small><b id="hazard-profile-source-pack-count">0</b> source packs · <b id="hazard-profile-source-fact-count">0</b> facts · <b id="hazard-profile-source-names">None</b></small></div>
+                    <div><span>Content status</span><strong id="hazard-profile-data-summary">Not available</strong><small><b id="hazard-profile-review-count">0</b> require review · <b id="hazard-profile-conflict-count">0</b> conflicts · <b id="hazard-profile-missing-count">0</b> missing</small></div>
+                    <div><span>Review metadata</span><strong id="hazard-profile-confidence-level">Not available</strong><small>Updated <b id="hazard-profile-last-import">Not imported</b> · <b id="hazard-profile-import-warnings">No warnings</b></small></div>
+                  </footer>
+                </details>
               </div>
             </div>
           </section>
@@ -939,16 +967,18 @@
               <form class="plume-map-location-control" id="plume-map-address-form">
                 <label class="plume-location-field" for="plume-map-address-input">
                   <span>Plume Location</span>
-                  <input class="plume-location-input" id="plume-map-address-input" type="text" placeholder="Enter address or coordinates" autocomplete="street-address" />
+                  <input class="plume-location-input" id="plume-map-address-input" type="text" placeholder="Enter address, coordinates, or use incident location" autocomplete="street-address" />
                 </label>
                 <div class="plume-location-actions">
                   <button class="plume-map-button secondary" id="use-plume-incident-location-btn" type="button">Use Incident Address</button>
                   <button class="plume-map-button secondary" type="submit">Manual Entry</button>
                 </div>
               </form>
-              <button class="module-btn plume-map-button guided-response-toolbar-button" type="button" data-command-view="guided-response">Guided Response</button>
-              <button class="plume-map-button primary" id="plot-plume-btn" type="button" disabled>Plot Plume</button>
-              <button class="module-btn plume-map-button plume-threat-zone-button" id="plume-threat-zone-open-btn" type="button" aria-haspopup="dialog" aria-controls="plume-threat-zone-dialog">Threat Zone</button>
+              <div class="plume-map-action-group" role="group" aria-label="Plume actions">
+                <button class="module-btn plume-map-button guided-response-toolbar-button" type="button" data-command-view="guided-response">Guided Response</button>
+                <button class="plume-map-button primary" id="plot-plume-btn" type="submit" form="plume-model-form" disabled>Plot Plume</button>
+                <button class="module-btn plume-map-button plume-threat-zone-button" id="plume-threat-zone-open-btn" type="button" aria-haspopup="dialog" aria-controls="plume-threat-zone-dialog">Threat Zone</button>
+              </div>
             </div>
             <div class="plume-v2-workspace">
               <aside class="plume-v2-input-column" aria-label="Plume model inputs">
@@ -963,7 +993,7 @@
                   <div class="plume-model-section-grid plume-release-grid">
                     <div class="plume-model-field plume-chemical-field plume-required-field">
                       <div class="plume-field-label-row">
-                        <label for="plume-chemical-input">Chemical</label>
+                        <label for="plume-chemical-input">Chemical <b>Required</b></label>
                       </div>
                       <div class="plume-chemical-search">
                         <div class="plume-linked-input">
@@ -980,7 +1010,7 @@
                     </div>
                     <div class="plume-model-field plume-release-type-field plume-required-field">
                       <div class="plume-field-label-row">
-                        <label for="plume-release-type">Release type</label>
+                        <label for="plume-release-type">Release type <b>Required</b></label>
                       </div>
                       <select id="plume-release-type" aria-required="true">
                         <option value="plume">Continuous release</option>
@@ -989,7 +1019,7 @@
                     </div>
                     <div class="plume-model-field plume-release-quantity-field plume-required-field">
                       <div class="plume-field-label-row">
-                        <label for="plume-release-quantity"><span id="plume-release-quantity-label">Release rate</span></label>
+                        <label for="plume-release-quantity"><span id="plume-release-quantity-label">Release rate</span> <b>Required</b></label>
                       </div>
                       <div class="plume-quantity-input">
                         <input id="plume-release-quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter value" aria-required="true" required />
@@ -1006,15 +1036,15 @@
                     </div>
                     <div class="plume-model-field plume-release-duration-field plume-required-field" id="plume-puff-duration-field" hidden>
                       <div class="plume-field-label-row">
-                        <label for="plume-puff-duration">Puff evaluation time (seconds)</label>
+                        <label for="plume-puff-duration">Puff evaluation time (seconds) <b>Required</b></label>
                       </div>
                       <input id="plume-puff-duration" type="number" min="1" step="1" inputmode="numeric" placeholder="Enter seconds" aria-required="true" />
                     </div>
                     <div class="plume-model-field plume-release-duration-field plume-required-field" id="plume-release-duration-field">
                       <div class="plume-field-label-row">
-                        <label for="plume-release-duration">Duration (min)</label>
+                        <label for="plume-release-duration">Release duration (minutes) <b>Required</b></label>
                       </div>
-                      <input id="plume-release-duration" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Enter minutes" aria-required="true" />
+                        <input id="plume-release-duration" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Required in minutes" aria-required="true" />
                     </div>
                     <div class="plume-model-field plume-release-height-field">
                       <div class="plume-field-label-row">
@@ -1099,15 +1129,15 @@
                     </label>
                     <input id="plume-manual-observation-time" type="hidden" />
                     <label class="plume-model-field plume-required-field" for="plume-wind-speed">
-                      <span>Wind speed (mph)</span>
+                      <span>Wind speed (mph) <b>Required</b></span>
                       <input id="plume-wind-speed" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Enter value" required />
                     </label>
                     <label class="plume-model-field plume-required-field" for="plume-wind-direction">
-                      <span>Wind from (degrees)</span>
+                      <span>Wind from (degrees) <b>Required</b></span>
                       <input id="plume-wind-direction" type="number" min="0" max="360" step="0.1" inputmode="decimal" placeholder="Enter degrees" required />
                     </label>
                     <label class="plume-model-field plume-required-field" for="plume-temperature">
-                      <span>Air Temp (°F)</span>
+                      <span>Air Temp (°F) <b>Required</b></span>
                       <input id="plume-temperature" type="number" step="0.1" inputmode="decimal" value="68" />
                     </label>
                     <input id="plume-stability-class" type="hidden" value="D" />
@@ -1199,6 +1229,8 @@
               </div>
             </form>
 
+            <span id="plume-left-plot-button" hidden aria-hidden="true"><button type="button" data-command-view="plume">Plot / Edit Plume</button></span>
+
             <section class="plume-compact-card plume-endpoint-card" aria-labelledby="plume-endpoint-card-heading" hidden>
               <header><h3 id="plume-endpoint-card-heading">Endpoint / LOC</h3><strong id="plume-endpoint-badge">Missing</strong></header>
               <p id="plume-endpoint-detail">Select a verified chemical.</p>
@@ -1228,7 +1260,8 @@
                       <div class="plume-map-action-controls" role="group" aria-label="Map actions">
                         <span class="plume-map-control-label">ACTIONS</span>
                         <button class="plume-layer-button" id="plume-fit-view-btn" type="button">Fit Plume</button>
-                        <button class="plume-layer-button" id="plume-recenter-map-btn" type="button">Recenter Map</button>
+                        <button class="plume-layer-button" id="plume-recenter-incident-btn" type="button">Recenter Incident</button>
+                        <button class="plume-layer-button" id="plume-recenter-release-btn" type="button">Recenter Release</button>
                         <button class="plume-layer-button" id="plume-reset-view-btn" type="button">Reset View</button>
                         <button class="plume-layer-button" id="plume-ground-view-btn" type="button" hidden title="View the plume from 1.7 metres above the ground">Ground View</button>
                       </div>
@@ -1297,15 +1330,15 @@
                   <div id="plume-command-zone-summary" class="plume-zone-summary" aria-live="polite">
                     <article class="plume-zone-result level-3" data-zone-level="3">
                       <span class="plume-zone-result-icon" aria-hidden="true">☠</span>
-                      <div><strong>AEGL-3 <b id="plume-zone-distance-3">—</b></strong><small id="plume-zone-distance-km-3">Awaiting model</small><dl class="plume-zone-impact"><div><dt>Population</dt><dd id="plume-zone-population-3">Source unavailable</dd></div><div><dt>Critical</dt><dd id="plume-zone-structures-3">Source unavailable</dd></div><div><dt>Area</dt><dd id="plume-zone-area-3">—</dd></div><div><dt>Validity</dt><dd id="plume-zone-validity-3">Awaiting model</dd></div></dl><details class="plume-zone-details"><summary>Details</summary><dl><div><dt>Crosswind</dt><dd id="plume-zone-crosswind-3">—</dd></div></dl></details><details class="plume-zone-facilities"><summary>Facility details</summary><ul id="plume-zone-facility-list-3"></ul></details></div>
+                      <div><strong>AEGL-3 <b id="plume-zone-distance-3">—</b></strong><small id="plume-zone-distance-km-3">Awaiting model</small><dl class="plume-zone-impact"><div><dt>Population</dt><dd id="plume-zone-population-3">Source unavailable</dd></div><div><dt>Facilities</dt><dd id="plume-zone-structures-3">Source unavailable</dd></div><div><dt>Area</dt><dd id="plume-zone-area-3">—</dd></div><div><dt>Validity</dt><dd id="plume-zone-validity-3">Awaiting model</dd></div></dl><details class="plume-zone-details"><summary>Details</summary><dl><div><dt>Crosswind</dt><dd id="plume-zone-crosswind-3">—</dd></div></dl></details><details class="plume-zone-facilities"><summary>Facility details</summary><ul id="plume-zone-facility-list-3"></ul></details></div>
                     </article>
                     <article class="plume-zone-result level-2" data-zone-level="2">
                       <span class="plume-zone-result-icon" aria-hidden="true">⚠</span>
-                      <div><strong>AEGL-2 <b id="plume-zone-distance-2">—</b></strong><small id="plume-zone-distance-km-2">Awaiting model</small><dl class="plume-zone-impact"><div><dt>Population</dt><dd id="plume-zone-population-2">Source unavailable</dd></div><div><dt>Critical</dt><dd id="plume-zone-structures-2">Source unavailable</dd></div><div><dt>Area</dt><dd id="plume-zone-area-2">—</dd></div><div><dt>Validity</dt><dd id="plume-zone-validity-2">Awaiting model</dd></div></dl><details class="plume-zone-details"><summary>Details</summary><dl><div><dt>Crosswind</dt><dd id="plume-zone-crosswind-2">—</dd></div></dl></details><details class="plume-zone-facilities"><summary>Facility details</summary><ul id="plume-zone-facility-list-2"></ul></details></div>
+                      <div><strong>AEGL-2 <b id="plume-zone-distance-2">—</b></strong><small id="plume-zone-distance-km-2">Awaiting model</small><dl class="plume-zone-impact"><div><dt>Population</dt><dd id="plume-zone-population-2">Source unavailable</dd></div><div><dt>Facilities</dt><dd id="plume-zone-structures-2">Source unavailable</dd></div><div><dt>Area</dt><dd id="plume-zone-area-2">—</dd></div><div><dt>Validity</dt><dd id="plume-zone-validity-2">Awaiting model</dd></div></dl><details class="plume-zone-details"><summary>Details</summary><dl><div><dt>Crosswind</dt><dd id="plume-zone-crosswind-2">—</dd></div></dl></details><details class="plume-zone-facilities"><summary>Facility details</summary><ul id="plume-zone-facility-list-2"></ul></details></div>
                     </article>
                     <article class="plume-zone-result level-1" data-zone-level="1">
                       <span class="plume-zone-result-icon" aria-hidden="true">!</span>
-                      <div><strong>AEGL-1 <b id="plume-zone-distance-1">—</b></strong><small id="plume-zone-distance-km-1">Awaiting model</small><dl class="plume-zone-impact"><div><dt>Population</dt><dd id="plume-zone-population-1">Source unavailable</dd></div><div><dt>Critical</dt><dd id="plume-zone-structures-1">Source unavailable</dd></div><div><dt>Area</dt><dd id="plume-zone-area-1">—</dd></div><div><dt>Validity</dt><dd id="plume-zone-validity-1">Awaiting model</dd></div></dl><details class="plume-zone-details"><summary>Details</summary><dl><div><dt>Crosswind</dt><dd id="plume-zone-crosswind-1">—</dd></div></dl></details><details class="plume-zone-facilities"><summary>Facility details</summary><ul id="plume-zone-facility-list-1"></ul></details></div>
+                      <div><strong>AEGL-1 <b id="plume-zone-distance-1">—</b></strong><small id="plume-zone-distance-km-1">Awaiting model</small><dl class="plume-zone-impact"><div><dt>Population</dt><dd id="plume-zone-population-1">Source unavailable</dd></div><div><dt>Facilities</dt><dd id="plume-zone-structures-1">Source unavailable</dd></div><div><dt>Area</dt><dd id="plume-zone-area-1">—</dd></div><div><dt>Validity</dt><dd id="plume-zone-validity-1">Awaiting model</dd></div></dl><details class="plume-zone-details"><summary>Details</summary><dl><div><dt>Crosswind</dt><dd id="plume-zone-crosswind-1">—</dd></div></dl></details><details class="plume-zone-facilities"><summary>Facility details</summary><ul id="plume-zone-facility-list-1"></ul></details></div>
                     </article>
                   </div>
                   <p id="plume-result-summary" class="plume-intelligence-note">Awaiting valid release and weather inputs.</p>
@@ -1357,15 +1390,15 @@
               </aside>
               <!-- The pre-rebase map block below is retained in the conflict record only;
                    the active map layout is the current map block above.
-              <main class="plume-v2-map-column">
+              <div class="plume-v2-legacy-map-column">
                 <article class="plume-v2-map-card">
                   <div class="plume-v2-map-controls" role="group" aria-label="Plume map controls">
                       <details class="plume-location-popover" id="plume-location-popover">
                         <summary title="Set plume address or coordinates">Location</summary>
-                      <form class="plume-map-location-control" id="plume-map-address-form">
+                      <form class="plume-map-location-control-legacy" id="plume-map-address-form">
                         <label class="plume-location-field" for="plume-map-address-input">
                           <span>Plume Location</span>
-                          <input class="plume-location-input" id="plume-map-address-input" type="text" placeholder="Enter address or coordinates" autocomplete="street-address" />
+                          <input class="plume-location-input" data-legacy-address-input="plume-map-address-input" type="text" placeholder="Enter address or coordinates" autocomplete="street-address" />
                         </label>
                         <div class="plume-location-actions">
                           <button class="plume-map-button secondary" id="use-plume-incident-location-btn" type="button">Use Incident Address</button>
@@ -1442,10 +1475,35 @@
                     <span id="plume-map-attribution">© OpenFreeMap · © OpenMapTiles · Imagery © Esri</span>
                   </footer>
                 </article>
-              </main> -->
+              </div> -->
 
 
             </div>
+            <section class="plume-results-section" id="plume-results-section" aria-label="Plume results" hidden>
+              <article class="plume-results-grid">
+                <section class="plume-summary-card"><h3>Threat Zone</h3><p id="plume-model-status-summary">No Current Data Exists</p><p id="plume-limitations-summary">Plume results are planning estimates only.</p><h3>Operational Guidance</h3></section>
+                <section class="plume-summary-card"><h3>Model Inputs Summary</h3><p>Verify release, weather, and source conditions before use.</p></section>
+              </article>
+              <section class="plume-planning-notices" aria-label="Plume planning notices">
+                <p>HAZSCOPE is a decision-support and planning tool.</p>
+                <p>Plume results are planning estimates only.</p>
+                <p>Weather data source and observation time must be verified.</p>
+              </section>
+              <details id="plume-demographics" class="threat-zone-estimate-details" hidden>
+                <summary>Selected-area context</summary>
+                <div class="demographics-grid">
+                  <div class="demographic-stat" data-threat-metric="residentialHomes"><span>Residential homes</span><strong id="demographics-structures">No Current Data Exists</strong></div>
+                  <div class="demographic-stat" data-threat-metric="currentPopulation"><span>Current population</span><strong id="demographics-current-population">No Current Data Exists</strong></div>
+                  <div class="demographic-stat" data-threat-metric="criticalInfrastructure"><span>Critical infrastructure</span><strong id="demographics-critical-receptors">No Current Data Exists</strong></div>
+                  <div class="demographic-stat" data-threat-metric="healthcareFacilities"><span>Healthcare facilities</span><strong id="demographics-protective-action">No Current Data Exists</strong></div>
+                  <div class="demographic-stat" data-threat-metric="schools"><span>Schools</span><strong id="demographics-schools">No Current Data Exists</strong></div>
+                </div>
+                <div id="demographics-census-households">Nearby Census totals are context only.</div>
+                <div id="demographics-household-method">Building-footprint estimate</div>
+                <div id="demographics-household-status">No Current Data Exists</div>
+                <div id="demographics-household-limitations">Verify affected areas with local GIS, field reconnaissance, field monitoring, and Incident Command</div>
+              </details>
+            </section>
             <dialog class="plume-threat-zone-dialog" id="plume-threat-zone-dialog" aria-labelledby="plume-threat-zone-dialog-title">
               <div class="plume-threat-zone-dialog-shell">
                 <header class="plume-threat-zone-dialog-header">
@@ -1461,8 +1519,8 @@
           </section>
 
           <section id="map" class="view live-map-page" data-page-root="live-map" data-page-name="Live Map">
-            <header class="hazmat-page-hero hazmat-page-hero-compact live-map-tactical-header">
-              <img class="live-map-hero-image" src="assets/live-wildfire-operational-map.png" alt="Live Map — Operational Mapping and Field Intelligence" />
+            <header class="hazmat-page-hero emergenz-page-header hazmat-page-hero-compact live-map-tactical-header">
+              <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><path d="M28 57S11 41 11 25a17 17 0 1 1 34 0c0 16-17 32-17 32Z"/><circle cx="28" cy="25" r="6"/><path d="M6 25h7m27 0h7M28 3v7"/></svg></span><div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title">LIVE MAP</h1><p class="hazmat-hero-subtitle">Operational Mapping &amp; Field Intelligence.</p></div></div>
             </header>
             <div class="live-map-operations" aria-label="Live Map controls">
               <div class="live-map-control-groups">
@@ -1607,11 +1665,11 @@
             </dialog>
           </section>
 
-          <section id="monitor" class="view emergenz-monitoring-page" data-page-root="monitoring" data-page-name="Monitoring">
-            <header class="em-monitor-header">
-              <div class="em-monitor-title">
-                <span class="em-monitor-screen-icon" aria-hidden="true"><svg viewBox="0 0 56 62" fill="none"><rect x="5" y="4" width="46" height="54" rx="9" fill="#061322" stroke="#ffd045" stroke-width="2.8"/><rect x="10" y="12" width="36" height="31" rx="3" fill="#092a43" stroke="#47b2df" stroke-width="1.6"/><path d="M28 16 41 28 28 40 15 28Z" fill="#ffd137" stroke="#091825" stroke-width="1.4"/><path d="M28 16 41 28H28Z" fill="#ff573f"/><path d="M15 28 28 40V28Z" fill="#3f9fee"/><path d="M28 28 41 28 28 40Z" fill="#121b23"/><circle cx="28" cy="28" r="5" fill="#071724"/><circle cx="28" cy="28" r="1.3" fill="#ffd448"/><circle cx="27" cy="49" r="2" fill="#7dbbd2"/><path d="M20 54h16" stroke="#4a98bb" stroke-width="1.8"/></svg></span>
-                <div><h1>MONITORING</h1><p>Environmental Monitoring • Field Readings • Deployment Intelligence</p></div>
+          <section id="monitor" class="view emergenz-monitoring-page" data-page-root="equipment" data-component="equipment-page" data-page-name="Monitoring">
+            <header class="em-monitor-header emergenz-page-header">
+              <div class="em-monitor-title emergenz-page-header-content">
+                <span class="em-monitor-screen-icon" aria-hidden="true"><svg class="monitor-device-icon monitor-device-icon--header" viewBox="0 0 64 80" focusable="false"><use href="assets/monitor-device.svg#monitor-device-header"></use></svg></span>
+                <div class="emergenz-page-header-copy"><h1>MONITORING</h1><p>Environmental Monitoring • Field Readings • Deployment Intelligence</p></div>
               </div>
               <div class="em-monitor-head-state"><span class="em-monitor-status-dot"></span> MANUAL MODE <small>No telemetry connection</small></div>
             </header>
@@ -1875,8 +1933,8 @@
           </section>
 
           <section id="report" class="view reports-page" data-page-root="reports" data-page-name="Reports / ICS">
-            <header class="hazmat-page-hero variant-reports">
-              <div class="hazmat-page-hero-content"><h1 class="hazmat-hero-title">Reports &amp; Forms</h1><p class="hazmat-hero-subtitle">Generate, Print, Export &amp; Archive.</p></div>
+            <header class="hazmat-page-hero emergenz-page-header variant-reports">
+              <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><rect x="11" y="5" width="34" height="51" rx="4"/><path d="M20 5V2h16v3M19 22h18M19 31h18M19 40h11"/></svg></span><div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title">Reports &amp; Forms</h1><p class="hazmat-hero-subtitle">Generate, Print, Export &amp; Archive.</p></div></div>
             </header>
             <div class="panel-card report-center">
               <div class="button-row report-tabs">
@@ -1961,8 +2019,8 @@
           </section>
 
           <section id="weather" class="view weather-intelligence-page" data-page-root="weather" data-page-name="Weather Intelligence">
-            <header class="hazmat-page-hero weather-intelligence-hero">
-              <div class="hazmat-page-hero-content"><p class="eyebrow">All-Hazards Environmental Picture</p><h1 class="hazmat-hero-title">Weather Intelligence</h1><div class="weather-hero-tags"><span>RADAR</span><span>WARNINGS</span><span>WIND</span><span>FIRE / FLOOD</span></div></div>
+            <header class="hazmat-page-hero emergenz-page-header weather-intelligence-hero">
+              <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><path d="M12 42h32a9 9 0 0 0 0-18 14 14 0 0 0-26-4 11 11 0 0 0-6 22Z"/><path d="M18 50h.01M28 50h.01M38 50h.01"/></svg></span><div class="emergenz-page-header-copy"><p class="eyebrow">All-Hazards Environmental Picture</p><h1 class="hazmat-hero-title">Weather Intelligence</h1><p class="hazmat-hero-subtitle">Live radar, warnings, wind, fire and flood intelligence.</p></div></div>
             </header>
             <form class="weather-location-form" id="weather-location-form">
               <div class="weather-location-heading"><span class="eyebrow">Weather Location</span><strong id="weather-location-display">Choose a location for this workspace</strong></div>
@@ -2031,7 +2089,7 @@
           </section>
 
               <section id="settings" class="view settings-page" data-page-root="settings" data-page-name="Settings">
-            <header class="hazmat-page-hero settings-hero"><div class="hazmat-page-hero-content"><p class="eyebrow">Application Configuration</p><h1 class="hazmat-hero-title">Settings</h1><p class="hazmat-hero-subtitle">Appearance, sources, and application preferences.</p></div></header>
+            <header class="hazmat-page-hero emergenz-page-header settings-hero"><div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><path d="M10 15h36M10 31h36M10 47h36"/><circle cx="21" cy="15" r="5"/><circle cx="37" cy="31" r="5"/><circle cx="25" cy="47" r="5"/></svg></span><div class="emergenz-page-header-copy"><p class="eyebrow">Application Configuration</p><h1 class="hazmat-hero-title">Settings</h1><p class="hazmat-hero-subtitle">Appearance, sources, and application preferences.</p></div></div></header>
             <div class="settings-workspace-grid">
               <section class="settings-card settings-appearance-card" aria-labelledby="settings-appearance-title"><header><div><p class="eyebrow">Display</p><h2 id="settings-appearance-title">Appearance</h2></div><span class="settings-current-theme" id="settings-current-theme">Tactical / Dark</span></header><p class="settings-card-intro">Choose the display mode for the whole EMERGENZ application. Tactical is optimized for command rooms; Daylight is optimized for outdoor and vehicle use.</p><div class="settings-theme-options" role="group" aria-label="Application theme"><button class="settings-theme-option" id="theme-tactical-btn" type="button" data-theme-choice="dark" aria-pressed="true"><span class="settings-theme-preview settings-theme-preview-dark" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>Tactical / Dark</strong><small>Dark navy command surfaces and hazard accents.</small></span><b>Active</b></button><button class="settings-theme-option" id="theme-daylight-btn" type="button" data-theme-choice="light" aria-pressed="false"><span class="settings-theme-preview settings-theme-preview-light" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>Daylight / Light</strong><small>High-contrast light surfaces for bright field conditions.</small></span><b>Use</b></button></div><p class="settings-theme-status" id="settings-theme-status" role="status" aria-live="polite">Tactical / Dark is active.</p></section>
               <section class="settings-card settings-sources-card" aria-labelledby="settings-sources-title"><header><div><p class="eyebrow">Reference Infrastructure</p><h2 id="settings-sources-title">Sources</h2></div><button class="ghost-btn" id="settings-sources-toggle" type="button" aria-expanded="false" aria-controls="settings-sources-panel">Open Sources</button></header><p class="settings-card-intro">Review the authoritative registries that support EMERGENZ operational data. This page reports the source state already available in the application.</p><div id="settings-sources-panel" class="settings-sources-panel" hidden><div class="settings-source-category"><strong>Chemical</strong><span>Chemical Companion Master · NIOSH Pocket Guide · CAMEO Chemicals</span><b data-source-state="verified">Verified / bundled</b></div><div class="settings-source-category"><strong>Medical / Decon</strong><span>Chemical Companion medical protocols and decontamination guidance</span><b data-source-state="verified">Source-backed where available</b></div><div class="settings-source-category"><strong>CBRN / Radiological</strong><span>Curated EMERGENZ CBRN and radiological reference corpus</span><b data-source-state="verified">Curated / offline</b></div><div class="settings-source-category"><strong>Regulatory</strong><span>ERG 2024, AEGL endpoints, and linked regulatory records</span><b data-source-state="review">Review source context</b></div><div class="settings-source-category"><strong>Weather / Mapping</strong><span>Open-Meteo, NWS observations, MapLibre basemaps, and radar providers</span><b data-source-state="available">Live / availability varies</b></div><p class="settings-source-note">Source status is informational. EMERGENZ does not treat an available network response as automatically verified.</p></div></section>
@@ -2051,7 +2109,7 @@
                 <li><span>CAMEO Chemicals</span><strong>Bundled chemical and reactivity records</strong></li>
                 <li><span>NIOSH Pocket Guide</span><strong>Bundled exposure and physical-property records</strong></li>
                 <li><span>ERG 2024</span><strong>Guide and Table 1 response data</strong></li>
-                <li><span>EMERGENZ plume model</span><strong>Backend threshold isopleths rendered as GIS polygons</strong></li>
+                 <li><span>HAZSCOPE plume model</span><strong>Backend threshold isopleths rendered as GIS polygons</strong></li>
                 <li><span>Planning Plume</span><strong>Source-backed AEGL endpoints with ERG fallback</strong></li>
               </ul>
             </div>
@@ -2071,16 +2129,16 @@
     <script src="weather-radar.js"></script>
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
-    <script src="script.js?v=command-facility-inventory-2"></script>
-    <script src="weather-workspace.js?v=6"></script>
+    <script src="script.js?v=hazard-radiological-profile-1&recovery-audit=2"></script>
+    <script src="weather-workspace.js?v=7"></script>
     <script src="settings-workspace.js?v=1"></script>
     <script src="incident-command.js"></script>
-    <script src="hazard-profile.js"></script>
+    <script src="hazard-profile.js?v=hazard-radiological-routing-1"></script>
     <script src="reports.js"></script>
     <script src="chem-compare.js?v=chemcompare-4"></script>
     <script src="monitor-inventory.js"></script>
     <script src="equipment.js"></script>
-    <script src="monitoring-console.js?v=2"></script>
+    <script src="monitoring-console.js?v=5"></script>
     <script src="sources.js"></script>
   </body>
 </html>

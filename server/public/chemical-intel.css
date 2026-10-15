@@ -1308,7 +1308,7 @@
   grid-template-rows: max-content max-content max-content max-content !important;
   align-content: start;
   gap: clamp(18px, 2vw, 28px) !important;
-  padding: clamp(12px, 1.5vw, 22px) !important;
+  padding: 0 10px 10px !important;
 }
 
 #lookup > .hazard-id-page-hero {
@@ -1610,8 +1610,7 @@
 #lookup .hazard-id-empty-profile h2 { color: #fff; font-size: clamp(1.8rem, 3vw, 2.7rem); }
 #lookup .hazard-id-empty-profile p:last-child { color: #fff; font-size: 1rem; }
 
-#lookup .chemical-profile-shell,
-#lookup .hazard-profile-shell { border-color: #315f82; border-radius: 16px; background: #071a2e; }
+#lookup .chemical-profile-shell { border-color: #315f82; border-radius: 16px; background: #071a2e; }
 #lookup .chemical-profile-toolbar,
 #lookup .hazard-profile-toolbar { position: sticky; z-index: 12; top: 0; border: 1px solid #315f82; border-radius: 11px; background: rgba(5, 27, 47, 0.96); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26); backdrop-filter: blur(12px); }
 #lookup .chemical-profile-toolbar {
@@ -1623,11 +1622,9 @@
 .hazard-profile-page .hazard-profile-toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 #lookup .hazard-profile-toolbar-actions button { min-height: 46px; }
 #lookup .hazard-profile-plume-btn { border-color: #ef4b52; background: linear-gradient(180deg, #dc2830, #a90e15); color: #fff; }
-#lookup .hazard-profile-header-card,
 #lookup .chemical-profile-header-card,
-#lookup .hazard-profile-content-card,
 #lookup .chemical-profile-content-card { border-color: #315f82; background: #0c2742; color: #fff; }
-#lookup .hazard-profile-content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#lookup .chemical-profile-content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #lookup .hazard-source-fact-card { border-color: #315f82; background: linear-gradient(150deg, #0d3151, #081f35); color: #fff; transition: transform 180ms ease, box-shadow 180ms ease; }
 #lookup .hazard-source-fact-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25); }
 #lookup .hazard-source-fact-card p,
@@ -1644,33 +1641,9 @@
 
 #lookup .chemical-profile-content-card p,
 #lookup .chemical-profile-content-card li,
-#lookup .chemical-profile-content-card dd,
-#lookup .hazard-profile-content-card p,
-#lookup .hazard-profile-content-card li,
-#lookup .hazard-profile-content-card dd { color: #fff; font-size: 1rem; }
-#lookup .chemical-profile-content-card h3,
-#lookup .hazard-profile-content-card h3 { color: #fff; font-size: clamp(1.35rem, 2vw, 1.75rem); }
+#lookup .chemical-profile-content-card dd { color: #fff; font-size: 1rem; }
+#lookup .chemical-profile-content-card h3 { color: #fff; font-size: clamp(1.35rem, 2vw, 1.75rem); }
 
-.hazard-profile-page .hazard-profile-action-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-.hazard-profile-page .hazard-profile-action-grid article {
-  display: grid;
-  align-content: start;
-  gap: 9px;
-  min-height: 148px;
-  padding: 16px;
-  border: 1px solid #315f82;
-  border-radius: 10px;
-  background: linear-gradient(145deg, #0d3151, #081f35);
-  color: #fff;
-}
-.hazard-profile-page .hazard-profile-action-grid h3 { margin: 0; color: #fff; font-size: 1.15rem; }
-.hazard-profile-page .hazard-profile-action-grid p { margin: 0; color: #fff; font-size: 1rem; line-height: 1.45; }
-.hazard-profile-page .hazard-profile-action-grid span { justify-self: start; padding: 4px 8px; border: 1px solid #a67c21; border-radius: 999px; color: #f6c343; font-size: 0.75rem; font-weight: 900; }
-.hazard-profile-page .hazard-profile-action-grid span[data-status="Source Backed"] { border-color: #3d9852; color: #7ee395; }
 .hazard-profile-page .hazard-profile-limitations { padding: 16px 18px; border: 1px solid #7e6325; border-radius: 10px; background: rgba(91, 64, 13, 0.2); color: #fff; }
 .hazard-profile-page .hazard-profile-limitations h3 { margin: 0 0 9px; color: #f6c343; }
 .hazard-profile-page .hazard-profile-limitations ul { display: grid; gap: 7px; margin: 0; padding-left: 22px; }
@@ -1690,8 +1663,6 @@
   .app-shell:has(#lookup.active) .command-header .brand-logo-command { height: 172px; }
   #lookup > .hazard-id-page-hero { min-height: 140px !important; background-position: center, 62% 56% !important; }
   #lookup > .hazard-id-page-hero .hazmat-page-hero-content { width: min(540px, 72%); }
-  #lookup .hazard-profile-content { grid-template-columns: 1fr; }
-  .hazard-profile-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #lookup .hazard-profile-toolbar { grid-template-columns: 1fr; }
   .hazard-profile-toolbar-actions { justify-content: stretch; }
   .hazard-profile-toolbar-actions button { flex: 1; }
@@ -1711,7 +1682,6 @@
   #lookup .hazard-unified-search-form { grid-template-columns: 1fr; }
   #lookup .hazard-unified-search-form > .primary-btn { width: 100%; min-height: 60px; }
   .hazard-workflow-rail { grid-template-columns: 1fr; }
-  .hazard-profile-action-grid { grid-template-columns: 1fr; }
   .hazard-workflow-rail li { padding: 9px; }
   .hazard-workflow-rail li:not(:last-child)::after { top: auto; right: 50%; bottom: -11px; transform: translateX(50%) rotate(90deg); }
 }
@@ -1941,13 +1911,9 @@
   .app-shell:has(#lookup.view.active) {
     height: 100dvh;
     min-height: 0;
-    padding: 6px 0 10px;
+    padding: var(--app-top-space, 8px);
     overflow: hidden;
     background: #020b14;
-  }
-
-  .app-shell:has(#lookup.view.active) > .command-header {
-    display: none !important;
   }
 
   .app-shell:has(#lookup.view.active) > .layout {
@@ -2279,155 +2245,6 @@
     padding: 11px;
   }
 
-  #lookup .hazard-profile-shell {
-    display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr);
-    align-content: stretch;
-    gap: 7px;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    padding: 6px;
-    overflow: hidden;
-    border: 0;
-    border-radius: 0;
-    background: linear-gradient(155deg, rgba(3, 23, 40, 0.44), rgba(2, 11, 20, 0.28));
-  }
-
-  #lookup .hazard-profile-header-card {
-    display: grid;
-    grid-template-columns: minmax(104px, 15%) minmax(0, 1fr) minmax(170px, 24%);
-    align-items: stretch;
-    gap: 12px;
-    min-height: 0;
-    padding: 9px 11px;
-    overflow: hidden;
-    border: 1px solid #315f82;
-    border-radius: 8px;
-    background:
-      radial-gradient(circle at 76% 42%, rgba(46, 140, 255, 0.16), transparent 30%),
-      linear-gradient(135deg, #0b3150, #061d32);
-  }
-
-  #lookup .hazard-profile-emblem {
-    align-self: center;
-    width: 104px;
-    height: 104px;
-    margin-inline: auto;
-    border: 2px solid #f6c343;
-    background: linear-gradient(135deg, #0a385c, #041728);
-    box-shadow: 0 0 22px rgba(246, 195, 67, 0.14);
-  }
-
-  #lookup .hazard-profile-identity {
-    display: grid;
-    align-content: center;
-    min-width: 0;
-  }
-
-  #lookup .hazard-profile-title-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-
-  #lookup .hazard-profile-title-line h2 {
-    margin: 0;
-    font-size: clamp(1.55rem, 2.2vw, 2.7rem);
-  }
-
-  #lookup .hazard-profile-data-status {
-    justify-content: flex-start;
-  }
-
-  #lookup .hazard-profile-identifiers {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
-    margin-top: 9px;
-  }
-
-  #lookup .hazard-profile-identifiers > span {
-    min-width: 0;
-    min-height: 58px;
-    place-content: center;
-    padding: 5px;
-    text-align: center;
-  }
-
-  #lookup .hazard-profile-overview {
-    align-self: stretch;
-    min-width: 0;
-    padding: 10px;
-    border: 1px solid #2f5f86;
-    border-radius: 7px;
-    background: rgba(4, 24, 42, 0.76);
-  }
-
-  #lookup .hazard-profile-overview > strong {
-    display: block;
-    margin-bottom: 8px;
-    color: #fff;
-    font-size: 0.82rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  #lookup .hazard-profile-overview ul {
-    display: grid;
-    gap: 7px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  #lookup .hazard-profile-overview li {
-    display: grid;
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: 6px;
-    color: #e3edf6;
-    font-size: 0.76rem;
-    line-height: 1.35;
-  }
-
-  #lookup .hazard-profile-overview li > span:first-child { color: #f6c343; }
-
-  #lookup .hazard-profile-action-grid,
-  #lookup .hazard-profile-limitations,
-  #lookup .hazard-profile-source-footer {
-    display: none;
-  }
-
-  #lookup .hazard-profile-content-card {
-    min-height: 0;
-    height: 100%;
-    padding: 8px;
-    overflow: hidden;
-  }
-
-  #lookup .hazard-profile-content {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-content: start;
-    height: 100%;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    scrollbar-gutter: stable;
-  }
-
-  #lookup .hazard-source-fact-card {
-    min-height: 0;
-    padding: 12px;
-  }
-
-  #lookup .hazard-guided-safety-card ul {
-    display: grid;
-    gap: 7px;
-    margin: 0;
-    padding-left: 18px;
-    color: #fff;
-  }
 }
 
 @media (max-width: 1180px) {
@@ -2552,18 +2369,13 @@
     linear-gradient(135deg, rgba(3, 15, 28, 0.98), rgba(6, 26, 46, 0.96), rgba(11, 31, 51, 0.98));
 }
 
-#chemical-id-results .chemical-profile-shell,
-#hazard-profile-results .hazard-profile-shell {
+#chemical-id-results .chemical-profile-shell {
   gap: 7px;
   background: transparent;
 }
 
 #chemical-id-results .chemical-profile-shell {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-}
-
-#hazard-profile-results .hazard-profile-shell {
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
 
 #chemical-id-results .chemical-profile-toolbar,
@@ -2627,8 +2439,7 @@
   opacity: 1 !important;
 }
 
-#chemical-id-results .chemical-profile-header-card,
-#hazard-profile-results .hazard-profile-header-card {
+#chemical-id-results .chemical-profile-header-card {
   border: 1px solid rgba(64, 107, 145, 0.85);
   background:
     radial-gradient(circle at 76% 36%, rgba(46, 140, 255, 0.18), transparent 30%),
@@ -2636,8 +2447,7 @@
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
 }
 
-#chemical-id-results .chemical-hazard-overview,
-#hazard-profile-results .hazard-profile-overview {
+#chemical-id-results .chemical-hazard-overview {
   border: 1px solid rgba(64, 107, 145, 0.85);
   background: rgba(8, 31, 52, 0.92);
 }
@@ -2683,8 +2493,7 @@
   box-shadow: inset 0 -3px 0 #d59b0a;
 }
 
-#chemical-id-results .chemical-profile-content-card,
-#hazard-profile-results .hazard-profile-content-card {
+#chemical-id-results .chemical-profile-content-card {
   min-height: 0;
   height: 100%;
   margin: 0;
@@ -2696,8 +2505,7 @@
   box-shadow: none;
 }
 
-#chemical-id-results .chemical-profile-content,
-#hazard-profile-results .hazard-profile-content {
+#chemical-id-results .chemical-profile-content {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-content: start;
   height: 100%;
@@ -2707,8 +2515,7 @@
   scrollbar-gutter: stable;
 }
 
-#chemical-id-results .chemical-profile-section,
-#hazard-profile-results .hazard-source-fact-card {
+#chemical-id-results .chemical-profile-section {
   min-width: 0;
   min-height: 0;
   border: 1px solid rgba(64, 107, 145, 0.85);
@@ -2733,8 +2540,7 @@
 #hazard-profile-results .hazard-source-fact-card li { color: #dde7f2; font-size: 0.88rem; }
 #hazard-profile-results .hazard-source-fact-card small { color: #b8c7d9; font-size: 0.76rem; }
 
-#chemical-id-results .chemical-profile-footer,
-#hazard-profile-results .hazard-profile-source-footer {
+#chemical-id-results .chemical-profile-footer {
   display: grid;
   grid-template-columns: 1.45fr 0.8fr 0.8fr;
   gap: 0;
@@ -2745,8 +2551,7 @@
   background: rgba(8, 31, 52, 0.92);
 }
 
-#chemical-id-results .chemical-profile-footer > div,
-#hazard-profile-results .hazard-profile-source-footer > div {
+#chemical-id-results .chemical-profile-footer > div {
   display: grid;
   align-content: center;
   gap: 3px;
@@ -2755,11 +2560,9 @@
   border-right: 1px solid rgba(64, 107, 145, 0.62);
 }
 
-#chemical-id-results .chemical-profile-footer > div:last-child,
-#hazard-profile-results .hazard-profile-source-footer > div:last-child { border-right: 0; }
+#chemical-id-results .chemical-profile-footer > div:last-child { border-right: 0; }
 
-#chemical-id-results .chemical-profile-footer span,
-#hazard-profile-results .hazard-profile-source-footer span {
+#chemical-id-results .chemical-profile-footer span {
   color: #79bfff;
   font-size: 0.62rem;
   font-weight: 900;
@@ -2767,27 +2570,17 @@
   text-transform: uppercase;
 }
 
-#chemical-id-results .chemical-profile-footer strong,
-#hazard-profile-results .hazard-profile-source-footer strong {
+#chemical-id-results .chemical-profile-footer strong {
   overflow-wrap: anywhere;
   color: #f8fafc;
   font-size: 0.76rem;
 }
 
-#hazard-profile-results .hazard-profile-source-footer small {
-  color: #b8c7d9;
-  font-size: 0.67rem;
-  line-height: 1.3;
-}
-
-#hazard-profile-results .hazard-profile-source-footer small b { color: #dde7f2; }
-
 #hazard-profile-results:not([data-hazard-lane]) .hazard-profile-action-grid,
 #hazard-profile-results:not([data-hazard-lane]) .hazard-profile-limitations { display: none; }
 
 @media (max-width: 1420px) {
-  #chemical-id-results .chemical-profile-content,
-  #hazard-profile-results .hazard-profile-content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #chemical-id-results .chemical-profile-content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   #chemical-id-results .chemical-profile-toolbar-actions,
   #hazard-profile-results .hazard-profile-toolbar-actions { flex-wrap: wrap; }
@@ -2808,16 +2601,11 @@
     grid-template-areas: "placard" "heading" "summary" "meta" "hazard";
   }
 
-  #hazard-profile-results .hazard-profile-header-card { grid-template-columns: 1fr; }
+  #chemical-id-results .chemical-profile-content { grid-template-columns: 1fr; }
 
-  #chemical-id-results .chemical-profile-content,
-  #hazard-profile-results .hazard-profile-content { grid-template-columns: 1fr; }
+  #chemical-id-results .chemical-profile-footer { grid-template-columns: 1fr; }
 
-  #chemical-id-results .chemical-profile-footer,
-  #hazard-profile-results .hazard-profile-source-footer { grid-template-columns: 1fr; }
-
-  #chemical-id-results .chemical-profile-footer > div,
-  #hazard-profile-results .hazard-profile-source-footer > div {
+  #chemical-id-results .chemical-profile-footer > div {
     padding-block: 7px;
     border-right: 0;
     border-bottom: 1px solid rgba(64, 107, 145, 0.62);

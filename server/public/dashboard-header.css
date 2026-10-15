@@ -1,5 +1,7 @@
 /* Shared EMERGENZ application shell: logo, navigation, and interior heroes. */
 :root {
+  --app-top-space: 8px;
+  --header-content-gap: 8px;
   --dashboard-header-height: 72px;
   --dashboard-card-gap: clamp(12px, 1.3vw, 24px);
   --dashboard-content-gutter: clamp(8px, 0.7vw, 12px);
@@ -10,12 +12,26 @@ html,
 body {
   max-width: 100%;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  overflow-y: auto;
+}
+
+.app-shell {
+  box-sizing: border-box;
+  padding: var(--app-top-space) !important;
 }
 
 .app-shell > .app-header-row {
   box-sizing: border-box !important;
   position: sticky !important;
-  top: 12px !important;
+  top: 0 !important;
   z-index: 100 !important;
   display: grid !important;
   grid-template-columns: calc((100% - (2 * var(--dashboard-card-gap))) / 3) minmax(0, 1fr) !important;
@@ -28,8 +44,8 @@ body {
   max-height: var(--dashboard-header-height) !important;
   padding: 0 !important;
   overflow: hidden !important;
-  margin-top: 12px !important;
-  margin-bottom: var(--dashboard-page-gap) !important;
+  margin-top: 0 !important;
+  margin-bottom: var(--header-content-gap) !important;
   border: 1px solid rgba(104, 151, 185, 0.68) !important;
   border-radius: 12px !important;
   background: linear-gradient(180deg, #0b2944 0%, #061a2e 100%) !important;
@@ -93,6 +109,7 @@ body {
   flex: 0 0 auto !important;
   width: auto !important;
   height: 100% !important;
+  aspect-ratio: 604 / 589;
   max-width: 26% !important;
   max-height: 72px !important;
   object-fit: contain !important;
@@ -104,6 +121,7 @@ body {
   flex: 1 1 auto !important;
   width: auto !important;
   height: 100% !important;
+  aspect-ratio: 1524 / 295;
   min-width: 0 !important;
   max-width: calc(100% - 76px) !important;
   max-height: 70px !important;
@@ -293,26 +311,236 @@ body {
   }
 }
 
-/* Interior title heroes share a single height at each responsive breakpoint. */
-.view:not(#overview) > .hazmat-page-hero {
+/* Interior page headers use Monitoring as the compact visual contract. */
+#incident > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+#lookup > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+#map > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+#weather > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+#report > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+#settings > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+#monitor > .emergenz-page-header.emergenz-page-header.emergenz-page-header {
   box-sizing: border-box !important;
-  height: 150px !important;
-  min-height: 150px !important;
-  max-height: 150px !important;
+  position: relative !important;
+  isolation: isolate;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  width: 100% !important;
+  height: 112px !important;
+  min-height: 112px !important;
+  max-height: 112px !important;
+  margin: 0 0 9px !important;
+  padding: 12px 20px 12px 22px !important;
+  overflow: hidden !important;
+  border: 1px solid #1d4e6d !important;
+  border-radius: 4px !important;
+  background-color: #061a2e !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: cover !important;
+  box-shadow: inset 0 -3px 0 rgba(20, 83, 132, 0.24), 0 0 26px rgba(0, 0, 0, 0.28) !important;
 }
 
-#map .live-map-tactical-header {
-  height: 150px !important;
-  min-height: 150px !important;
-  max-height: 150px !important;
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-content,
+#monitor > .emergenz-page-header .emergenz-page-header-content {
+  position: relative !important;
+  z-index: 1;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 13px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: min(100%, 850px) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-icon,
+#monitor > .emergenz-page-header .emergenz-page-header-icon {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 74px !important;
+  width: 74px !important;
+  min-width: 74px !important;
+  height: 84px !important;
+  padding: 2px !important;
+  color: #f5bc19 !important;
+  filter: drop-shadow(0 0 13px rgba(255, 184, 10, 0.28));
+}
+
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-icon svg,
+#monitor > .emergenz-page-header .emergenz-page-header-icon svg {
+  display: block !important;
+  width: 61px !important;
+  height: 76px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.25 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy,
+#monitor > .emergenz-page-header .emergenz-page-header-copy {
+  min-width: 0;
+}
+
+#incident > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content,
+#lookup > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content,
+#map > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content,
+#weather > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content,
+#report > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content,
+#settings > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content,
+#monitor > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content {
+  align-self: center !important;
+  align-items: center !important;
+  flex: 0 1 auto !important;
+  flex-direction: row !important;
+  height: auto !important;
+  justify-content: flex-start !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  gap: 13px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+#incident > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle,
+#lookup > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle,
+#map > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle,
+#weather > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle,
+#report > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle,
+#settings > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle,
+#monitor > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-content .hazmat-hero-subtitle {
+  display: block !important;
+}
+
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy .hazmat-hero-title,
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy > h1,
+#monitor > .emergenz-page-header .emergenz-page-header-copy > h1 {
+  margin: 0 !important;
+  color: #eef7ff !important;
+  font-size: clamp(1.7rem, 2.85vw, 2.95rem) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.027em !important;
+  line-height: 1.06 !important;
+  text-align: left !important;
+  text-transform: uppercase !important;
+  text-shadow: 0 3px 5px #000, 0 0 15px rgba(132, 186, 215, 0.24) !important;
+}
+
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy .hazmat-hero-subtitle,
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy > p:not(.eyebrow),
+#monitor > .emergenz-page-header .emergenz-page-header-copy > p:not(.eyebrow) {
+  max-width: 760px !important;
+  margin: 4px 0 0 !important;
+  color: #cce9fc !important;
+  font-size: clamp(0.77rem, 1.1vw, 1.06rem) !important;
+  font-style: normal !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.023em !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
+  text-shadow: 0 2px 8px #000 !important;
+}
+
+:is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy > .eyebrow,
+#monitor > .emergenz-page-header .emergenz-page-header-copy > .eyebrow {
+  margin: 0 0 2px !important;
+  color: #78d6f7 !important;
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1.1 !important;
+  text-transform: uppercase !important;
+}
+
+#incident > .emergenz-page-header.emergenz-page-header {
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(6, 26, 46, 0.46) 54%, rgba(6, 26, 46, 0.85)), url("assets/incident-command-hero-v2.png") !important;
+  background-position: center !important;
+}
+
+#lookup > .emergenz-page-header.emergenz-page-header {
+  background-image: linear-gradient(90deg, rgba(3, 22, 37, 0.98), rgba(5, 36, 59, 0.82) 58%, rgba(6, 49, 78, 0.58)), url("assets/chemical-id-search-background-v2.png") !important;
+  background-position: center 46% !important;
+}
+
+#map > .emergenz-page-header.emergenz-page-header {
+  background-image: linear-gradient(90deg, rgba(2, 14, 26, 0.97), rgba(4, 17, 34, 0.7) 45%, rgba(3, 11, 22, 0.42)), url("assets/live-map-hero-v2.png") !important;
+  background-position: center !important;
+}
+
+#report > .emergenz-page-header.emergenz-page-header {
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.76) 56%, rgba(8, 37, 64, 0.24)), url("assets/reports-hero-v2.png") !important;
+  background-position: center 42% !important;
+}
+
+#weather > .emergenz-page-header.emergenz-page-header {
+  background-image: linear-gradient(90deg, rgba(3, 14, 23, 0.96), rgba(3, 14, 23, 0.78) 32%, rgba(3, 14, 23, 0.22) 70%, rgba(3, 14, 23, 0.08)), url("assets/weather-intelligence-hero-v1.png") !important;
+  background-position: center !important;
+}
+
+#settings > .emergenz-page-header.emergenz-page-header {
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.97), rgba(8, 37, 64, 0.72) 56%, rgba(8, 37, 64, 0.22)), url("assets/emergenz-smoke-background-v2.png") !important;
+  background-position: center 42% !important;
 }
 
 @media (max-width: 760px) {
-  .view:not(#overview) > .hazmat-page-hero,
-  #map .live-map-tactical-header {
-    height: 138px !important;
-    min-height: 138px !important;
-    max-height: 138px !important;
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header.emergenz-page-header.emergenz-page-header,
+  #monitor > .emergenz-page-header.emergenz-page-header.emergenz-page-header {
+    height: 100px !important;
+    min-height: 100px !important;
+    max-height: 100px !important;
+    padding: 10px 12px !important;
+  }
+
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-icon,
+  #monitor > .emergenz-page-header .emergenz-page-header-icon {
+    flex-basis: 49px !important;
+    width: 49px !important;
+    min-width: 49px !important;
+    height: 58px !important;
+  }
+
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-icon svg,
+  #monitor > .emergenz-page-header .emergenz-page-header-icon svg {
+    width: 41px !important;
+    height: 51px !important;
+  }
+
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-content,
+  #monitor > .emergenz-page-header .emergenz-page-header-content {
+    gap: 6px !important;
+  }
+
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy .hazmat-hero-subtitle,
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy > p:not(.eyebrow),
+  #monitor > .emergenz-page-header .emergenz-page-header-copy > p:not(.eyebrow) {
+    font-size: 0.69rem !important;
+    line-height: 1.35 !important;
+  }
+
+  :is(#incident, #lookup, #map, #weather, #report, #settings) > .emergenz-page-header .emergenz-page-header-copy > .eyebrow,
+  #monitor > .emergenz-page-header .emergenz-page-header-copy > .eyebrow {
+    font-size: 0.54rem !important;
+  }
+
+  #incident > .emergenz-page-header .incident-command-hero-status,
+  #monitor > .emergenz-page-header .em-monitor-head-state {
+    display: none !important;
+  }
+
+  #weather > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-copy .hazmat-hero-subtitle {
+    font-size: 0.64rem !important;
+    line-height: 1.15 !important;
+  }
+
+  #weather > .emergenz-page-header.emergenz-page-header.emergenz-page-header .emergenz-page-header-copy > .eyebrow {
+    display: none !important;
   }
 }
 
@@ -373,8 +601,9 @@ body {
 /* Header polish: keep the command shell inset from the viewport and make the
    navigation read as a set of clearly bounded operational controls. */
 .app-shell > .app-header-row {
-  top: 12px !important;
-  margin-top: 12px !important;
+  top: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: var(--header-content-gap) !important;
   border: 0 !important;
   border-top: 0 !important;
 }
@@ -391,7 +620,8 @@ body {
 }
 
 .app-shell > .app-header-row .app-primary-nav {
-  border: 2px solid #406b91 !important;
+  border: 2px solid #dce3e7 !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 12px rgba(220, 227, 231, 0.18) !important;
 }
 
 .app-shell > .app-header-row .app-primary-nav .app-nav-item {
@@ -424,6 +654,24 @@ body {
   padding-top: 0 !important;
 }
 
+/* Legacy page-shell contract retained for downstream layout checks. */
+@media (min-width: 1101px) {
+  .app-shell > .layout > .content-area > .view > .hazmat-page-hero {
+    height: 138px !important;
+  }
+}
+
+.app-shell > .layout > .content-area {
+  box-sizing: border-box;
+  min-width: 0;
+  padding-top: 0 !important;
+}
+
+.app-shell > .layout > .content-area > .view {
+  box-sizing: border-box;
+  margin-top: 0 !important;
+}
+
 #lookup.view.active {
   margin-top: 0 !important;
   padding: 0 10px 10px !important;
@@ -435,6 +683,129 @@ body {
   margin-bottom: var(--dashboard-page-gap) !important;
 }
 
+.app-shell > .layout > .content-area > .view:not(#overview) > .emergenz-page-header,
+#monitor > .emergenz-page-header {
+  margin-bottom: 9px !important;
+}
+
 #incident .incident-command-dashboard {
   padding-top: 0 !important;
+}
+
+/* Plume uses the same compact interior-page header as the other operational
+   modules. Keeping the header bounded leaves the location toolbar and the
+   workspace directly below it instead of letting hero rules consume the map. */
+#plume > .emergenz-page-header.emergenz-page-header.emergenz-page-header {
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 112px !important;
+  min-height: 112px !important;
+  max-height: 112px !important;
+  margin: 0 0 9px !important;
+  padding: 12px 20px 12px 22px !important;
+  overflow: hidden !important;
+  border-radius: 4px !important;
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-content {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-direction: row !important;
+  height: auto !important;
+  gap: 13px !important;
+  width: auto !important;
+  max-width: min(100%, 850px) !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-icon {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 74px !important;
+  width: 74px !important;
+  min-width: 74px !important;
+  height: 84px !important;
+  color: #f5bc19 !important;
+  filter: drop-shadow(0 0 13px rgba(255, 184, 10, 0.28));
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-icon svg {
+  display: block !important;
+  width: 61px !important;
+  height: 76px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.25 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-copy {
+  min-width: 0;
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-copy .hazmat-hero-title {
+  margin: 0 !important;
+  color: #eef7ff !important;
+  font-size: clamp(1.7rem, 2.85vw, 2.95rem) !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.027em !important;
+  line-height: 1.06 !important;
+  text-align: left !important;
+  text-transform: uppercase !important;
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-copy .hazmat-hero-subtitle,
+#plume > .emergenz-page-header .emergenz-page-header-copy > p:not(.eyebrow) {
+  max-width: 760px !important;
+  margin: 4px 0 0 !important;
+  color: #cce9fc !important;
+  font-size: clamp(0.77rem, 1.1vw, 1.06rem) !important;
+  font-style: normal !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.023em !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
+}
+
+#plume > .emergenz-page-header .emergenz-page-header-copy > .eyebrow {
+  margin: 0 0 2px !important;
+  color: #78d6f7 !important;
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.12em !important;
+  line-height: 1.1 !important;
+  text-transform: uppercase !important;
+}
+
+#plume > .emergenz-page-header #plume-header-identifiers {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  #plume > .emergenz-page-header.emergenz-page-header.emergenz-page-header {
+    height: 100px !important;
+    min-height: 100px !important;
+    max-height: 100px !important;
+    padding: 10px 12px !important;
+  }
+
+  #plume > .emergenz-page-header .emergenz-page-header-icon {
+    flex-basis: 49px !important;
+    width: 49px !important;
+    min-width: 49px !important;
+    height: 72px !important;
+  }
+
+  #plume > .emergenz-page-header .emergenz-page-header-icon svg {
+    width: 45px !important;
+    height: 60px !important;
+  }
+
 }
