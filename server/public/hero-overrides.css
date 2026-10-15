@@ -66,7 +66,6 @@
 .view:not(#overview) .variant-chemical { background-image: url("assets/hazard-id-level-a-hero-v1.png") !important; }
 .view:not(#overview) .variant-chemical-profile { background-image: url("assets/chemical-id-search-background-v2.png") !important; }
 .view:not(#overview) .variant-guided-response { background-image: url("assets/guided-response-hero.png") !important; }
-.view:not(#overview) .variant-plume { background-image: url("assets/plume-model-hero-v2.png") !important; }
 .view:not(#overview) .variant-planning { background-image: url("assets/home-planning-tools-hero-v4.png") !important; }
 .view:not(#overview) .variant-reports { background-image: url("assets/reports-hero-v2.png") !important; }
 .view:not(#overview) .variant-monitoring { background-image: url("assets/equipment-hero-v2.png") !important; }

@@ -7,7 +7,7 @@ const script = readFileSync(new URL("../server/public/script.js", import.meta.ur
 
 describe("HazMatIQ Command Bar", () => {
   it("places the live tactical status in the homepage status bar", () => {
-    expect(html).toContain('class="topbar hazmat-command-bar command-header"');
+    expect(html).toContain('class="topbar hazmat-command-bar command-header app-header-row"');
     expect(html).toContain('class="home-status-bar"');
     expect(html).toContain('id="notification-center"');
     expect(html).toContain('class="notification-center hazmat-command-context"');
@@ -18,7 +18,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(html).not.toContain('class="notification-item notification-incident"');
     expect(html).not.toContain('id="command-bar-incident"');
     expect(styles).toContain(".command-header.hazmat-command-bar.topbar");
-    expect(styles).toContain("min-height: 408px;");
+    expect(styles).toContain("min-height: 84px;");
     expect(styles).toContain("--hazmat-navy: #061a2e");
     expect(script).toContain("function syncCommandBarContext()");
   });
@@ -44,20 +44,21 @@ describe("HazMatIQ Command Bar", () => {
 
   it("uses one shared tactical hero system across major landing pages", () => {
     for (const title of [
-      "Incident Command Dashboard",
+      "Incident Command",
       "HAZARD ID",
-      "Plume Model",
-      "Live Map",
+      "LIVE MAP",
       "Guided Response",
-      "My Reports",
-      "Monitoring Equipment",
+      "Reports &amp; Forms",
+      "Equipment",
+      "Weather Intelligence",
+      "Settings",
       "My Chemicals",
     ])
       expect(html).toContain(title);
     expect(html).not.toContain("HazMatIQ Command Center");
     expect(html.match(/hazmat-page-hero/g)?.length).toBeGreaterThanOrEqual(9);
-    expect(html).toMatch(/hazmat-page-hero hazmat-page-hero-compact variant-plume/);
-    expect(html).toMatch(/hazmat-page-hero hazmat-page-hero-compact variant-live-map/);
+    expect(html).not.toContain('class="hazmat-page-hero variant-plume');
+    expect(html).not.toContain('class="hazmat-page-hero hazmat-page-hero-compact variant-live-map');
     expect(styles).toContain(".hazmat-page-hero {");
     expect(styles).toContain(".hazmat-page-hero-compact");
     expect(styles).toContain("color: var(--hazmat-text) !important;");
@@ -148,10 +149,11 @@ describe("HazMatIQ Command Bar", () => {
   it("uses the permanent command header and complete overlay workspace navigation", () => {
     expect(html).toContain('id="command-menu-toggle"');
     expect(html).toContain('id="workspace-navigation-drawer"');
-    expect(html).toContain('class="brand-logo-command"');
-    expect(html).toContain('src="assets/emergenz-hero-header.png?v=3"');
+    expect(html).toContain('class="brand-logo-mark"');
+    expect(html).toContain('src="assets/emergenz-compass-tight.png?v=1"');
+    expect(html).toContain('src="assets/emergenz-wordmark-tight.png?v=1"');
     const commandHeader = html.slice(
-      html.indexOf('<header class="topbar hazmat-command-bar command-header"'),
+      html.indexOf('<header class="topbar hazmat-command-bar command-header app-header-row"'),
       html.indexOf('</header>'),
     );
     expect(commandHeader).toContain('class="command-menu-toggle global-command-menu-toggle"');
@@ -192,23 +194,17 @@ describe("HazMatIQ Command Bar", () => {
     expect(script).toContain("function applyApplicationTheme(");
   });
 
-  it("uses static radar rings and restrained ambient motion with readable status zones", () => {
+  it("keeps the shared command header compact and free of stale decorative markup", () => {
     expect(html).not.toContain('class="command-hero-scene"');
     expect(html).not.toContain('src="assets/command-header-hazmat-scene-v2.png"');
     expect(html).toContain('class="command-header-plume"');
-    expect(html).toContain('class="command-header-contours"');
+    expect(html).not.toContain('class="command-header-contours"');
     expect(html).not.toContain('class="command-header-pattern"');
-    expect(styles).toContain(".command-header::before {");
-    const radarBackdrop = styles.slice(styles.indexOf(".command-header::after {"), styles.indexOf(".command-header-plume,"));
-    expect(radarBackdrop).toContain("repeating-radial-gradient(circle");
-    expect(radarBackdrop).toContain("conic-gradient");
-    expect(styles).toContain("commandRadarSweep");
-    expect(styles).toContain("@keyframes commandRadarSweep");
-    expect(styles).toContain("@keyframes commandPlumeBreathe");
-    expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(styles).toMatch(/\.command-header \.brand-logo-command \{[\s\S]*?object-fit: contain;/);
+    expect(styles).toContain(".hazmat-command-bar.topbar");
+    expect(styles).toContain("min-height: 84px;");
+    expect(styles).not.toContain("commandRadarSweep");
     expect(html).toContain('class="module-btn command-brand-home"');
-    expect(html).toContain('data-view="overview" aria-label="Return to the HAZSCOPE Home Page"');
+    expect(html).toContain('data-view="overview" aria-label="Return to the EMERGENZ Home Page"');
     expect(html).not.toContain('id="notification-details-btn"');
     expect(html).not.toContain('id="notification-ack-btn"');
     expect(html).not.toContain('id="command-smoke-canvas"');
@@ -218,9 +214,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(script).toContain("WIND ${windSpeed} MPH ${windDirection}");
     expect(html).toContain('class="command-promo-grid overview-promo-strip"');
     expect(html.match(/class="overview-promo-box /g)).toHaveLength(8);
-    expect(styles).toContain(
-      "grid-template-columns: minmax(150px, 0.85fr) minmax(300px, 1.5fr) minmax(150px, 0.85fr);",
-    );
+    expect(styles).toContain("grid-template-columns: repeat(8, minmax(0, 1fr));");
   });
 
   it("keeps the approved three-panel cinematic homepage", () => {
@@ -254,9 +248,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(styles).toContain(
       "/* Editable Homepage layout. Keep homepage changes in this section while it is in development. */",
     );
-    expect(styles).toContain(".app-shell:has(#overview.view.active) > .command-header::after");
-    expect(styles).toContain(".app-shell:has(#overview.view.active) > .command-header::after");
-    expect(styles).toContain(".app-shell:has(#overview.view.active) > .command-header::after");
+    expect(styles).toContain("body:has(#overview.view.active)");
     expect(styles).toContain("--overview-accent: #c8102e;");
     expect(styles).toContain("--overview-accent: #1765b0;");
     expect(styles).toContain("--overview-accent: #f2cf20;");
