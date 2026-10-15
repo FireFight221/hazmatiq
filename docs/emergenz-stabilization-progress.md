@@ -25,12 +25,13 @@ Updated: 2026-10-15
 - [x] Stage 2 — duplicate/dead markup, IDs, handlers, initialization, and stale recovery code
 - [x] Stage 3 — page-specific, weather/GPS, threat-zone, and profile rendering repairs
 - [x] Stage 4 — proven unused assets/files/dependencies audit (no safe deletions identified)
+- [x] Verification cleanup — removed inactive Plume hero selectors and refreshed stale static contracts to match the approved toolbar-first shell
 
 ## Validation log
 
 - `npm run typecheck`: passed before cleanup work.
 - `npm run lint`: passed with 9 existing `no-explicit-any` warnings in `test/guided-response-decision-builder.test.ts`.
-- Full Vitest baseline: 52/54 files and 549/569 tests passed; 20 existing failures remain in `test/plume-map-views.test.ts` and `test/notification-center.test.ts` and must be resolved or documented during cleanup.
+- Full Vitest validation after cleanup: 54/54 files and 572/572 tests passed.
 - Focused guided-response/Incident Command tests: 60 tests passed before cleanup work.
 - Stage 1 validation: `npm run typecheck` passed; `npm run lint` passed with the same 9 warnings; focused UI run passed 84 tests and retained 15 known static-contract failures in `test/plume-map-views.test.ts`.
 - Stage 1 change: removed obsolete Plume hero-header rules from the shared shell stylesheet; the active Plume page remains toolbar-first with the canonical two-track workspace geometry.
@@ -42,3 +43,4 @@ Updated: 2026-10-15
 - Runtime weather result: `/api/weather/alerts` returned HTTP 200 with a connected empty alert set; `/api/weather/wind` returned HTTP 200 with an Open-Meteo grid. `/api/weather/current` returned NWS KBHM observation data during the final probe, while Open-Meteo intermittently timed out server-side; a direct Open-Meteo request succeeded, so forecast availability remains an external/provider-latency issue to monitor.
 - GPS verification: source audit confirms `GPS LIVE` is only set after a successful browser geolocation callback with `acquiredAt`; failed permission/timeout paths show `UNAVAILABLE` and retain a saved map view. Browser permission could not be exercised because no browser-control runtime is installed in this Codespace.
 - Stage 4 audit: package dependencies are referenced by the application/test toolchain. Candidate legacy image files are retained because shared CSS, tests, or indirect/template conventions still reference the surrounding asset families; the hidden `monitor-legacy` markup remains coupled to monitoring selectors and IDs. No asset, source file, or dependency was deleted without proof.
+- Verification cleanup: removed the remaining inactive `.variant-plume` hero rules from `styles.css` and `hero-overrides.css`, and updated the two stale static-contract suites to assert the current compact shell, one-track toolbar/workspace geometry, live-map-only radar controls, and no Plume hero. Final full suite: 54 files, 572 tests passed.
