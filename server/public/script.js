@@ -6110,6 +6110,7 @@ function createGuidedSupportingSection(title, subtitle, content, accent = 'navy'
 function createGuidedCommandFlow(model) {
   const flow = document.createElement('section');
   flow.className = 'panel-card guided-command-flow';
+  // Retain the non-visual marker for downstream command-flow compatibility checks.
   flow.dataset.legacyFlowLabel = 'COMMAND FLOW';
   const heading = document.createElement('header');
   heading.className = 'guided-command-flow-heading';

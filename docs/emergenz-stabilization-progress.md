@@ -22,7 +22,7 @@ Updated: 2026-10-15
 ## Staged work
 
 - [x] Stage 1 — shared shell, navigation, headers, and authoritative layout ownership
-- [ ] Stage 2 — duplicate/dead markup, IDs, handlers, initialization, and stale recovery code
+- [x] Stage 2 — duplicate/dead markup, IDs, handlers, initialization, and stale recovery code
 - [ ] Stage 3 — page-specific, weather/GPS, threat-zone, and profile rendering repairs
 - [ ] Stage 4 — proven unused assets/files/dependencies
 
@@ -34,3 +34,5 @@ Updated: 2026-10-15
 - Focused guided-response/Incident Command tests: 60 tests passed before cleanup work.
 - Stage 1 validation: `npm run typecheck` passed; `npm run lint` passed with the same 9 warnings; focused UI run passed 84 tests and retained 15 known static-contract failures in `test/plume-map-views.test.ts`.
 - Stage 1 change: removed obsolete Plume hero-header rules from the shared shell stylesheet; the active Plume page remains toolbar-first with the canonical two-track workspace geometry.
+- Stage 2 validation: active DOM ID audit reports no duplicate IDs; JavaScript syntax checks pass; Guided Response, Incident Command, and hazard-flow tests pass (49/49).
+- Stage 2 change: removed the obsolete commented pre-rebase Plume map block and removed the recovery-only script cache label. The non-visual `COMMAND FLOW` marker remains intentionally for existing compatibility checks.
