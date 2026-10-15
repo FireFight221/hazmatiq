@@ -113,7 +113,19 @@
       selectedProviderId = providerId;
       if (allowFallback) fallbackMessage = '';
       stopAnimation();
-      const provider = await resolveProvider(providerId);
+      let provider;
+      try {
+        provider = await resolveProvider(providerId);
+      } catch (error) {
+        if (version !== requestVersion || !enabled) return;
+        removeLayer();
+        activeProvider = null;
+        frames = [];
+        frameIndex = -1;
+        status({ status: 'Unavailable', error: error instanceof Error ? error.message : 'Radar provider unavailable.' });
+        options.onAvailability?.(false, null);
+        return;
+      }
       if (version !== requestVersion || !enabled) return;
       if (!provider || !provider.supportsTiles || !registry.isConfigured(provider)) {
         removeLayer();

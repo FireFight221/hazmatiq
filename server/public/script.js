@@ -9827,36 +9827,20 @@ async function fetchExternalJson(url, options = {}, timeoutMs = 25000) {
 }
 
 async function fetchCensusZoneStats(ring) {
-  const geometry = JSON.stringify({ rings: [sampleClosedRing(ring)] });
-  const statistics = JSON.stringify([
-    { statisticType: 'sum', onStatisticField: 'POP100', outStatisticFieldName: 'population' },
-    { statisticType: 'sum', onStatisticField: 'HU100', outStatisticFieldName: 'housing' },
-    { statisticType: 'count', onStatisticField: 'OBJECTID', outStatisticFieldName: 'blocks' },
-  ]);
-  const parameters = new URLSearchParams({
-    f: 'json',
-    where: '1=1',
-    geometry,
-    geometryType: 'esriGeometryPolygon',
-    inSR: '4326',
-    spatialRel: 'esriSpatialRelIntersects',
-    outStatistics: statistics,
-    returnGeometry: 'false',
+  const response = await fetch('/api/threat-zones/census', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ring: sampleClosedRing(ring) }),
+    cache: 'no-store',
   });
-  const endpoint = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Census2020/MapServer/10/query';
-  const data = await fetchExternalJson(`${endpoint}?${parameters}`);
-  if (data?.error) throw new Error(data.error.message || 'Census query failed');
-  const attributes = data?.features?.[0]?.attributes;
-  if (!attributes) throw new Error('No Census blocks returned');
-  const numericStatistic = (value) => {
-    if (value === null || value === undefined || value === '') return null;
-    const number = Number(value);
-    return Number.isFinite(number) ? number : null;
-  };
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.status !== 'available') {
+    throw new Error(data?.error || 'Census query unavailable');
+  }
   return {
-    population: numericStatistic(attributes.population),
-    housing: numericStatistic(attributes.housing),
-    blocks: numericStatistic(attributes.blocks),
+    population: Number.isFinite(Number(data.population)) ? Number(data.population) : null,
+    housing: Number.isFinite(Number(data.housing)) ? Number(data.housing) : null,
+    blocks: Number.isFinite(Number(data.blocks)) ? Number(data.blocks) : null,
   };
 }
 

@@ -1562,6 +1562,74 @@ app.post("/api/threat-zones/facilities", async (c) => {
   }
 });
 
+// Keep Census geography queries on the server so browser CORS, provider
+// headers, and transient ArcGIS failures do not leave the Threat Zone card in
+// an indefinite loading state. The returned totals are intersecting Census
+// geography context, not clipped population estimates.
+app.post("/api/threat-zones/census", async (c) => {
+  const body = await c.req.json().catch(() => null) as { ring?: unknown } | null;
+  const ring = Array.isArray(body?.ring)
+    ? body.ring.filter((point): point is [number, number] => Array.isArray(point)
+      && point.length >= 2
+      && Number.isFinite(Number(point[0]))
+      && Number.isFinite(Number(point[1]))
+      && Math.abs(Number(point[0])) <= 180
+      && Math.abs(Number(point[1])) <= 90)
+      .map(([longitude, latitude]) => [Number(longitude), Number(latitude)] as [number, number])
+    : [];
+  if (ring.length < 4) return c.json({ error: "a closed threat-zone ring is required", status: "error" }, 400);
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (!first || !last || first[0] !== last[0] || first[1] !== last[1]) {
+    return c.json({ error: "the threat-zone ring must be closed", status: "error" }, 400);
+  }
+  const statistics = JSON.stringify([
+    { statisticType: "sum", onStatisticField: "POP100", outStatisticFieldName: "population" },
+    { statisticType: "sum", onStatisticField: "HU100", outStatisticFieldName: "housing" },
+    { statisticType: "count", onStatisticField: "OBJECTID", outStatisticFieldName: "blocks" },
+  ]);
+  const parameters = new URLSearchParams({
+    f: "json",
+    where: "1=1",
+    geometry: JSON.stringify({ rings: [ring] }),
+    geometryType: "esriGeometryPolygon",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outStatistics: statistics,
+    returnGeometry: "false",
+  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const endpoint = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Census2020/MapServer/10/query";
+    const response = await fetch(`${endpoint}?${parameters}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Census request failed (${response.status})`);
+    const payload = await response.json() as { error?: { message?: string }; features?: Array<{ attributes?: Record<string, unknown> }> };
+    if (payload.error) throw new Error(payload.error.message || "Census query failed");
+    const attributes = payload.features?.[0]?.attributes || {};
+    const numeric = (value: unknown) => value === null || value === undefined || value === ""
+      ? null
+      : Number.isFinite(Number(value)) ? Number(value) : null;
+    c.header("Cache-Control", "no-store");
+    return c.json({
+      source: "2020 Census blocks",
+      status: "available",
+      population: numeric(attributes.population),
+      housing: numeric(attributes.housing),
+      blocks: numeric(attributes.blocks),
+      retrievedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return c.json({
+      source: "2020 Census blocks",
+      status: "unavailable",
+      error: error instanceof Error ? error.message : "Census query unavailable",
+    }, 502);
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
 // ─── Incident-owned FEMA ICS form drafts ──────────────────────────────
 app.get("/api/ics-forms", (c) =>
   c.json({

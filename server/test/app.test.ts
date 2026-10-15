@@ -64,6 +64,16 @@ describe("API routes", () => {
     expect(JSON.stringify(body)).not.toMatch(/apiKey|clientSecret|accessToken/i);
   });
 
+  it("rejects incomplete threat-zone Census geometry instead of leaving a pending lookup", async () => {
+    const res = await app.request("/api/threat-zones/census", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ring: [[-86.65, 33.38], [-86.6, 33.38]] }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ status: "error" });
+  });
+
   it("GET /api/manifest reports the seeded chemical count", async () => {
     const res = await app.request("/api/manifest");
     const body = (await res.json()) as { sources: { cameo: { recordCount: number } } };
