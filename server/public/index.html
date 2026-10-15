@@ -300,10 +300,6 @@
                     <p class="incident-plume-chemical-note">This explicit selection is the single chemical used for plume calculations. Facility inventory additions do not change it.</p>
                     <div class="incident-info-card-divider" aria-hidden="true"></div>
                     <div class="incident-info-detail-grid incident-info-chemical-details"><div><span>UN / NA</span><strong id="ic-header-un">No Current Data Exists</strong></div><div><span>ERG Guide</span><strong id="ic-header-erg">No Current Data Exists</strong></div><div><span>Hazard Class</span><strong id="ic-header-hazard-class">No Current Data Exists</strong></div><div><span>IDLH</span><strong id="ic-header-idlh">No Current Data Exists</strong></div></div>
-                    <section class="incident-involved-chemicals" aria-labelledby="incident-involved-chemicals-title">
-                      <h3 id="incident-involved-chemicals-title">Chemicals identified as involved in this incident</h3>
-                      <ul id="incident-involved-chemical-list" aria-live="polite"></ul>
-                    </section>
                   </article>
 
                   <article class="incident-info-card incident-info-card-facility">
@@ -324,6 +320,21 @@
                     <div class="incident-info-card-divider" aria-hidden="true"></div>
                     <div class="incident-info-mode-footer"><div><span>Real Time</span><time id="ic-real-time" datetime="">--/--/---- --:--:--</time></div></div>
                   </article>
+                </section>
+
+                <section class="incident-involved-chemicals incident-involved-chemicals-panel" aria-labelledby="incident-involved-chemicals-title">
+                  <header class="incident-involved-chemicals-heading">
+                    <div>
+                      <p class="eyebrow">Incident inventory</p>
+                      <h2 id="incident-involved-chemicals-title">Chemicals identified as involved</h2>
+                      <p>Inventory additions are tracked separately from the selected plume chemical.</p>
+                    </div>
+                    <div class="incident-involved-chemicals-actions">
+                      <span id="incident-involved-chemical-count" role="status" aria-live="polite">0 involved chemicals</span>
+                      <button class="ghost-btn" id="incident-view-all-involved-chemicals-btn" type="button" aria-haspopup="dialog" aria-controls="incident-involved-chemicals-dialog" disabled>View all involved chemicals</button>
+                    </div>
+                  </header>
+                  <ul id="incident-involved-chemical-list" aria-live="polite"></ul>
                 </section>
 
                 <section class="incident-command-weather-bar" id="incident-command-weather-bar" aria-label="Current weather intelligence">
@@ -665,6 +676,21 @@
                 <span id="incident-facility-selected-count" aria-live="polite">0 selected</span>
                 <button class="primary-btn" id="add-facility-chemicals-btn" type="button" disabled>Add selected to incident</button>
               </footer>
+            </div>
+          </dialog>
+
+          <dialog id="incident-involved-chemicals-dialog" class="incident-involved-chemicals-dialog" aria-labelledby="incident-involved-chemicals-dialog-title" aria-describedby="incident-involved-chemicals-dialog-description">
+            <div class="incident-involved-chemicals-dialog-shell">
+              <header class="incident-involved-chemicals-dialog-header">
+                <div>
+                  <p class="eyebrow">Incident inventory</p>
+                  <h2 id="incident-involved-chemicals-dialog-title">All involved chemicals</h2>
+                  <p id="incident-involved-chemicals-dialog-description">Chemical names and available identifiers recorded for this incident.</p>
+                </div>
+                <button class="ghost-btn" id="close-incident-involved-chemicals-btn" type="button">Close</button>
+              </header>
+              <p id="incident-involved-chemicals-dialog-status" class="incident-involved-chemicals-dialog-status" role="status" aria-live="polite"></p>
+              <div id="incident-involved-chemicals-dialog-list" class="incident-involved-chemicals-dialog-list"></div>
             </div>
           </dialog>
 

@@ -10,6 +10,38 @@ const profilePageStyles = readFileSync(new URL("../server/public/hazard-profile-
 const guidedStyles = readFileSync(new URL("../server/public/guided-response-overrides.css", import.meta.url), "utf8");
 
 describe("Incident decision flow and Hazard ID profile loading", () => {
+  it("keeps Incident Command summary cards compact and inventory independent", () => {
+    const active = html.slice(
+      html.indexOf('<div id="incident-command-active">'),
+      html.indexOf('<div id="incident-command-main-grid">'),
+    );
+    const summary = active.slice(
+      active.indexOf('<section class="incident-command-info-grid"'),
+      active.indexOf('<section class="incident-involved-chemicals incident-involved-chemicals-panel"'),
+    );
+    expect(summary.match(/<article class="incident-info-card/g)).toHaveLength(4);
+    expect(summary).not.toContain('incident-involved-chemicals');
+    expect(active.indexOf('incident-involved-chemicals incident-involved-chemicals-panel')).toBeGreaterThan(active.indexOf('incident-command-info-grid'));
+    expect(active.indexOf('incident-involved-chemicals incident-involved-chemicals-panel')).toBeLessThan(active.indexOf('incident-command-flow'));
+    expect(active).toContain('id="incident-involved-chemical-count"');
+    expect(active).toContain('id="incident-view-all-involved-chemicals-btn"');
+    expect(html).toContain('id="incident-involved-chemicals-dialog"');
+    expect(html).toContain('id="incident-involved-chemicals-dialog-list"');
+    expect(incidentStyles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+    expect(incidentStyles).toContain('#incident .incident-info-card {');
+    expect(incidentStyles).toContain('height: auto;');
+    expect(incidentStyles).toContain('#incident .incident-involved-chemicals-panel');
+    expect(incidentStyles).toContain('@media (max-width: 720px)');
+  });
+
+  it("renders a compact inventory preview and keeps the plume selection separate", () => {
+    expect(script).toContain("const previewLimit = 4;");
+    expect(script).toContain("incident-involved-chemical-count");
+    expect(script).toContain("openIncidentInvolvedChemicalsDialog");
+    expect(html).toContain("Facility inventory additions do not change it.");
+    expect(script).toContain("const involvedChemicals = Array.isArray(nextIncident.involvedChemicals)");
+  });
+
   it("uses the five requested command decisions", () => {
     const flow = html.slice(
       html.indexOf('<section class="incident-command-flow"'),

@@ -14339,17 +14339,19 @@ function clearCommandFacilitySuggestions() {
 
 function renderIncidentInvolvedChemicals(incident = getActiveIncident()) {
   const list = document.getElementById('incident-involved-chemical-list');
-  if (!list) return;
   const chemicals = Array.isArray(incident?.involvedChemicals) ? incident.involvedChemicals : [];
-  if (!chemicals.length) {
-    const empty = document.createElement('li');
-    empty.className = 'incident-involved-chemical-empty';
-    empty.textContent = 'No chemicals have been identified as involved.';
-    list.replaceChildren(empty);
-    return;
-  }
-  list.replaceChildren(...chemicals.map((chemical) => {
+  const count = document.getElementById('incident-involved-chemical-count');
+  const viewAllButton = document.getElementById('incident-view-all-involved-chemicals-btn');
+  const dialogList = document.getElementById('incident-involved-chemicals-dialog-list');
+  const dialogStatus = document.getElementById('incident-involved-chemicals-dialog-status');
+  const chemicalCountLabel = `${chemicals.length} involved chemical${chemicals.length === 1 ? '' : 's'}`;
+  if (count) count.textContent = chemicalCountLabel;
+  if (viewAllButton) viewAllButton.disabled = chemicals.length === 0;
+  if (dialogStatus) dialogStatus.textContent = chemicals.length ? `${chemicalCountLabel} recorded for this incident.` : 'No chemicals have been identified as involved.';
+
+  const createRow = (chemical, className = '') => {
     const row = document.createElement('li');
+    row.className = className;
     const name = document.createElement('strong');
     name.textContent = chemical.chemicalName || chemical.name || 'Chemical name unavailable';
     const identifiers = document.createElement('small');
@@ -14363,8 +14365,72 @@ function renderIncidentInvolvedChemicals(incident = getActiveIncident()) {
     ].filter(Boolean).join(' · ');
     row.append(name, identifiers);
     return row;
-  }));
+  };
+
+  if (dialogList) {
+    if (!chemicals.length) {
+      const empty = document.createElement('p');
+      empty.className = 'incident-involved-chemicals-dialog-empty';
+      empty.textContent = 'No chemicals have been identified as involved.';
+      dialogList.replaceChildren(empty);
+    } else {
+      dialogList.replaceChildren(...chemicals.map((chemical) => createRow(chemical)));
+    }
+  }
+  if (!list) return;
+  if (!chemicals.length) {
+    const empty = document.createElement('li');
+    empty.className = 'incident-involved-chemical-empty';
+    empty.textContent = 'No chemicals have been identified as involved.';
+    list.replaceChildren(empty);
+    return;
+  }
+  const previewLimit = 4;
+  const previewRows = chemicals.slice(0, previewLimit).map((chemical) => createRow(chemical));
+  if (chemicals.length > previewLimit) {
+    const more = document.createElement('li');
+    more.className = 'incident-involved-chemical-more';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'incident-involved-chemical-more-button';
+    button.textContent = `+ ${chemicals.length - previewLimit} more — View all involved chemicals`;
+    button.addEventListener('click', openIncidentInvolvedChemicalsDialog);
+    more.append(button);
+    previewRows.push(more);
+  }
+  list.replaceChildren(...previewRows);
 }
+
+function openIncidentInvolvedChemicalsDialog() {
+  const dialog = document.getElementById('incident-involved-chemicals-dialog');
+  const opener = document.getElementById('incident-view-all-involved-chemicals-btn');
+  if (!dialog) return;
+  dialog.__opener = opener;
+  if (typeof dialog.showModal === 'function') {
+    if (!dialog.open) dialog.showModal();
+  } else {
+    dialog.setAttribute('open', '');
+  }
+  dialog.querySelector('button')?.focus();
+}
+
+function closeIncidentInvolvedChemicalsDialog() {
+  const dialog = document.getElementById('incident-involved-chemicals-dialog');
+  if (!dialog) return;
+  if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+document.getElementById('incident-view-all-involved-chemicals-btn')?.addEventListener('click', openIncidentInvolvedChemicalsDialog);
+document.getElementById('close-incident-involved-chemicals-btn')?.addEventListener('click', closeIncidentInvolvedChemicalsDialog);
+document.getElementById('incident-involved-chemicals-dialog')?.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeIncidentInvolvedChemicalsDialog();
+});
+document.getElementById('incident-involved-chemicals-dialog')?.addEventListener('close', (event) => {
+  event.currentTarget.__opener?.focus?.({ preventScroll: true });
+  event.currentTarget.__opener = null;
+});
 
 function facilityChemicalIdentity(chemical) {
   const id = chemical?.chemicalId ?? chemical?.selectedChemicalId ?? chemical?.chemicalCompanionId ?? chemical?.id;
