@@ -23,8 +23,8 @@ Updated: 2026-10-15
 
 - [x] Stage 1 — shared shell, navigation, headers, and authoritative layout ownership
 - [x] Stage 2 — duplicate/dead markup, IDs, handlers, initialization, and stale recovery code
-- [ ] Stage 3 — page-specific, weather/GPS, threat-zone, and profile rendering repairs
-- [ ] Stage 4 — proven unused assets/files/dependencies
+- [x] Stage 3 — page-specific, weather/GPS, threat-zone, and profile rendering repairs
+- [x] Stage 4 — proven unused assets/files/dependencies audit (no safe deletions identified)
 
 ## Validation log
 
@@ -41,3 +41,4 @@ Updated: 2026-10-15
 - Stage 3 change: radar provider activation now completes with an explicit `Unavailable` state if provider configuration/metadata fails instead of leaving the Weather page in loading. Obsolete Plume geometry blocks were removed from `plume-overrides.css`; toolbar/workspace/map geometry remains owned by `plume-layout-correction.css`.
 - Runtime weather result: `/api/weather/alerts` returned HTTP 200 with a connected empty alert set; `/api/weather/wind` returned HTTP 200 with an Open-Meteo grid. `/api/weather/current` returned NWS KBHM observation data during the final probe, while Open-Meteo intermittently timed out server-side; a direct Open-Meteo request succeeded, so forecast availability remains an external/provider-latency issue to monitor.
 - GPS verification: source audit confirms `GPS LIVE` is only set after a successful browser geolocation callback with `acquiredAt`; failed permission/timeout paths show `UNAVAILABLE` and retain a saved map view. Browser permission could not be exercised because no browser-control runtime is installed in this Codespace.
+- Stage 4 audit: package dependencies are referenced by the application/test toolchain. Candidate legacy image files are retained because shared CSS, tests, or indirect/template conventions still reference the surrounding asset families; the hidden `monitor-legacy` markup remains coupled to monitoring selectors and IDs. No asset, source file, or dependency was deleted without proof.
