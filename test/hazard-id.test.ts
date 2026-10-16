@@ -44,7 +44,7 @@ describe("unified Hazard ID workspace", () => {
     const chemicalCss = readFileSync(new URL("../server/public/chemical-intel.css", import.meta.url), "utf8");
     const mobileStart = chemicalCss.indexOf("@media (max-width: 620px) {");
     expect(mobileStart).toBeGreaterThan(-1);
-    const mobileCss = chemicalCss.slice(mobileStart).split("\n}\n")[0];
+    const mobileCss = chemicalCss.slice(mobileStart, chemicalCss.indexOf("@media (prefers-reduced-motion: reduce)", mobileStart));
     expect(mobileCss).toContain("grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);");
     expect(mobileCss).toContain("min-width: 0;");
     expect(mobileCss).toContain("padding-inline: 4px;");
