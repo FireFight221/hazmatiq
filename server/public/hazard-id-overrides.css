@@ -20,11 +20,6 @@
   align-items: center;
   gap: 18px;
 }
-#lookup .hazard-search-command-body .chemical-search-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  width: 100%;
-}
 
 /* The search state is a single focused surface; a selected profile becomes the full page. */
 #lookup.view.active:not(:has(#chemical-id-results:not([hidden]))):not(:has(#hazard-profile-results:not([hidden]))) {

@@ -1708,8 +1708,24 @@
   #lookup > .hazard-id-page-hero .hazmat-hero-title { font-size: 2.75rem; }
   #lookup > .hazard-id-page-hero .hazmat-hero-subtitle { gap: 7px; width: 100%; margin-top: 8px; font-size: 0.78rem; letter-spacing: 0.025em; }
   .hazard-search-tab { min-height: 58px; padding: 10px 6px; font-size: 0.78rem; }
-  #lookup .hazard-unified-search-form { grid-template-columns: 1fr; }
-  #lookup .hazard-unified-search-form > .primary-btn { width: 100%; min-height: 60px; }
+  /* Maintain a wide query field and compact search action on narrow phones. */
+  #lookup .hazard-unified-search-form {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    gap: 8px;
+  }
+  #lookup .hazard-unified-search-form .chemical-search-input-wrap { min-width: 0; }
+  #lookup .hazard-unified-search-form #chemical-search {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  #lookup .hazard-unified-search-form > .primary-btn {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 4px;
+    font-size: clamp(0.75rem, 3vw, 1rem);
+    letter-spacing: 0.025em;
+  }
   .hazard-workflow-rail { grid-template-columns: 1fr; }
   .hazard-profile-action-grid { grid-template-columns: 1fr; }
   .hazard-workflow-rail li { padding: 9px; }
