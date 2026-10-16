@@ -9,6 +9,7 @@ const styles = [
   readFileSync(new URL("../server/public/chemical-intel.css", import.meta.url), "utf8"),
   readFileSync(new URL("../server/public/hazard-profile-page.css", import.meta.url), "utf8"),
 ].join("\n");
+const hazardIdOverrides = readFileSync(new URL("../server/public/hazard-id-overrides.css", import.meta.url), "utf8");
 const script = readFileSync(new URL("../server/public/script.js", import.meta.url), "utf8");
 const profileModule = readFileSync(new URL("../server/public/hazard-profile.js", import.meta.url), "utf8");
 
@@ -37,6 +38,17 @@ describe("unified Hazard ID workspace", () => {
     expect(script).toContain("Search isotope, radioactive material, package type, RDD, or radiological type.");
     expect(html).not.toContain('id="hazard-id-empty-profile"');
     expect(html).not.toContain("Unified Hazard Profile");
+  });
+
+  it("keeps the query field wider than the Search button on phones", () => {
+    const chemicalCss = readFileSync(new URL("../server/public/chemical-intel.css", import.meta.url), "utf8");
+    const mobileStart = chemicalCss.indexOf("@media (max-width: 620px) {");
+    expect(mobileStart).toBeGreaterThan(-1);
+    const mobileCss = chemicalCss.slice(mobileStart).split("\n}\n")[0];
+    expect(mobileCss).toContain("grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);");
+    expect(mobileCss).toContain("min-width: 0;");
+    expect(mobileCss).toContain("padding-inline: 4px;");
+    expect(hazardIdOverrides).not.toContain("#lookup .hazard-search-command-body .chemical-search-form");
   });
 
   it("keeps Chemical Companion controls and safely gates non-chemical plume actions", () => {
@@ -85,7 +97,7 @@ describe("unified Hazard ID workspace", () => {
 
   it("keeps the Hazard ID shell fluid from desktop through tablet widths", () => {
     expect(html).toContain('styles.css?v=live-map-responsive-6');
-    expect(html).toContain('chemical-intel.css?v=hazard-profile-panel-30');
+    expect(html).toContain('chemical-intel.css?v=hazard-profile-panel-31');
     expect(styles).toContain('#lookup > .hazard-id-page-hero');
     expect(styles).toContain('#lookup > .hazard-id-command-console.chemical-id-search-card');
     expect(styles).toContain('@media (max-width: 700px)');
