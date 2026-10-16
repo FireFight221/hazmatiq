@@ -41,7 +41,7 @@ describe('global navigation and page header contract', () => {
   });
 
   it('shows all nine primary modules in a three-column phone grid without sideways nav scrolling', () => {
-    expect(html).toContain('dashboard-header.css?v=7');
+    expect(html).toContain('dashboard-header.css?v=17');
     const phoneRules = sharedHeaderStyles.slice(sharedHeaderStyles.indexOf('/* Phone navigation: show all nine modules'));
     expect(phoneRules).toContain('@media (max-width: 767px)');
     expect(phoneRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr)) !important;');
