@@ -7,7 +7,7 @@ Updated: 2026-10-21
 - Current task: keep the existing seven-phase Guided Response workflow intact while placing Operational Guidance left and its sole Command Actions panel in a right-side vertical column.
 - Current branch: `plume-model-repair-20261021`
 - Recovery checkpoint: `751cb58` (`Recovery checkpoint before Guided Response refinement`)
-- Implementation checkpoint: `a5681ec` (`Record Guided Response side-column checkpoint`), following `e3162c3` and `f2018d6`.
+- Implementation checkpoint: `97ae923` (`Refine Guided Response action palette and phase icons`), following `a5681ec`, `e3162c3`, and `f2018d6`.
 - No merge or rebase is in progress. The prior Plume distance popup, Operational Guidance, facility search, Command layout, Threat Zone tabs, and plume work remains preserved in earlier commits.
 - Completed in this stage: Guided Response now uses the shared compact EMERGENZ page-header contract with an inline open-book icon; the old Guided-only hero rules were removed. Seven phase titles use explicit required capitalization and each phase summary has a small inline SVG operational icon. Phase cards now use compact responsive spacing, explicit Goal Status and Next Decision / Task elements, bottom-of-phase Commander Notes / Observations with debounced autosave, and useful References disclosures only when source records exist.
 - Completed in this stage: assignment activation validates Personnel / team, Unit / resource, and Responsibility; Assign confirms a new assignment by default, Update reuses the stable phase assignment ID, and assignment history/timeline records are persisted. Unplaced resources retain `Location not set`; Live Map lists them and provides explicit click-to-place/reposition behavior without invented coordinates. The authoritative server ICS mapper now carries assignments/history into the rendered ICS 203/204/214/215 fields.
@@ -19,7 +19,7 @@ Updated: 2026-10-21
 - Checks run: Guided Response UI tests passed `35/35`; browser computed a `1112px` Guidance left column and `270px` right action column at 1440px, five buttons in one vertical flex column, and zero bottom-level Command Actions panels. At 390px, the workspace collapsed to one column with actions below the Guidance content. Evidence: [command-column screenshot](../guided-response-command-column.png).
 - Checks run: latest focused Guided Response UI tests passed `36/36`; typecheck passed; lint passed with 0 errors and the same 9 existing `no-explicit-any` warnings; `git diff --check` passed. Prior live-browser verification computed the requested white/yellow/red/navy action colors, light-green phase title styling, bold icon strokes, and zero rendered progress bars; the latest label/order changes are covered by the focused suite. Evidence screenshots remain intentionally untracked and no secrets or runtime databases were staged.
 - Outstanding: no implementation blockers. Port 3000 remains occupied by an unavailable process; a fresh-server browser rerun was blocked by the Codespace sandbox networking policy, so the latest rendered label/order change is additionally covered by static tests. The exact action colors and phase rendering were already verified in the preceding fresh-server browser pass.
-- Exact next step: commit this palette/icon refinement and update this note with the resulting implementation SHA; do not push or deploy.
+- Exact next step: hand off the verified local implementation; do not push or deploy.
 
 ## Recovery state
 
