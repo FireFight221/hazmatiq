@@ -163,6 +163,16 @@ describe("Guided Response workflow", () => {
     ]) expect(script).toContain(`'${iconId}': [`);
   });
 
+  it("keeps Operational Guidance left and Command Actions in one vertical side column", () => {
+    expect(guidedHtml).toContain('class="guided-response-workspace"');
+    expect(guidedHtml).toMatch(/class="guided-response-workspace"[\s\S]*id="guided-response-content"[\s\S]*class="panel-card guided-command-actions"/);
+    expect(guidedHtml.match(/class="panel-card guided-command-actions"/g)).toHaveLength(1);
+    expect(styles).toContain('.guided-response-workspace {');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);');
+    expect(styles).toContain('.guided-command-actions .guided-response-actions {');
+    expect(styles).toContain('flex-direction: column;');
+  });
+
   it("keeps goal status, commander notes, and actionable next tasks explicit", () => {
     expect(script).toContain("const guidedGoalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Accomplished', 'Needs Reassessment'])");
     expect(script).toContain("goalStatusHeading.textContent = 'Goal Status'");

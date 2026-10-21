@@ -963,22 +963,24 @@
                 </div>
               </div>
             </header>
-            <div id="guided-response-content" class="guided-response-content"></div>
-            <section class="panel-card guided-command-actions" aria-labelledby="guided-command-actions-title">
-              <div>
-                <h3 id="guided-command-actions-title">Command Actions</h3>
-                <p id="guided-response-mode-status">Planning Mode — tactical decision records save locally and are not attached to an incident.</p>
-              </div>
-              <div class="guided-response-actions" aria-label="Guided response actions">
-                <button class="primary-btn" id="guided-open-plume-btn" type="button">Open Plume Model</button>
-                <button class="primary-btn guided-back-btn" id="guided-back-btn" type="button">Back to Command</button>
-                <button class="ghost-btn" id="guided-open-hazard-btn" type="button">Open Hazard Profile</button>
-                <button class="ghost-btn" id="guided-save-record-btn" type="button">Save Tactical Decision Record</button>
-                <button class="ghost-btn" id="guided-save-incident-btn" type="button">Save to Incident</button>
-              </div>
-              <p class="guided-response-action-status" id="guided-response-action-status" role="status" aria-live="polite"></p>
-              <span id="guided-save-chemical-btn" hidden aria-hidden="true"></span>
-            </section>
+            <div class="guided-response-workspace">
+              <div id="guided-response-content" class="guided-response-content"></div>
+              <section class="panel-card guided-command-actions" aria-labelledby="guided-command-actions-title">
+                <div>
+                  <h3 id="guided-command-actions-title">Command Actions</h3>
+                  <p id="guided-response-mode-status">Planning Mode — tactical decision records save locally and are not attached to an incident.</p>
+                </div>
+                <div class="guided-response-actions" aria-label="Guided response actions">
+                  <button class="primary-btn" id="guided-open-plume-btn" type="button">Open Plume Model</button>
+                  <button class="primary-btn guided-back-btn" id="guided-back-btn" type="button">Back to Command</button>
+                  <button class="ghost-btn" id="guided-open-hazard-btn" type="button">Open Hazard Profile</button>
+                  <button class="ghost-btn" id="guided-save-record-btn" type="button">Save Tactical Decision Record</button>
+                  <button class="ghost-btn" id="guided-save-incident-btn" type="button">Save to Incident</button>
+                </div>
+                <p class="guided-response-action-status" id="guided-response-action-status" role="status" aria-live="polite"></p>
+                <span id="guided-save-chemical-btn" hidden aria-hidden="true"></span>
+              </section>
+            </div>
             <aside class="guided-response-disclaimers" aria-label="Guided response decision support notice">
               <p><strong>TACTICAL DECISION SUPPORT</strong> Use source guidance, field monitoring, responder conditions, and agency SOPs to establish the operational plan. <span hidden>Missing, outdated, unsupported, or unverified values must be treated as No Current Data Exists.</span> Missing or unverified values remain <strong>No Current Data Exists</strong>.</p>
             </aside>

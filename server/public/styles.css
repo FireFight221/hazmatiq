@@ -2446,12 +2446,9 @@ h1 { font-weight: 800; }
 
 .guided-response-actions {
   display: flex;
-  grid-column: 2;
-  grid-row: 1 / 4;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 5px;
-  align-self: end;
 }
 
 .guided-response-actions button,
@@ -2478,34 +2475,71 @@ h1 { font-weight: 800; }
   min-width: 0;
 }
 
-.guided-command-actions {
+.guided-response-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
-  gap: 10px 16px;
-  align-items: center;
-  margin-top: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);
+  gap: 12px;
+  align-items: start;
+}
+
+.guided-response-workspace > .guided-response-content {
+  min-width: 0;
+}
+
+.guided-command-actions {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
   padding: 14px;
   border-color: #afc4d3;
-  background: #eef3f6;
+  background: #082540;
+  color: #f8fafc;
 }
 
 .guided-command-actions h3,
 .guided-command-actions p { margin: 0; }
 
+.guided-command-actions h3 { color: #f8fafc; }
+
 .guided-command-actions > div:first-child p {
   margin-top: 4px;
-  color: #566b7b;
+  color: #a9bfd1;
   font-size: 0.75rem;
 }
 
 .guided-command-actions .guided-response-actions {
-  grid-column: 2;
-  grid-row: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.guided-command-actions .guided-response-actions button {
+  width: 100%;
+  flex: 0 0 auto;
+  color: #082540;
+  background: #e7eef3;
+  border-color: #c3d1da;
+}
+
+.guided-command-actions .guided-response-actions #guided-open-plume-btn {
+  color: #fff;
+  background: #b11226;
+  border-color: #ef3340;
+}
+
+.guided-command-actions .guided-response-actions #guided-save-record-btn,
+.guided-command-actions .guided-response-actions #guided-save-incident-btn {
+  color: #fff;
+  background: #258a4a;
+  border-color: #54c77b;
 }
 
 .guided-command-actions .guided-response-action-status {
-  grid-column: 1 / -1;
-  grid-row: 2;
+  margin: 0;
 }
 
 .guided-response-main {
@@ -2839,9 +2873,8 @@ h1 { font-weight: 800; }
 .guided-response-disclaimers p { margin: 0; }
 
 @media (max-width: 900px) {
-  .guided-command-actions { grid-template-columns: 1fr; }
-  .guided-command-actions .guided-response-actions,
-  .guided-command-actions .guided-response-action-status { grid-column: 1; grid-row: auto; justify-content: flex-start; }
+  .guided-response-workspace { grid-template-columns: 1fr; }
+  .guided-command-actions { position: static; }
   .guided-response-content { grid-template-columns: 1fr; }
   .guided-flow-arrow { padding: 2px 0; }
 }
@@ -2851,6 +2884,7 @@ h1 { font-weight: 800; }
   .chemical-profile-actions { width: 100%; margin-left: 0; }
   .chemical-profile-actions button,
   .guided-response-actions button { flex: 1 1 150px; }
+  .guided-command-actions .guided-response-actions button { flex: 0 0 auto; }
   .guided-response-row { grid-template-columns: 1fr; }
   .guided-flow-box dl > div { grid-template-columns: 1fr; }
   .guided-mitigation-grid { grid-template-columns: 1fr; }
