@@ -173,6 +173,22 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain('flex-direction: column;');
   });
 
+  it("uses the requested command action labels and contrast palette", () => {
+    expect(guidedHtml).toContain('id="guided-back-btn" type="button">Open Command Dashboard</button>');
+    expect(guidedHtml).toContain('id="guided-open-hazard-btn" type="button">Hazard ID</button>');
+    expect(guidedHtml.indexOf('id="guided-back-btn"')).toBeLessThan(guidedHtml.indexOf('id="guided-open-hazard-btn"'));
+    expect(guidedHtml.indexOf('id="guided-open-hazard-btn"')).toBeLessThan(guidedHtml.indexOf('id="guided-open-plume-btn"'));
+    expect(guidedHtml.indexOf('id="guided-open-plume-btn"')).toBeLessThan(guidedHtml.indexOf('id="guided-save-incident-btn"'));
+    expect(styles).toContain('#guided-response .guided-phase-card > .guided-phase-summary { background: #e7f5e9; color: #173b2a; }');
+    expect(styles).toContain('#guided-response .guided-phase-icon svg { width: 28px; height: 32px; fill: none; stroke: currentColor; stroke-width: 3.2;');
+    expect(script).not.toContain("guided-phase-progress");
+    expect(styles).not.toContain(".guided-phase-progress");
+    expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-back-btn');
+    expect(styles).toContain('background: #f6c343;');
+    expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-open-hazard-btn');
+    expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-save-incident-btn');
+  });
+
   it("keeps goal status, commander notes, and actionable next tasks explicit", () => {
     expect(script).toContain("const guidedGoalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Accomplished', 'Needs Reassessment'])");
     expect(script).toContain("goalStatusHeading.textContent = 'Goal Status'");

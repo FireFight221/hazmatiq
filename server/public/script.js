@@ -6804,9 +6804,9 @@ function createGuidedScbaManagement(record) {
 const guidedPhaseIconPaths = Object.freeze({
   'identify-isolate-notify': ['<circle cx="22" cy="24" r="10"/><path d="m29 31 9 9"/><path d="m43 8 8 14h-16l8-14Z"/><path d="M43 13v4M43 20h.01"/>'],
   'zones-resources': ['<path d="M6 43h44"/><path d="m10 39 4-18h7l4 18H10ZM35 39l3-13h6l3 13H35Z"/><path d="M14 26h7M36 31h10"/><path d="M6 48h44"/>'],
-  'recon-assessment': ['<path d="M7 22h9l4 5v14H9V27l-2-5ZM49 22h-9l-4 5v14h11V27l2-5Z"/><circle cx="14" cy="33" r="5"/><circle cx="42" cy="33" r="5"/><path d="M20 29h16M25 18h6M28 18v6"/>'],
+  'recon-assessment': ['<path d="M8 21h9l4 5v17H10l-3-5 1-17ZM48 21h-9l-4 5v17h11l3-5-1-17Z"/><circle cx="14" cy="34" r="5.5"/><circle cx="42" cy="34" r="5.5"/><path d="M21 29h14M24 18h8M28 18v7"/>'],
   'mitigation-strategy': ['<circle cx="28" cy="31" r="16"/><circle cx="28" cy="31" r="7"/><path d="M28 7v10M28 45v10M4 31h10M42 31h10"/><path d="m35 24 10-10"/>'],
-  'withdraw-decon-rehab': ['<path d="M31 8h8M35 8v7M25 15h20v7H25z"/><path d="M27 22c-1 5-4 7-4 12 0 3 2 5 5 5s5-2 5-5c0-4-3-7-4-12M38 22c-1 5-4 7-4 12 0 3 2 5 5 5s5-2 5-5c0-4-3-7-4-12"/><path d="M16 13h7"/>'],
+  'withdraw-decon-rehab': ['<path d="M10 12h19c6 0 10 3 10 8v3"/><path d="M31 20h15v7H31z"/><path d="M13 27c0 6 3 8 3 14M21 27c0 7 3 9 3 17M29 27c0 6 3 8 3 14M37 27c0 5 3 7 3 11"/><path d="M14 45h3M22 48h3M30 45h3M38 42h3"/>'],
   'verify-recovery': ['<path d="m28 6 18 7v12c0 12-7 20-18 27C17 45 10 37 10 25V13l18-7Z"/><path d="m19 29 6 6 13-14"/>'],
   'notifications-documentation': ['<path d="M10 10h27v39H10zM17 10V6h13v4M16 20h15M16 28h15M16 36h10"/><path d="m42 29 7 7-12 12-7 2 2-7 10-14Z"/><path d="M37 34 43 40"/>'],
 });
@@ -6964,12 +6964,11 @@ function createGuidedCommandFlow(model) {
   const savedPlume = incident?.plumeModelResults?.plumeResult || incident?.plumeModelResults || readPlanningState().plumeModelResults || null;
   const scenarioSummary = guidedScenarioSummary(incident, profile, savedPlume);
   const currentPhase = guidedPhaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id || guidedPhaseDefinitions.at(-1).id;
-  const progress = document.createElement('div'); progress.className = 'guided-phase-progress'; progress.textContent = `${guidedPhaseDefinitions.filter((phase) => guidedPhaseIsAccomplished(phaseState[phase.id])).length} of ${guidedPhaseDefinitions.length} phases confirmed · medical/rehab and notifications may be recorded concurrently.`;
   const grid = document.createElement('div'); grid.className = 'guided-phase-grid';
   guidedPhaseDefinitions.forEach((phase) => grid.append(createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhase, scenarioSummary)));
   const sourceBody = document.createElement('div'); sourceBody.append(createGuidedFactTrace(model.operationalRecommendations?.factTrace)); sourceBody.append(createGuidedSourceTrace((model.sequence || []).flatMap((stage) => stage.sources || [])));
   const technical = createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL', 'Expand provenance and secondary documentation when the operational brief needs it', sourceBody, 'navy');
-  flow.append(heading, notice, progress, grid, technical);
+  flow.append(heading, notice, grid, technical);
   return flow;
 }
 
@@ -7023,7 +7022,7 @@ function renderGuidedResponse() {
   }
   const guidedBackButton = document.getElementById('guided-back-btn');
   const guidedOrigin = readGuidedNavigationState()?.origin || 'incident';
-  if (guidedBackButton) guidedBackButton.textContent = guidedOrigin === 'plume' ? 'Back to Plume Model' : 'Back to Command';
+  if (guidedBackButton) guidedBackButton.textContent = guidedOrigin === 'plume' ? 'Back to Plume Model' : 'Open Command Dashboard';
 
   const incidentChemicalContext = activeIncident ? getIncidentChemicalContext(activeIncident) : null;
   const scopedChemical = activeIncident ? incidentChemicalContext?.chemical : activeChemical;
