@@ -28,7 +28,7 @@ describe('Plume Model Tactical 3D map restoration', () => {
     expect(script).toContain("let plumeMapStyleMode = 'satellite'");
     expect(script).toContain('buildTacticalPlumeMapStyle');
     expect(script).toContain('desaturatePlumeMapColor');
-    expect(script).toContain("setText('plume-terrain-status', 'Tactical 3D · desaturated basemap')");
+    expect(script).toContain("'3D Plume · flat-ground baseline; terrain DEM unavailable'");
   });
 
   it('switches modes without recalculating or replacing plume geometry', () => {

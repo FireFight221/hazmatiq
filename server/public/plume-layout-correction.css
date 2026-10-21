@@ -172,17 +172,17 @@
   top: 8px;
   left: 8px;
   width: calc(100% - 16px);
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  align-items: center;
-  gap: 4px 8px;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-rows: auto;
+  align-items: start;
+  gap: 5px 8px;
   min-width: 0;
   min-height: 0;
   margin: 0;
   padding: 4px 6px;
   box-sizing: border-box;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   border-radius: 7px;
   background: rgba(6, 26, 46, .96);
   scrollbar-width: thin;
@@ -192,17 +192,22 @@
 #plume.view.active .plume-v2-map-controls > .plume-map-layer-controls,
 #plume.view.active .plume-v2-map-controls > .plume-map-action-controls {
   display: flex !important;
-  flex: 0 0 auto;
-  flex-wrap: nowrap !important;
+  flex: 1 1 auto;
+  flex-wrap: wrap !important;
   align-items: center;
   gap: 4px;
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
+  align-content: center;
   padding: 0;
   border: 0;
 }
 
 #plume.view.active .plume-v2-map-controls > .plume-map-action-controls {
-  margin-left: auto;
+  grid-column: 1 / -1;
+  margin-left: 0;
+  padding-top: 4px;
+  border-top: 1px solid rgba(185, 209, 223, .24);
 }
 
 #plume.view.active .plume-v2-map-controls .plume-layer-button {
@@ -293,8 +298,13 @@
   }
 
   #plume.view.active .plume-v2-map-controls {
+    grid-template-columns: minmax(0, 1fr) !important;
     flex-wrap: wrap !important;
     overflow: visible;
+  }
+
+  #plume.view.active .plume-v2-map-controls > .plume-map-action-controls {
+    grid-column: 1;
   }
 
   #plume.view.active .plume-v2-map-controls > .plume-map-action-controls {

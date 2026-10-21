@@ -8868,6 +8868,7 @@ document.addEventListener('click', (event) => {
 });
 
 let plumeRefreshToken = 0;
+let plumePlotRequestToken = 0;
 let plumeMap = null;
 let plumeMapReady = null;
 let plumeSourceMarker = null;
@@ -9072,7 +9073,10 @@ function plumeViewIsPlume(viewName = activePlumeMapView) {
 }
 
 function plumeViewUsesTerrain(viewName = activePlumeMapView) {
-  return viewName === 'plume3d' || viewName === 'terrain3d';
+  // 3D Plume is a flat-ground-capable screening envelope. Terrain DEM is an
+  // optional context layer; requiring it here previously made a valid plume
+  // request fall back to Satellite before the custom layer could render.
+  return viewName === 'terrain3d';
 }
 
 function plumeViewUses3d(viewName = activePlumeMapView) {
@@ -9206,9 +9210,11 @@ function recenterPlumeOnRelease() {
 
 function updatePlumeTerrainStatus() {
   if (activePlumeMapView === 'plume3d') {
-    setText('plume-terrain-status', 'Tactical 3D · desaturated basemap');
-    setText('plume-terrain-status', '3D Plume · terrain-aware operational envelope');
-    setText('plume-model-terrain-status', '3D Plume · estimated vertical envelope follows terrain context; height and spread remain operational estimates.');
+    const terrainStatus = plumeMap?.getTerrain?.()
+      ? '3D Plume · optional terrain DEM active'
+      : '3D Plume · flat-ground baseline; terrain DEM unavailable';
+    setText('plume-terrain-status', terrainStatus);
+    setText('plume-model-terrain-status', `${terrainStatus}; vertical geometry is estimated screening context, not a 3D concentration field.`);
     return;
   }
   if (!plumeViewUsesTerrain()) {
@@ -9342,7 +9348,9 @@ function hasPlumeVectorBasemap(style) {
 }
 
 function buildTacticalPlumeMapStyle() {
-  const style = clonePlumeMapStyle(plumeBaseMapStyle);
+  const currentStyle = plumeMap?.getStyle?.();
+  const sourceStyle = plumeBaseMapStyle || (hasPlumeVectorBasemap(currentStyle) ? currentStyle : null);
+  const style = clonePlumeMapStyle(sourceStyle);
   if (!hasPlumeVectorBasemap(style)) return null;
   style.metadata = { ...(style.metadata || {}), hazscopeTactical: true };
   style.layers = (style.layers || []).map((layer) => {
@@ -11077,7 +11085,7 @@ function updatePlume3dEnvelope() {
   if (status) {
     status.hidden = false;
     status.classList.remove('is-error');
-    status.textContent = `3D Operational Plume Envelope · Urban / Terrain / Weather Aware · ${currentPlume3dEnvelopeGeoJson.features.length} calculated sections · estimated, not CFD`;
+    status.textContent = `3D screening envelope · derived from the current 2D AEGL footprint · ${currentPlume3dEnvelopeGeoJson.features.length} calculated sections · vertical geometry estimated, not a 3D concentration field or safe boundary`;
   }
   const diagnostic = getPlume3dDiagnostic();
   console.info('3D PLUME DIAGNOSTIC', diagnostic);
@@ -11412,7 +11420,7 @@ async function setPlumeMapView(viewName) {
   if (switchToken !== plumeMapViewToken || activePlumeMapView !== viewName) return;
   const targetMode = viewName;
   const targetStyle = viewName === 'plume3d'
-    ? buildTacticalPlumeMapStyle()
+    ? (buildTacticalPlumeMapStyle() || plumeMapStyleUrl)
     : viewName === 'street' || viewName === 'terrain3d'
       ? (clonePlumeMapStyle(plumeBaseMapStyle) || plumeMapStyleUrl)
       : clonePlumeMapStyle(plumeSatelliteMapStyle);
@@ -13459,6 +13467,11 @@ function saveLatestPlumeOverlay({ location, releaseType, windSpeed, windDirectio
 }
 
 async function plotPlumeFromControls(locationOverride = null) {
+  const plotRequestToken = ++plumePlotRequestToken;
+  const isCurrentPlotRequest = () => plotRequestToken === plumePlotRequestToken;
+  const ensureCurrentPlotRequest = () => {
+    if (!isCurrentPlotRequest()) throw new Error('PLUME PLOT SUPERSEDED');
+  };
   const plotButton = document.getElementById('plot-plume-btn');
   const plottingIncidentId = getActiveIncident()?.incidentId || null;
   const plotChemicalContext = getIncidentChemicalContext(getActiveIncident());
@@ -13481,6 +13494,7 @@ async function plotPlumeFromControls(locationOverride = null) {
   setText('plume-overlay-status', 'Calculating plume zones…');
   try {
     const availability = await getPlumeModeAvailability();
+    ensureCurrentPlotRequest();
     latestPlumeAvailability = availability.result;
     updateOperationalPlumeReadiness(availability.result, null, availability.summary);
     if (!availability.result) {
@@ -13499,6 +13513,7 @@ async function plotPlumeFromControls(locationOverride = null) {
     if (!location) {
       try {
         location = await getIncidentCoordinates({ requestGps: true, allowPlumeManual: true });
+        ensureCurrentPlotRequest();
       } catch {
         throw new Error('Cannot plot plume yet. Missing: Incident Location. Enter an incident address or coordinates, place the planning pin, or allow Current GPS.');
       }
@@ -13512,6 +13527,7 @@ async function plotPlumeFromControls(locationOverride = null) {
       if (missingInputs.length) throw new Error(`Cannot plot plume yet. Missing: ${missingInputs.join(', ')}.`);
       inputs = readPlumeModelInputs(location);
       modeled = await runBackendPlume(inputs);
+      ensureCurrentPlotRequest();
     } else if (availability.result?.mode === 'erg-protective-action') {
       const missingInputs = getMissingErgOverlayInputs();
       if (missingInputs.length) throw new Error(`Cannot display ERG protective-action guidance yet. Missing: ${missingInputs.join(', ')}.`);
@@ -13540,6 +13556,7 @@ async function plotPlumeFromControls(locationOverride = null) {
     updatePlumeEvidenceStatus(modeled.result);
 
     await mapReady;
+    ensureCurrentPlotRequest();
     if (modeled.result.mode === 'erg-protective-action') {
       const erg = modeled.result.ergOverlay;
       const geojson = ergOverlayToGeoJson(modeled.result, location);
@@ -13547,8 +13564,10 @@ async function plotPlumeFromControls(locationOverride = null) {
         geojson,
         'ERG Initial Isolation / Protective Action Overlay — not a modeled plume.',
       );
+      ensureCurrentPlotRequest();
       if (!rendered) throw new Error('The ERG record did not return a displayable isolation or protective-action distance.');
       await loadThreatIntelligence(currentThreatZoneGeoJson?.features || [], modeled.result);
+      ensureCurrentPlotRequest();
       const releaseType = document.getElementById('plume-release-type')?.selectedOptions?.[0]?.textContent;
       const windSpeed = document.getElementById('plume-wind-speed')?.value;
       const windDirection = document.getElementById('plume-wind-direction')?.value;
@@ -13575,6 +13594,7 @@ async function plotPlumeFromControls(locationOverride = null) {
         notes: activePlumeCommand.summary,
       });
       const mapImage = await capturePlumeMapImage();
+      ensureCurrentPlotRequest();
       ensurePlotOwnership();
       const saveMode = savePlumeResult(activePlumeCommand, workflowRecord, mapImage);
       renderIncidentCommandSnapshot();
@@ -13596,8 +13616,10 @@ async function plotPlumeFromControls(locationOverride = null) {
     const geojson = plumeResultToGeoJson(modeled.result, location);
     const label = '';
     const rendered = await renderThreatZones(geojson, label);
+    ensureCurrentPlotRequest();
     if (!rendered) throw new Error('The model did not return a displayable threshold polygon.');
     await loadThreatIntelligence(currentThreatZoneGeoJson?.features || [], modeled.result);
+    ensureCurrentPlotRequest();
     const releaseQuantity = document.getElementById('plume-release-quantity')?.value;
     const releaseUnit = document.getElementById('plume-release-unit')?.selectedOptions?.[0]?.textContent;
     const releaseType = document.getElementById('plume-release-type')?.selectedOptions?.[0]?.textContent;
@@ -13629,6 +13651,7 @@ async function plotPlumeFromControls(locationOverride = null) {
       notes: activePlumeCommand.summary,
     });
     const mapImage = await capturePlumeMapImage();
+    ensureCurrentPlotRequest();
     ensurePlotOwnership();
     const saveMode = savePlumeResult(activePlumeCommand, workflowRecord, mapImage);
     renderIncidentCommandSnapshot();
@@ -13647,13 +13670,15 @@ async function plotPlumeFromControls(locationOverride = null) {
     updatePlumeModeLabel();
     setText('plume-live-status', `Plume plotted ${formatCentralZuluHtml()}.`);
   } catch (error) {
+    if (!isCurrentPlotRequest()) return;
     const message = error instanceof Error ? error.message : 'The plume could not be plotted.';
+    if (message === 'PLUME PLOT SUPERSEDED') return;
     updatePlumeEvidenceStatus(null);
     showPlumeWorkflowMessage(message);
     updateOperationalPlumeReadiness(latestPlumeAvailability, null, message);
     setText('plume-overlay-status', message);
   } finally {
-    if (plotButton) plotButton.disabled = false;
+    if (plotButton && isCurrentPlotRequest()) plotButton.disabled = false;
   }
 }
 

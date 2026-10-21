@@ -448,7 +448,7 @@ describe("plume map views", () => {
     for (const action of ['rotate-left', 'rotate-right', 'tilt-up', 'tilt-down', 'reset-north']) {
       expect(plumeHtml).toContain(`data-plume-camera="${action}"`);
     }
-    expect(plumeUi).toContain('3D Plume · terrain-aware operational envelope');
+    expect(plumeUi).toContain('3D Plume · flat-ground baseline; terrain DEM unavailable');
     expect(plumeUi).toContain('3D building height data not configured.');
     expect(plumeUi).toContain('Math.max(0, Math.min(plumeMap.getMaxPitch?.() || 85, plumeMap.getPitch() + delta))');
     expect(plumeUi).toContain('Wind from ${Math.round(windFromDegrees)}° · Downwind ${Math.round((windFromDegrees + 180) % 360)}°');
