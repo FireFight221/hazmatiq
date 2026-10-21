@@ -7,7 +7,7 @@ Updated: 2026-10-21
 - Current task: keep the existing seven-phase Guided Response workflow intact while placing Operational Guidance left and its sole Command Actions panel in a right-side vertical column.
 - Current branch: `plume-model-repair-20261021`
 - Recovery checkpoint: `751cb58` (`Recovery checkpoint before Guided Response refinement`)
-- Implementation checkpoint: `f2018d6` (`Refine Guided Response operational workflow`); the layout refinement is currently uncommitted after that checkpoint.
+- Implementation checkpoint: `e3162c3` (`Move Guided Response actions to side column`), following `f2018d6`.
 - No merge or rebase is in progress. The prior Plume distance popup, Operational Guidance, facility search, Command layout, Threat Zone tabs, and plume work remains preserved in earlier commits.
 - Completed in this stage: Guided Response now uses the shared compact EMERGENZ page-header contract with an inline open-book icon; the old Guided-only hero rules were removed. Seven phase titles use explicit required capitalization and each phase summary has a small inline SVG operational icon. Phase cards now use compact responsive spacing, explicit Goal Status and Next Decision / Task elements, bottom-of-phase Commander Notes / Observations with debounced autosave, and useful References disclosures only when source records exist.
 - Completed in this stage: assignment activation validates Personnel / team, Unit / resource, and Responsibility; Assign confirms a new assignment by default, Update reuses the stable phase assignment ID, and assignment history/timeline records are persisted. Unplaced resources retain `Location not set`; Live Map lists them and provides explicit click-to-place/reposition behavior without invented coordinates. The authoritative server ICS mapper now carries assignments/history into the rendered ICS 203/204/214/215 fields.
@@ -17,7 +17,7 @@ Updated: 2026-10-21
 - Checks run: focused Guided Response / Incident Command / hazard-flow / decision-builder tests passed `73/73`; fresh server API suite passed `46/46`; full root Vitest passed `54` files / `580` tests; root and server typechecks passed; `npm run lint` completed with 0 errors and 9 existing `no-explicit-any` warnings; `git diff --check` passed. Existing Plume map-view coverage passed `59` tests, and prior interactive contrast evidence covered Satellite, Street, 3D Terrain, and 3D Plume states.
 - Checks run: Guided Response UI tests passed `35/35`; browser computed a `1112px` Guidance left column and `270px` right action column at 1440px, five buttons in one vertical flex column, and zero bottom-level Command Actions panels. At 390px, the workspace collapsed to one column with actions below the Guidance content. Evidence: [command-column screenshot](../guided-response-command-column.png).
 - Outstanding: no implementation blockers. Port 3000 remains occupied by an unavailable process; this layout was verified on a fresh checkout server at port 3313. Evidence screenshots remain intentionally untracked and no secrets or runtime databases were staged.
-- Exact next step: commit this layout refinement locally; do not push or deploy.
+- Exact next step: hand off the committed layout refinement; do not push or deploy.
 
 ## Recovery state
 
