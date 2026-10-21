@@ -6375,66 +6375,73 @@ function createGuidedSupportingSection(title, subtitle, content, accent = 'navy'
 
 const guidedPhaseDefinitions = Object.freeze([
   {
-    id: 'identify-isolate-notify', number: 1, title: 'Identify, isolate, and notify', accent: 'red',
+    id: 'identify-isolate-notify', number: 1, title: 'Identify, Isolate, and Notify', accent: 'red',
     objective: 'Make the hazard and immediate life-safety picture explicit, establish a defensible initial perimeter, and start time-critical notifications.',
     roles: 'Incident Command · Safety · HazMat Group · Dispatch / facility contact',
     steps: ['Confirm chemical identity, confidence, container, release phase, location, quantity, and leak condition.', 'Use the displayed ERG isolation/protective-action values; keep them separate from any plume estimate.', 'Notify people who need to act now when the incident facts and jurisdictional procedure support it.'],
     conditions: ['Identity and major uncertainties are recorded.', 'Initial isolation is assigned or the missing source value is explicitly documented.', 'Command has a communications path and a current weather / monitoring plan.'],
     stop: ['Unknown identity, changing release, fire involvement, or worsening readings: expand isolation and reassess.', 'Do not replace a missing published distance with an invented value.'],
+    nextTask: 'Confirm zone boundaries and resource readiness for reconnaissance.',
     outcome: 'A recorded initial perimeter and notification plan; next decision is whether zones/resources are ready for reconnaissance.',
   },
   {
-    id: 'zones-resources', number: 2, title: 'Establish zones and prepare resources', accent: 'amber',
+    id: 'zones-resources', number: 2, title: 'Establish Zones and Prepare Resources', accent: 'amber',
     objective: 'Turn the initial perimeter into controlled hot, warm, and cold-zone operations with entry, decon, medical, rehab, and communications readiness.',
-    roles: 'Operations · Safety · Entry / backup · Decon · EMS / Rehab · Monitoring',
+    roles: 'Operations · Safety · Entry Team / backup · Decon · Medical/Rehab · Monitoring',
     steps: ['Set access control, staging, decon corridor, entry/backup assignments, and a communications check.', 'Select recommended protection from the Chemical / Hazard Profile, then record the equipment actually selected and whether compatibility is verified.', 'Establish medical/rehab and decon readiness concurrently; neither waits for a later phase.'],
     conditions: ['Personnel, PPE, monitoring, backup, decon, and medical resources are confirmed ready or the gap is recorded.', 'Zone boundaries and withdrawal communications are understood.'],
     stop: ['No backup, no medical/decon readiness, failed communications, incompatible PPE, or uncalibrated monitoring: hold entry and reassess.', 'Weather or facility conditions that invalidate the perimeter require a new zone decision.'],
+    nextTask: 'Confirm Entry Team, backup, monitoring, decon, and Medical/Rehab readiness—or record the hold.',
     outcome: 'Resources and controls are ready for a limited reconnaissance task, or Command records a defensive hold and the specific request needed.',
   },
   {
-    id: 'recon-assessment', number: 3, title: 'Reconnaissance and assessment', accent: 'blue',
+    id: 'recon-assessment', number: 3, title: 'Reconnaissance and Assessment', accent: 'blue',
     objective: 'Use a qualified entry/recon team to verify the release, atmosphere, container configuration, and feasible objectives while maintaining communication with Command.',
-    roles: 'Entry / Recon Team · Monitoring · Safety · Incident Command',
+    roles: 'Entry Team / Recon · Monitoring · Safety · Incident Command',
     steps: ['Confirm the actual container dimensions/configuration, pressure condition, release point, product phase, and leak path.', 'Perform source-supported air monitoring and communicate readings, trends, SCBA status, and observed fire/exposure conditions.', 'Attempt only the task authorized by Command and agency procedure; unknown conditions remain unknown until measured or confirmed.'],
     conditions: ['Entry team, backup, monitoring, communications, PPE, and a defined task are ready.', 'Command has a withdrawal trigger and a current risk picture.'],
     stop: ['Alarm, worsening readings, container instability, lost communications, heat/fire escalation, SCBA reserve concern, or any condition outside the approved task: withdraw and reassess.'],
+    nextTask: 'Choose containment, defensive monitoring, or a revised strategy from measured conditions.',
     outcome: 'A timestamped assessment supports a containment choice, a defensive hold, or a revised strategy.',
   },
   {
-    id: 'mitigation-strategy', number: 4, title: 'Select and execute a supported mitigation strategy', accent: 'purple',
+    id: 'mitigation-strategy', number: 4, title: 'Select and Execute a Strategy', accent: 'purple',
     objective: 'Choose only a source-backed, agency-approved objective that matches the product, scenario, equipment, and verified field conditions.',
     roles: 'Incident Command · HazMat Group · Safety · Qualified entry / technical team · Facility specialist',
     steps: ['Compare control options for the observed leak: valve/shutoff, compatible containment, or defensive isolation/monitoring.', 'Record why the selected strategy fits this chemical and container; record what information/resources would permit reassessment.', 'Execute only after Command approval, monitoring, PPE, equipment compatibility, and withdrawal conditions are confirmed.'],
     conditions: ['A product-specific branch is available or the absence is recorded.', 'Container dimensions/configuration, pressure, kit range, gasket/material compatibility, and agency procedure are verified for the selected equipment.'],
     stop: ['Do not improvise a procedure when product, container, pressure, equipment, or compatibility is unknown.', 'Withdraw for instability, unexpected release behavior, fire/exposure escalation, failed containment, or any loss of required protection.', 'Use the configured agency SCBA turn-around / withdrawal criteria; if it is missing, stop and obtain the procedure before entry.'],
+    nextTask: 'Confirm the selected strategy, equipment fit, and withdrawal triggers before execution.',
     outcome: 'The incident has a supported control objective, a defensive rationale, or an explicit hold with the next verification request.',
   },
   {
-    id: 'withdraw-decon-rehab', number: 5, title: 'Withdraw, decontaminate, and provide medical/rehab', accent: 'green',
+    id: 'withdraw-decon-rehab', number: 5, title: 'Withdraw, Decontaminate, and Provide Medical/Rehab', accent: 'green',
     objective: 'End the entry safely, control contamination, and hand responders and patients to decon, medical direction, and rehabilitation.',
-    roles: 'Entry Team · Decon Team · EMS / Medical Director · Rehab · Safety',
+    roles: 'Entry Team · Decon Team · Medical/Rehab · Safety',
     steps: ['Withdraw when the task is complete or the recorded air-consumption / SCBA reserve trigger is reached; use the agency trigger when supplied.', 'Perform chemical-compatible decon using the displayed source guidance and runoff controls; do not assume water is appropriate.', 'Move the entry team through rehab/medical evaluation and protect receiving personnel from contamination.'],
     conditions: ['Decon method, runoff controls, medical/rehab location, staffing, and handoff communications are ready.'],
     stop: ['Unknown decon compatibility, contaminated equipment/personnel outside the corridor, medical deterioration, or changed product phase: stop and obtain medical / HazMat direction.'],
+    nextTask: 'Account for the Entry Team and confirm decon/Medical/Rehab handoff.',
     outcome: 'Personnel are accounted for, decon/medical actions are recorded with actual timestamps, and the next entry decision is explicit.',
   },
   {
-    id: 'verify-recovery', number: 6, title: 'Verify control and arrange recovery/transfer', accent: 'teal',
+    id: 'verify-recovery', number: 6, title: 'Verify Control and Arrange Recovery/Transfer', accent: 'teal',
     objective: 'Demonstrate that the release is controlled with monitoring and arrange safe recovery, transfer, or continued defensive operations.',
     roles: 'Incident Command · Monitoring · Operations · Facility / contractor · Environmental / recovery resources',
     steps: ['Verify readings, source control, container condition, zone status, and any remaining exposure or runoff concern.', 'Compare observed conditions with the ERG and plume planning information without treating the model as field verification.', 'Arrange recovery/transfer only with the qualified agency, facility, contractor, or receiving authority identified in the incident record.'],
     conditions: ['Monitoring demonstrates the selected control objective or the unresolved condition is clearly documented.', 'Transfer authority, recovery resources, and residual hazard controls are identified.'],
     stop: ['Readings trend worse, the source is not controlled, residual product remains uncharacterized, or recovery authority is not confirmed: maintain controls and reassess.'],
+    nextTask: 'State controlled/not controlled and identify the recovery or transfer authority.',
     outcome: 'Command can state controlled / not controlled, residual hazards, and the responsible recovery or transfer path.',
   },
   {
-    id: 'notifications-documentation', number: 7, title: 'Complete notifications and documentation', accent: 'navy',
+    id: 'notifications-documentation', number: 7, title: 'Complete Notifications and Documentation', accent: 'navy',
     objective: 'Close the information loop with jurisdiction-specific notifications, an evidence-backed timeline, and reviewable incident reports.',
     roles: 'Incident Command · Liaison / PIO · Dispatch · Documentation Unit · Facility / agency contacts',
     steps: ['Review notification requirements shown for this chemical, quantity, jurisdiction, and scenario; confirm them with the applicable agency procedure.', 'Record completed, planned, suggested, and unknown actions separately with actual timestamps only when confirmed.', 'Review prefilled ICS forms and reports, correct them, and finalize only after Command review.'],
     conditions: ['Notification source/jurisdiction is identified, phase events and monitoring are recorded, and report fields are reviewed for accuracy.'],
     stop: ['Do not invent a threshold, recipient, action, signature, quantity, or completion time; keep the item open and identify the missing authority or fact.'],
+    nextTask: 'Review open notifications, reports, and timestamps with Command.',
     outcome: 'A reviewable incident record is ready for transfer, recovery, or closure; external notifications remain manual.',
   },
 ]);
@@ -6492,7 +6499,21 @@ function readGuidedResponsePhaseState(incident, chemical, scenario = '') {
   }
 }
 
-function persistGuidedResponsePhaseState(phaseId, patch = {}) {
+const guidedGoalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Accomplished', 'Needs Reassessment']);
+
+function guidedGoalStatus(record, phaseId, currentPhaseId) {
+  const value = String(record?.status || '').trim().toLowerCase();
+  if (value === 'complete' || value === 'accomplished') return 'Accomplished';
+  if (value === 'in progress') return 'In Progress';
+  if (value === 'needs reassessment') return 'Needs Reassessment';
+  return phaseId === currentPhaseId ? 'Not Started' : 'Not Started';
+}
+
+function guidedPhaseIsAccomplished(record) {
+  return ['complete', 'accomplished'].includes(String(record?.status || '').trim().toLowerCase());
+}
+
+function persistGuidedResponsePhaseState(phaseId, patch = {}, options = {}) {
   const incident = getActiveIncident();
   const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
   const current = readGuidedResponsePhaseState(incident, chemical);
@@ -6508,10 +6529,17 @@ function persistGuidedResponsePhaseState(phaseId, patch = {}) {
         ...incidents[index],
         guidedResponsePhaseState: next,
         guidedResponseAssignments: Object.entries(next).flatMap(([phaseId, phase]) => (Array.isArray(phase?.assignments) ? phase.assignments : []).map((assignment) => ({ ...assignment, phaseId }))),
+        guidedResponseAssignmentHistory: options.assignmentHistoryEntry
+          ? [...(Array.isArray(incidents[index].guidedResponseAssignmentHistory) ? incidents[index].guidedResponseAssignmentHistory : []), options.assignmentHistoryEntry]
+          : incidents[index].guidedResponseAssignmentHistory,
         incidentTimeline: [...(Array.isArray(incidents[index].incidentTimeline) ? incidents[index].incidentTimeline : []), {
           type: 'guided-response-phase', phaseId, status: nextEntry.status || 'In progress', changedAt: now,
           changedBy: nextEntry.changedBy, source: 'commander', evidence: nextEntry.evidence || '',
-        }],
+        }, ...(options.assignmentHistoryEntry ? [{
+          type: 'guided-response-assignment', phaseId, action: options.assignmentHistoryEntry.action,
+          assignmentId: options.assignmentHistoryEntry.assignmentId, changedAt: now,
+          changedBy: options.assignmentHistoryEntry.changedBy, source: 'commander',
+        }] : [])],
         updatedAt: now,
       };
       writeIncidents(incidents);
@@ -6527,6 +6555,7 @@ function persistGuidedResponsePhaseState(phaseId, patch = {}) {
     } catch { /* planning progress is best effort */ }
   }
   window.dispatchEvent(new CustomEvent('hazmatiq:guided-phase-updated', { detail: { phaseId, state: nextEntry } }));
+  if (options.assignmentHistoryEntry) window.dispatchEvent(new CustomEvent('hazmatiq:incident-assignment-updated', { detail: { phaseId, assignment: options.assignmentHistoryEntry.assignment } }));
   return next;
 }
 
@@ -6591,15 +6620,34 @@ function persistGuidedPhaseAssignment(phaseId, assignment) {
   const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
   const current = readGuidedResponsePhaseState(incident, chemical);
   const assignments = Array.isArray(current[phaseId]?.assignments) ? current[phaseId].assignments : [];
+  const required = [assignment.personnel, assignment.unit, assignment.responsibility].map((value) => String(value || '').trim());
+  if (required.some((value) => !value)) return { ok: false, error: 'Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.' };
+  const assignmentId = assignment.assignmentId || `guided-${phaseId}-primary`;
+  const existingIndex = assignments.findIndex((item) => item?.assignmentId === assignmentId);
+  const action = existingIndex >= 0 ? 'updated' : 'assigned';
+  const now = new Date().toISOString();
   const nextAssignment = {
     ...assignment,
+    assignmentId,
     phaseId,
     role: assignment.role || guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.roles || '',
-    updatedAt: new Date().toISOString(),
+    locationStatus: assignment.locationStatus || 'Location not set',
+    locationSource: assignment.locationSource || 'Not placed',
+    updatedAt: now,
     changedBy: incidentResponderIdentity(),
   };
-  const nextAssignments = assignments.length ? [nextAssignment, ...assignments.slice(1)] : [nextAssignment];
-  return persistGuidedResponsePhaseState(phaseId, { assignments: nextAssignments });
+  const nextAssignments = assignments.map((item) => item?.assignmentId === assignmentId ? nextAssignment : item);
+  if (existingIndex < 0) nextAssignments.push(nextAssignment);
+  const historyEntry = {
+    assignmentId,
+    action,
+    changedAt: now,
+    changedBy: nextAssignment.changedBy,
+    phaseId,
+    assignment: nextAssignment,
+  };
+  persistGuidedResponsePhaseState(phaseId, { assignments: nextAssignments }, { assignmentHistoryEntry: historyEntry });
+  return { ok: true, action, assignment: nextAssignment };
 }
 
 function createGuidedRoleAssignment(phase, incident, record) {
@@ -6610,6 +6658,7 @@ function createGuidedRoleAssignment(phase, incident, record) {
   suggested.textContent = `Suggested roles/resources: ${phase.roles}. These are recommendations until a commander confirms an assignment.`;
   panel.append(suggested);
   const assignment = Array.isArray(record.assignments) && record.assignments[0] ? record.assignments[0] : {};
+  const assignmentId = assignment.assignmentId || `guided-${phase.id}-primary`;
   const knownPersonnel = [incident?.personnelRecords, incident?.personnel, incident?.resources]
     .flatMap((value) => Array.isArray(value) ? value : [])
     .map((value) => typeof value === 'string' ? value : value?.name || value?.personnel || value?.unit || '')
@@ -6626,6 +6675,8 @@ function createGuidedRoleAssignment(phase, incident, record) {
   fields.forEach(([label, key, placeholder]) => {
     const field = document.createElement('label');
     field.textContent = label;
+    const controlRow = document.createElement('span');
+    controlRow.className = 'guided-assignment-control';
     const input = document.createElement('input');
     input.type = 'text'; input.value = assignment[key] || ''; input.placeholder = placeholder;
     if (key === 'personnel' && knownPersonnel.length) {
@@ -6637,11 +6688,9 @@ function createGuidedRoleAssignment(phase, incident, record) {
         panel.append(datalist);
       }
     }
-    input.addEventListener('change', () => {
-      persistGuidedPhaseAssignment(phase.id, { ...assignment, ...Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.value.trim()])), status: statusSelect.value });
-    });
     controls[key] = input;
-    field.append(input); grid.append(field);
+    controlRow.append(input);
+    field.append(controlRow); grid.append(field);
   });
   const statusField = document.createElement('label');
   statusField.textContent = 'Assignment state';
@@ -6650,17 +6699,61 @@ function createGuidedRoleAssignment(phase, incident, record) {
     const option = document.createElement('option'); option.value = value; option.textContent = label; statusSelect.append(option);
   });
   statusSelect.value = assignment.status || 'Suggested';
+  const statusControlRow = document.createElement('span');
+  statusControlRow.className = 'guided-assignment-control';
+  statusControlRow.append(statusSelect);
+  statusField.append(statusControlRow); grid.append(statusField);
+  const feedback = document.createElement('p');
+  feedback.className = 'guided-assignment-feedback';
+  feedback.setAttribute('role', 'status');
+  const activateAssignment = () => {
+    const result = persistGuidedPhaseAssignment(phase.id, {
+      ...assignment,
+      assignmentId,
+      ...Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.value.trim()])),
+      status: statusSelect.value === 'Suggested' ? 'Confirmed' : statusSelect.value,
+    });
+    if (!result.ok) {
+      feedback.dataset.state = 'error';
+      feedback.textContent = result.error;
+      return;
+    }
+    feedback.dataset.state = 'saved';
+    feedback.textContent = `${result.action === 'updated' ? 'Assignment updated' : 'Assignment saved'} at ${new Date(result.assignment.updatedAt).toLocaleString()}. Live Map and ICS report mappings updated.`;
+    statusSelect.value = result.assignment.status;
+    updateGuidedAssignmentButtons(result.assignment.assignmentId);
+  };
+  const actionButtons = [];
+  const addAssignmentButton = (controlRow, label) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ghost-btn guided-assignment-action';
+    button.textContent = assignment.personnel || assignment.unit ? 'Update' : 'Assign';
+    button.setAttribute('aria-label', `${button.textContent} ${label}`);
+    button.addEventListener('click', activateAssignment);
+    actionButtons.push(button);
+    controlRow.append(button);
+  };
+  fields.forEach(([label, key], index) => addAssignmentButton(grid.querySelectorAll('.guided-assignment-control')[index], label));
+  addAssignmentButton(statusControlRow, 'assignment state');
   statusSelect.addEventListener('change', () => {
-    persistGuidedPhaseAssignment(phase.id, { ...assignment, ...Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.value.trim()])), status: statusSelect.value });
+    actionButtons.forEach((button) => {
+      button.textContent = assignment.personnel || assignment.unit ? 'Update' : 'Assign';
+    });
   });
-  statusField.append(statusSelect); grid.append(statusField);
   const note = document.createElement('p');
   note.className = 'guided-assignment-note';
   note.textContent = assignment.status === 'Confirmed'
-    ? `Confirmed assignment recorded ${assignment.updatedAt ? new Date(assignment.updatedAt).toLocaleString() : 'with the incident'}.`
-    : 'No confirmed assignment is shown until Command records the actual personnel/resource and responsibility.';
-  panel.append(grid, note);
+    ? `Confirmed assignment recorded ${assignment.updatedAt ? new Date(assignment.updatedAt).toLocaleString() : 'with the incident'}. Location: ${assignment.locationStatus || 'Location not set'}.`
+    : 'No assignment is recorded until Command activates Assign or Update. Location remains “Location not set” until explicitly placed.';
+  panel.append(grid, feedback, note);
   return panel;
+}
+
+function updateGuidedAssignmentButtons(assignmentId) {
+  document.querySelectorAll('.guided-assignment-action').forEach((button) => {
+    button.textContent = assignmentId ? 'Update' : 'Assign';
+  });
 }
 
 function createGuidedScbaManagement(record) {
@@ -6708,19 +6801,46 @@ function createGuidedScbaManagement(record) {
   return section;
 }
 
+const guidedPhaseIconPaths = Object.freeze({
+  'identify-isolate-notify': ['<circle cx="22" cy="24" r="10"/><path d="m29 31 9 9"/><path d="m43 8 8 14h-16l8-14Z"/><path d="M43 13v4M43 20h.01"/>'],
+  'zones-resources': ['<path d="M6 43h44"/><path d="m10 39 4-18h7l4 18H10ZM35 39l3-13h6l3 13H35Z"/><path d="M14 26h7M36 31h10"/><path d="M6 48h44"/>'],
+  'recon-assessment': ['<path d="M7 22h9l4 5v14H9V27l-2-5ZM49 22h-9l-4 5v14h11V27l2-5Z"/><circle cx="14" cy="33" r="5"/><circle cx="42" cy="33" r="5"/><path d="M20 29h16M25 18h6M28 18v6"/>'],
+  'mitigation-strategy': ['<circle cx="28" cy="31" r="16"/><circle cx="28" cy="31" r="7"/><path d="M28 7v10M28 45v10M4 31h10M42 31h10"/><path d="m35 24 10-10"/>'],
+  'withdraw-decon-rehab': ['<path d="M31 8h8M35 8v7M25 15h20v7H25z"/><path d="M27 22c-1 5-4 7-4 12 0 3 2 5 5 5s5-2 5-5c0-4-3-7-4-12M38 22c-1 5-4 7-4 12 0 3 2 5 5 5s5-2 5-5c0-4-3-7-4-12"/><path d="M16 13h7"/>'],
+  'verify-recovery': ['<path d="m28 6 18 7v12c0 12-7 20-18 27C17 45 10 37 10 25V13l18-7Z"/><path d="m19 29 6 6 13-14"/>'],
+  'notifications-documentation': ['<path d="M10 10h27v39H10zM17 10V6h13v4M16 20h15M16 28h15M16 36h10"/><path d="m42 29 7 7-12 12-7 2 2-7 10-14Z"/><path d="M37 34 43 40"/>'],
+});
+
+function createGuidedPhaseIcon(phase) {
+  const wrapper = document.createElement('span');
+  wrapper.className = 'guided-phase-icon';
+  wrapper.setAttribute('aria-hidden', 'true');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 56 62');
+  svg.setAttribute('focusable', 'false');
+  (guidedPhaseIconPaths[phase.id] || []).forEach((markup) => {
+    const template = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    template.innerHTML = markup;
+    while (template.firstChild) svg.append(template.firstChild);
+  });
+  wrapper.append(svg);
+  return wrapper;
+}
+
 function createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhaseId, scenarioSummary) {
   const record = phaseState[phase.id] || {};
-  const status = record.status || (phase.id === currentPhaseId ? 'Current' : 'Not started');
+  const status = guidedGoalStatus(record, phase.id, currentPhaseId);
   const card = document.createElement('details');
-  card.className = `guided-phase-card${phase.id === currentPhaseId ? ' is-current' : ''}${status === 'Complete' ? ' is-complete' : ''}`;
+  card.className = `guided-phase-card${phase.id === currentPhaseId ? ' is-current' : ''}${status === 'Accomplished' ? ' is-complete' : ''}`;
   card.dataset.phaseId = phase.id;
-  card.open = phase.id === currentPhaseId || status === 'In progress' || status === 'Needs reassessment';
+  card.open = phase.id === currentPhaseId || status === 'In Progress' || status === 'Needs Reassessment';
   const summary = document.createElement('summary');
   summary.className = 'guided-phase-summary';
   const number = document.createElement('span'); number.className = 'guided-phase-number'; number.textContent = phase.number;
+  const icon = createGuidedPhaseIcon(phase);
   const title = document.createElement('span'); title.className = 'guided-phase-title'; title.textContent = phase.title;
   const state = document.createElement('strong'); state.className = 'guided-phase-state'; state.textContent = status.toUpperCase();
-  summary.append(number, title, state);
+  summary.append(number, icon, title, state);
   const body = document.createElement('div'); body.className = 'guided-phase-body';
   const goal = document.createElement('div'); goal.className = 'guided-phase-goal'; goal.textContent = `GOAL: ${phase.objective}`;
   const scenario = document.createElement('details'); scenario.className = 'guided-phase-scenario';
@@ -6729,8 +6849,9 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   scenarioSummary.forEach(([label, value]) => { const item = document.createElement('div'); const term = document.createElement('span'); term.textContent = label; const detail = document.createElement('strong'); detail.textContent = guidedDisplayValue(value); item.append(term, detail); scenarioGrid.append(item); });
   scenario.append(scenarioGrid);
   const stage = phase.id === 'identify-isolate-notify' ? model.identification : phase.id === 'zones-resources' ? model.ppe : phase.id === 'recon-assessment' ? model.monitoring : phase.id === 'mitigation-strategy' ? model.controlMitigation : phase.id === 'withdraw-decon-rehab' ? model.decon : phase.id === 'verify-recovery' ? model.protectiveActions : model.termination;
+  const phaseSources = guidedStageSources(stage).filter((source) => !/^(?:needs verification|source not available|no current data exists)$/i.test(String(source || '').trim()));
   const sourceDetails = document.createElement('details'); sourceDetails.className = 'guided-phase-sources';
-  const sourceSummary = document.createElement('summary'); sourceSummary.textContent = 'Accessible source references'; sourceDetails.append(sourceSummary, createGuidedSourceTrace(guidedStageSources(stage)));
+  const sourceSummary = document.createElement('summary'); sourceSummary.textContent = 'References'; sourceDetails.append(sourceSummary, createGuidedSourceTrace(phaseSources));
   const productGuidance = document.createElement('p'); productGuidance.className = 'guided-phase-product-guidance';
   if (phase.id === 'mitigation-strategy') productGuidance.textContent = model.operationalRecommendations?.control?.why || model.controlMitigation?.why || 'No product-specific control procedure is available from the current source set.';
   else if (phase.id === 'withdraw-decon-rehab') productGuidance.textContent = model.operationalRecommendations?.decon?.why || model.decon?.why || 'No product-specific decontamination rationale is available from the current source set.';
@@ -6759,8 +6880,25 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   }
   if (phase.id === 'mitigation-strategy') conditions.append(createGuidedScbaManagement(record));
   const stop = document.createElement('section'); const stopHeading = document.createElement('h3'); stopHeading.textContent = 'STOP / WITHDRAW / REASSESS'; stop.append(stopHeading, createGuidedPhaseList(phase.stop));
-  const outcome = document.createElement('div'); outcome.className = 'guided-phase-next-decision'; outcome.textContent = `EXPECTED OUTCOME / NEXT DECISION: ${phase.outcome}`;
-  body.append(goal, objectives, roles, conditions, stop, outcome);
+  const goalStatus = document.createElement('section'); goalStatus.className = 'guided-goal-status';
+  const goalStatusHeading = document.createElement('h3'); goalStatusHeading.textContent = 'Goal Status';
+  const goalStatusSelect = document.createElement('select'); goalStatusSelect.setAttribute('aria-label', `Goal Status for phase ${phase.number}`);
+  guidedGoalStatusOptions.forEach((optionValue) => {
+    const option = document.createElement('option'); option.value = optionValue; option.textContent = optionValue; goalStatusSelect.append(option);
+  });
+  goalStatusSelect.value = status;
+  goalStatusSelect.addEventListener('change', () => {
+    persistGuidedResponsePhaseState(phase.id, { status: goalStatusSelect.value });
+    renderGuidedResponse();
+  });
+  goalStatus.append(goalStatusHeading, goalStatusSelect);
+  const nextDecision = document.createElement('section'); nextDecision.className = 'guided-next-decision';
+  const nextDecisionHeading = document.createElement('h3'); nextDecisionHeading.textContent = 'Next Decision / Task';
+  const nextDecisionText = document.createElement('p'); nextDecisionText.textContent = phase.nextTask || phase.outcome;
+  nextDecision.append(nextDecisionHeading, nextDecisionText);
+  const decisionGrid = document.createElement('div'); decisionGrid.className = 'guided-phase-decision-grid';
+  decisionGrid.append(goalStatus, nextDecision);
+  body.append(goal, objectives, roles, conditions, stop, decisionGrid);
   if (phase.id === 'withdraw-decon-rehab') {
     const care = document.createElement('details'); care.className = 'guided-readiness-detail';
     const careSummary = document.createElement('summary'); careSummary.textContent = 'Source-backed decon and medical direction';
@@ -6770,14 +6908,30 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
     ])); body.append(care);
   }
   if (phase.id === 'mitigation-strategy') body.append(createGuidedEquipmentCompatibility(profile, incident, record));
-  body.append(sourceDetails);
-  const footer = document.createElement('div'); footer.className = 'guided-phase-footer';
+  if (phaseSources.length) body.append(sourceDetails);
+  const footer = document.createElement('section'); footer.className = 'guided-phase-footer guided-commander-notes';
+  const notesHeading = document.createElement('h3'); notesHeading.textContent = 'COMMANDER NOTES / OBSERVATIONS';
   const activity = document.createElement('textarea'); activity.className = 'guided-phase-evidence'; activity.rows = 2; activity.placeholder = 'Optional: record the confirmed action, observation, or evidence.'; activity.value = record.evidence || '';
   activity.setAttribute('aria-label', `Confirmed activity for phase ${phase.number}`);
   const progress = document.createElement('span'); progress.textContent = record.changedAt ? `Last commander update: ${new Date(record.changedAt).toLocaleString()}` : 'No commander confirmation recorded.';
-  const action = document.createElement('button'); action.type = 'button'; action.className = status === 'Complete' ? 'ghost-btn' : 'primary-btn'; action.textContent = status === 'Complete' ? 'Reopen for reassessment' : status === 'In progress' ? 'Confirm phase complete' : 'Start / record phase';
-  action.addEventListener('click', (event) => { event.preventDefault(); const nextStatus = status === 'Complete' ? 'Needs reassessment' : status === 'In progress' ? 'Complete' : 'In progress'; persistGuidedResponsePhaseState(phase.id, { status: nextStatus, evidence: activity.value.trim() }); renderGuidedResponse(); });
-  footer.append(activity, progress, action); body.append(footer); card.append(summary, body); return card;
+  let noteSaveTimer = 0;
+  activity.addEventListener('input', () => {
+    progress.textContent = 'Saving commander note…';
+    window.clearTimeout(noteSaveTimer);
+    noteSaveTimer = window.setTimeout(() => {
+      persistGuidedResponsePhaseState(phase.id, { evidence: activity.value.trim() });
+      progress.textContent = `Commander note saved ${new Date().toLocaleString()}.`;
+    }, 650);
+  });
+  const action = document.createElement('button'); action.type = 'button'; action.className = 'primary-btn'; action.textContent = 'Save phase update';
+  action.addEventListener('click', (event) => {
+    event.preventDefault();
+    window.clearTimeout(noteSaveTimer);
+    persistGuidedResponsePhaseState(phase.id, { status: goalStatusSelect.value, evidence: activity.value.trim() });
+    progress.textContent = `Phase update saved ${new Date().toLocaleString()}.`;
+    renderGuidedResponse();
+  });
+  footer.append(notesHeading, activity, progress, action); body.append(footer); card.append(summary, body); return card;
 }
 
 // Legacy source-contract markers retained for older integrations; the renderer
@@ -6809,8 +6963,8 @@ function createGuidedCommandFlow(model) {
   const phaseState = readGuidedResponsePhaseState(incident, chemical);
   const savedPlume = incident?.plumeModelResults?.plumeResult || incident?.plumeModelResults || readPlanningState().plumeModelResults || null;
   const scenarioSummary = guidedScenarioSummary(incident, profile, savedPlume);
-  const currentPhase = guidedPhaseDefinitions.find((phase) => phaseState[phase.id]?.status !== 'Complete')?.id || guidedPhaseDefinitions.at(-1).id;
-  const progress = document.createElement('div'); progress.className = 'guided-phase-progress'; progress.textContent = `${guidedPhaseDefinitions.filter((phase) => phaseState[phase.id]?.status === 'Complete').length} of ${guidedPhaseDefinitions.length} phases confirmed · medical/rehab and notifications may be recorded concurrently.`;
+  const currentPhase = guidedPhaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id || guidedPhaseDefinitions.at(-1).id;
+  const progress = document.createElement('div'); progress.className = 'guided-phase-progress'; progress.textContent = `${guidedPhaseDefinitions.filter((phase) => guidedPhaseIsAccomplished(phaseState[phase.id])).length} of ${guidedPhaseDefinitions.length} phases confirmed · medical/rehab and notifications may be recorded concurrently.`;
   const grid = document.createElement('div'); grid.className = 'guided-phase-grid';
   guidedPhaseDefinitions.forEach((phase) => grid.append(createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhase, scenarioSummary)));
   const sourceBody = document.createElement('div'); sourceBody.append(createGuidedFactTrace(model.operationalRecommendations?.factTrace)); sourceBody.append(createGuidedSourceTrace((model.sequence || []).flatMap((stage) => stage.sources || [])));
@@ -15847,7 +16001,7 @@ const liveMapStorageKey = 'hazmatiq_live_map_state';
 const latestPlumeOverlayStorageKey = 'hazmatiq_latest_plume_overlay';
 const liveMapStyleKey = 'hazmatiq_live_map_style';
 const liveMapLayerGroups = {
-  incident: ['plume', 'icp', 'entry', 'decon', 'staging', 'monitors', 'medical'],
+  incident: ['plume', 'icp', 'entry', 'decon', 'staging', 'monitors', 'medical', 'incidentResources'],
   wildfire: ['wildfireFires', 'wildfirePerimeters', 'wildfireSmoke'],
   facilities: ['tier2Facilities'],
   more: ['trafficCams', 'zones'],
@@ -15861,6 +16015,7 @@ let liveMapGpsRequested = false;
 let liveMapResizeObserver = null;
 let liveMapStoredStyleApplied = false;
 let liveMapStyleRequestToken = 0;
+let pendingIncidentResourcePlacement = null;
 // Vector street style includes roads, buildings, parks, schools, hospitals, and POIs.
 const liveMapDetailedStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const liveMapStyleModes = Object.freeze({ street: liveMapDetailedStyleUrl, satellite: plumeSatelliteMapStyle });
@@ -15905,7 +16060,7 @@ function defaultLiveMapState() {
     incidentId: null,
     mapCenter: [-86.81, 33.29],
     zoom: 14,
-    activeLayers: { zones: false, icp: false, entry: false, decon: false, monitors: false, staging: false, medical: false, traffic: false, trafficCams: false, weatherRadar: false, plume: false, tier2Facilities: false, wildfireFires: false, wildfirePerimeters: false, wildfireSmoke: false },
+    activeLayers: { zones: false, icp: false, entry: false, decon: false, monitors: false, staging: false, medical: false, incidentResources: true, traffic: false, trafficCams: false, weatherRadar: false, plume: false, tier2Facilities: false, wildfireFires: false, wildfirePerimeters: false, wildfireSmoke: false },
     markers: [],
     zones: [],
     monitors: [],
@@ -15950,6 +16105,7 @@ function updateLiveMapPanels() {
     const countElement = document.querySelector(`[data-layer-count="${group}"]`);
     if (countElement) countElement.textContent = String(count);
   });
+  renderLiveMapIncidentResources();
 }
 
 function closeLiveMapLayerMenus(except = null) {
@@ -16902,6 +17058,87 @@ function ensureLiveLayerMarker(layer) {
   (layer === 'monitors' ? liveMapState.monitors : liveMapState.markers).push(marker);
 }
 
+function guidedIncidentAssignments() {
+  const incident = getActiveIncident();
+  return Array.isArray(incident?.guidedResponseAssignments)
+    ? incident.guidedResponseAssignments.filter((assignment) => assignment && assignment.status !== 'Suggested')
+    : [];
+}
+
+function updateGuidedPhaseAssignmentLocation(phaseId, assignmentId, location) {
+  const incident = getActiveIncident();
+  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
+  const current = readGuidedResponsePhaseState(incident, chemical);
+  const phaseAssignments = Array.isArray(current[phaseId]?.assignments) ? current[phaseId].assignments : [];
+  const now = new Date().toISOString();
+  const nextAssignments = phaseAssignments.map((assignment) => assignment?.assignmentId === assignmentId
+    ? { ...assignment, latitude: location.latitude, longitude: location.longitude, locationStatus: 'Placed on Map', locationSource: 'Commander placed on map', placedAt: now, updatedAt: now, changedBy: incidentResponderIdentity() }
+    : assignment);
+  const assignment = nextAssignments.find((item) => item?.assignmentId === assignmentId);
+  if (!assignment) return false;
+  persistGuidedResponsePhaseState(phaseId, { assignments: nextAssignments }, {
+    assignmentHistoryEntry: {
+      assignmentId, action: 'placed', changedAt: now, changedBy: assignment.changedBy, phaseId, assignment,
+    },
+  });
+  return true;
+}
+
+function beginIncidentResourcePlacement(assignment) {
+  if (!liveMap) {
+    setText('live-map-status', 'Open Live Map before placing an incident resource.');
+    return;
+  }
+  pendingIncidentResourcePlacement = assignment;
+  liveMap.getCanvas?.().style.setProperty('cursor', 'crosshair');
+  setText('live-map-status', `Click the map to place ${assignment.personnel || assignment.unit || 'this resource'}. No location is assumed.`);
+}
+
+function handleIncidentResourceMapClick(event) {
+  if (!pendingIncidentResourcePlacement || !event?.lngLat) return;
+  const assignment = pendingIncidentResourcePlacement;
+  pendingIncidentResourcePlacement = null;
+  liveMap?.getCanvas?.().style.removeProperty('cursor');
+  const location = { latitude: Number(event.lngLat.lat), longitude: Number(event.lngLat.lng) };
+  if (!Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) return;
+  updateGuidedPhaseAssignmentLocation(assignment.phaseId, assignment.assignmentId, location);
+  setText('live-map-status', `${assignment.personnel || assignment.unit || 'Incident resource'} placed on the map by Command.`);
+}
+
+function renderLiveMapIncidentResources() {
+  const list = document.getElementById('live-map-incident-resources-list');
+  if (!list) return;
+  list.replaceChildren();
+  const assignments = guidedIncidentAssignments();
+  if (!getActiveIncident()) {
+    list.textContent = 'No active incident.';
+    return;
+  }
+  if (!assignments.length) {
+    list.textContent = 'No assigned incident resources.';
+    return;
+  }
+  assignments.forEach((assignment) => {
+    const row = document.createElement('article');
+    row.className = 'live-map-incident-resource';
+    const title = document.createElement('strong');
+    title.textContent = assignment.personnel || assignment.unit || assignment.role || 'Assigned resource';
+    const detail = document.createElement('span');
+    detail.textContent = [assignment.unit, assignment.role, assignment.status].filter(Boolean).join(' · ');
+    const location = document.createElement('small');
+    location.textContent = Number.isFinite(Number(assignment.latitude)) && Number.isFinite(Number(assignment.longitude))
+      ? `Location placed: ${Number(assignment.latitude).toFixed(5)}, ${Number(assignment.longitude).toFixed(5)}`
+      : 'Location not set';
+    const place = document.createElement('button');
+    place.type = 'button';
+    place.className = 'ghost-btn';
+    place.textContent = Number.isFinite(Number(assignment.latitude)) && Number.isFinite(Number(assignment.longitude)) ? 'Reposition' : 'Place on Map';
+    place.addEventListener('click', () => beginIncidentResourcePlacement(assignment));
+    row.append(title, detail, location, place);
+    list.append(row);
+  });
+}
+
 function renderLiveMapMarkers() {
   liveMapMarkers.forEach((marker) => marker.remove());
   liveMapMarkers = [];
@@ -16957,7 +17194,35 @@ function renderLiveMapMarkers() {
       liveMapMarkers.push(pin);
     });
   }
+  if (!liveMapState.activeLayers.incidentResources) return;
+  guidedIncidentAssignments().forEach((assignment) => {
+    const lat = Number(assignment.latitude);
+    const lng = Number(assignment.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const element = document.createElement('button');
+    element.type = 'button';
+    element.className = 'live-map-marker live-map-assignment-marker';
+    element.dataset.layer = 'incidentResources';
+    element.textContent = 'R';
+    element.title = `${assignment.personnel || assignment.unit || 'Incident resource'} — ${assignment.role || 'Assigned resource'}`;
+    element.addEventListener('click', () => selectLiveMapMarker({
+      name: assignment.personnel || assignment.unit || 'Incident resource',
+      type: assignment.role || 'Incident resource', lat, lng,
+    }));
+    const pin = new window.maplibregl.Marker({ element, draggable: true })
+      .setLngLat([lng, lat]).addTo(liveMap);
+    pin.on('dragend', () => {
+      const position = pin.getLngLat();
+      updateGuidedPhaseAssignmentLocation(assignment.phaseId, assignment.assignmentId, { latitude: position.lat, longitude: position.lng });
+    });
+    liveMapMarkers.push(pin);
+  });
 }
+
+window.addEventListener('hazmatiq:incident-assignment-updated', () => {
+  renderLiveMapIncidentResources();
+  if (liveMap) renderLiveMapMarkers();
+});
 
 // Receive field monitoring updates without creating duplicate marker sets.
 window.addEventListener('emergenz:monitoring-updated', () => {
@@ -17315,6 +17580,10 @@ function initializeLiveMap() {
   if (liveMap && !liveMap.__tier2MoveBound) {
     liveMap.__tier2MoveBound = true;
     liveMap.on('moveend', scheduleTier2FacilitiesRefresh);
+  }
+  if (liveMap && !liveMap.__assignmentPlacementBound) {
+    liveMap.__assignmentPlacementBound = true;
+    liveMap.on('click', handleIncidentResourceMapClick);
   }
   if (liveMap && !liveMap.__wildfireMoveBound) {
     liveMap.__wildfireMoveBound = true;

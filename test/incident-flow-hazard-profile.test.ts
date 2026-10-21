@@ -128,8 +128,9 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     expect(compareScript).toContain("showView('lookup', { preserveHazardState: true });");
   });
 
-  it("uses the transparent HAZMATIQ artwork on Guided Response", () => {
-    expect(html).toContain('class="guided-response-logo" src="assets/emergenz-hero-header.png?v=3"');
+  it("uses the shared compact page header on Guided Response", () => {
+    expect(html).toContain('class="hazmat-page-hero hazmat-page-hero-compact emergenz-page-header variant-guided-response guided-response-page-header"');
+    expect(html).toContain('class="emergenz-page-header-icon"');
   });
 
   it("maps selected chemical profile fields into every operational consumer", () => {

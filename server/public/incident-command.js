@@ -179,6 +179,10 @@
       .filter((assignment) => assignment?.status === 'Confirmed')
       .map((assignment) => [assignment.phaseId, assignment.role || '', assignment.personnel, assignment.unit, assignment.supervisor, assignment.responsibility, assignment.updatedAt].filter(Boolean).join(' · '))
       .filter(Boolean);
+    const assignmentHistory = (Array.isArray(source.guidedResponseAssignmentHistory) ? source.guidedResponseAssignmentHistory : [])
+      .map((entry) => [entry.action || 'assignment', entry.phaseId, entry.assignment?.personnel, entry.assignment?.unit, entry.changedAt, entry.changedBy].filter(Boolean).join(' · '))
+      .filter(Boolean);
+    const guidedAssignmentResources = confirmedAssignments.join('\n');
     const scbaRecords = Object.entries(source.guidedResponsePhaseState || {})
       .map(([phaseId, event]) => event?.scba ? [phaseId, event.scba] : null)
       .filter(Boolean)
@@ -215,13 +219,13 @@
         '201': { incidentName: state.incidentName, incidentLocation: location, situationSummary: expandedSituation },
         '202': { incidentName: state.incidentName, objectives },
         '203': { incidentName: state.incidentName, commandStructure: state.command.structure, assignments: confirmedAssignments.join('\n') },
-        '204': { incidentName: state.incidentName, assignments: state.command.stagingResources },
+        '204': { incidentName: state.incidentName, assignments: [state.command.stagingResources, guidedAssignmentResources].filter(Boolean).join('\n') },
         '205': { incidentName: state.incidentName, communications: state.command.communications },
         '206': { incidentName: state.incidentName, medicalPlan: state.command.medicalPlan || state.operational.medical || '' },
         '208': { incidentName: state.incidentName, safetyMessage: [safety, monitoring && `Monitoring record: ${monitoring}`, scbaRecords.length ? `SCBA air-management record:\n${scbaRecords.join('\n')}` : ''].filter(Boolean).join('\n') },
         '209': { incidentName: state.incidentName, status: state.status, situationSummary: expandedSituation },
-        '214': { incidentName: state.incidentName, activityLog: [confirmedAssignments.length ? `Confirmed personnel/resources (ICS 203 source):\n${confirmedAssignments.join('\n')}` : '', scbaRecords.length ? `SCBA air-management observations:\n${scbaRecords.join('\n')}` : '', state.reporting.notes.map((note) => note.text || note).join('\n'), recordedActions, tacticalDocumentation].filter(Boolean).join('\n') },
-        '215': { incidentName: state.incidentName, objectives, resources: state.command.stagingResources },
+        '214': { incidentName: state.incidentName, activityLog: [confirmedAssignments.length ? `Confirmed personnel/resources (ICS 203 source):\n${confirmedAssignments.join('\n')}` : '', assignmentHistory.length ? `Assignment history:\n${assignmentHistory.join('\n')}` : '', scbaRecords.length ? `SCBA air-management observations:\n${scbaRecords.join('\n')}` : '', state.reporting.notes.map((note) => note.text || note).join('\n'), recordedActions, tacticalDocumentation].filter(Boolean).join('\n') },
+        '215': { incidentName: state.incidentName, objectives, resources: [state.command.stagingResources, guidedAssignmentResources].filter(Boolean).join('\n') },
         '215A': { incidentName: state.incidentName, safetyAnalysis: [safety, tacticalDocumentation].filter(Boolean).join('\n') },
       },
       source,

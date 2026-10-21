@@ -948,10 +948,16 @@
           </section>
 
           <section id="guided-response" class="view guided-response-page" data-page-root="guided-response" data-page-name="Guided Response">
-            <header class="hazmat-page-hero variant-guided-response guided-response-heading">
-              <div class="guided-response-brand">
-                <img class="guided-response-logo" src="assets/emergenz-hero-header.png?v=3" alt="EMERGENZ — Incident Intelligence + Response Planning" hidden />
-                <div class="hazmat-page-hero-content">
+            <header class="hazmat-page-hero hazmat-page-hero-compact emergenz-page-header variant-guided-response guided-response-page-header">
+              <div class="hazmat-page-hero-content emergenz-page-header-content">
+                <span class="emergenz-page-header-icon" aria-hidden="true">
+                  <svg viewBox="0 0 56 62" focusable="false">
+                    <path d="M8 10.5c7-2.5 13.4-1.1 20 3.3v38c-6.6-4.4-13-5.8-20-3.3v-38Z" />
+                    <path d="M48 10.5c-7-2.5-13.4-1.1-20 3.3v38c6.6-4.4 13-5.8 20-3.3v-38Z" />
+                    <path d="M28 13.8v38M14 19h8M14 28h8M34 19h8M34 28h8" />
+                  </svg>
+                </span>
+                <div class="emergenz-page-header-copy">
                   <h1 class="hazmat-hero-title">Guided Response</h1>
                   <p class="hazmat-hero-subtitle">Tactical Decision Support.</p>
                 </div>
@@ -1502,6 +1508,7 @@
                     <button type="button" data-live-layer="staging"><span class="live-map-toggle-icon">▣</span><span>Staging</span><em>0</em></button>
                     <button type="button" data-live-layer="monitors"><span class="live-map-toggle-icon">⌁</span><span>Monitors</span><em>0</em></button>
                     <button type="button" data-live-layer="medical"><span class="live-map-toggle-icon">✚</span><span>Medical / Rehab</span><em>0</em></button>
+                    <button type="button" data-live-layer="incidentResources"><span class="live-map-toggle-icon">▤</span><span>Incident Resources</span><em>ASSIGNMENTS</em></button>
                   </div>
                   <div class="live-map-layer-menu" data-layer-menu="wildfire" hidden>
                     <div class="live-map-menu-heading"><strong>WILDFIRE</strong><small>EXTERNAL SOURCES</small></div>
@@ -1569,6 +1576,7 @@
                 <div data-live-panel="wildfireFires" class="wildfire-live-map-panel" hidden aria-label="NASA FIRMS fire detections"><strong>ACTIVE FIRE DETECTIONS</strong><span data-wildfire-panel-status="firms">Checking NASA FIRMS…</span></div>
                 <div data-live-panel="wildfirePerimeters" class="wildfire-live-map-panel" hidden aria-label="NIFC WFIGS fire perimeters"><strong>FIRE PERIMETERS</strong><span data-wildfire-panel-status="perimeters">Checking NIFC / WFIGS…</span></div>
                 <div data-live-panel="wildfireSmoke" class="wildfire-live-map-panel" hidden aria-label="NOAA HMS smoke plumes"><strong>SMOKE PLUMES</strong><span data-wildfire-panel-status="smoke">Checking NOAA HMS…</span></div>
+                <div data-live-panel="incidentResources" class="live-map-incident-resources" hidden aria-label="Guided Response incident resources"><strong>INCIDENT RESOURCES</strong><span>Guided Response assignments</span><div id="live-map-incident-resources-list"></div></div>
                 <div id="live-map-selected" hidden></div>
               </div>
             </div>

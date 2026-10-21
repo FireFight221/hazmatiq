@@ -2,19 +2,20 @@
 
 Updated: 2026-10-21
 
-## Platform contrast audit recovery
+## Guided Response refinement recovery
 
+- Current task: refine the existing seven-phase Guided Response workflow, preserve its incident/phase/note history, and complete the platform contrast audit follow-up.
 - Current branch: `plume-model-repair-20261021`
-- Recovery checkpoint: `eadf995` (`Recovery checkpoint before contrast audit`)
-- Implementation commit: `df6949e` (`Repair Plume distance popup contrast`)
-- No merge or rebase is in progress. The prior Plume, Operational Guidance, facility search, Incident Command, and Threat Zone work remains committed before this audit.
-- The local server was verified from this checkout at `http://127.0.0.1:3000/`; the first sandbox launch could not bind port 3000, so browser verification used the approved local server launch.
-- Chromium reproduced the confirmed defect: the live Plume measurement popup had `rgb(248,250,252)` text on a `rgb(255,255,255)` popup with a white pointer.
-- Completed: scoped Plume MapLibre popup contrast contract in `server/public/plume-overrides.css`; the measurement markup now has a bold title and explicit 18px value/unit rows, while distance calculations remain unchanged. The vendor popup defaults are not edited and no blanket white-text rule was added.
-- Browser evidence: [repaired Plume Distance popup screenshot](../contrast-audit-plume-distance-popup.png). The actual Distance control was activated and the map click path produced a popup with computed `rgb(8,32,51)` background, white text, 18px values, and a matching navy pointer. Satellite, Street, and 3D Terrain were exercised; 3D Plume correctly reported that an AEGL result is required before rendering.
-- Contrast audit: Plume, Weather, Live Map, dialog, tab, details, and form surface styles were inspected. Weather popups use explicit dark text on light content; Live Map facility popups use explicit dark text on light content; no matching inherited-color defect was found. Generated root PNG screenshots and local runtime/build files remain excluded from git.
-- Checks: `npm run typecheck` passed; `npm run lint` passed with 9 pre-existing `no-explicit-any` warnings; root Vitest passed 54 files / 577 tests; server Vitest passed 6 files / 71 tests with approved child-process permission.
-- Exact next step: final recovery handoff; do not push or deploy, and preserve the untracked screenshots as local audit evidence unless the user requests cleanup.
+- Recovery checkpoint: `751cb58` (`Recovery checkpoint before Guided Response refinement`)
+- Implementation checkpoint: pending local commit; the current implementation is preserved after the recovery checkpoint and has completed validation.
+- No merge or rebase is in progress. The prior Plume distance popup, Operational Guidance, facility search, Command layout, Threat Zone tabs, and plume work remains preserved in earlier commits.
+- Completed in this stage: Guided Response now uses the shared compact EMERGENZ page-header contract with an inline open-book icon; the old Guided-only hero rules were removed. Seven phase titles use explicit required capitalization and each phase summary has a small inline SVG operational icon. Phase cards now use compact responsive spacing, explicit Goal Status and Next Decision / Task elements, bottom-of-phase Commander Notes / Observations with debounced autosave, and useful References disclosures only when source records exist.
+- Completed in this stage: assignment activation validates Personnel / team, Unit / resource, and Responsibility; Assign confirms a new assignment by default, Update reuses the stable phase assignment ID, and assignment history/timeline records are persisted. Unplaced resources retain `Location not set`; Live Map lists them and provides explicit click-to-place/reposition behavior without invented coordinates. The authoritative server ICS mapper now carries assignments/history into the rendered ICS 203/204/214/215 fields.
+- Browser evidence: [prior Guided Response before screenshot](../guided-desktop.png), [repaired Guided Response desktop screenshot](../guided-response-refinement-after.png), [repaired Guided Response mobile screenshot](../guided-response-refinement-mobile.png), and [active-incident Guided Response evidence](../guided-response-refinement-after-active.png). Chromium computed the shared header at `112px` desktop / `100px` mobile; seven phase icons rendered; active assignment editing retained one stable record and displayed `Update`; Live Map displayed `Location not set` and `Place on Map`; the earlier placement pass persisted explicit coordinates and rendered one assignment marker. The repaired Plume distance popup evidence is [here](../contrast-audit-plume-distance-popup.png).
+- Runtime verification: port 3000 remained occupied by an unavailable process, so the checkout was verified on fresh ports `3311` and `3312`. Served `index.html` and `script.js` on 3311 matched the local checkout hashes (`5bf93a…ec197b` and `459524…0058`); the fresh 3312 backend served the updated ICS mapper and rendered `Unit 4` plus `Entry Team 2 · Entry Team · Initial Perimeter` in ICS 203.
+- Checks run: focused Guided Response / Incident Command / hazard-flow / decision-builder tests passed `73/73`; fresh server API suite passed `46/46`; full root Vitest passed `54` files / `580` tests; root and server typechecks passed; `npm run lint` completed with 0 errors and 9 existing `no-explicit-any` warnings; `git diff --check` passed. Existing Plume map-view coverage passed `59` tests, and prior interactive contrast evidence covered Satellite, Street, 3D Terrain, and 3D Plume states.
+- Outstanding: create the implementation commit, then commit this final validation note. Do not push or deploy.
+- Exact next step: commit the completed Guided Response refinement and ICS mapping as one logical implementation stage, update this note with that SHA, and commit the note checkpoint.
 
 ## Recovery state
 

@@ -270,8 +270,47 @@ function chemicalMitigationsForIcs(incident: Record<string, unknown>) {
   ].filter(Boolean).join("\n").slice(0, 1800);
 }
 
+function guidedAssignmentsForIcs(incident: Record<string, unknown>) {
+  const direct = Array.isArray(incident.guidedResponseAssignments)
+    ? incident.guidedResponseAssignments
+    : Object.entries(
+        incident.guidedResponsePhaseState && typeof incident.guidedResponsePhaseState === "object"
+          ? incident.guidedResponsePhaseState
+          : {},
+      ).flatMap(([phaseId, state]) => {
+        if (!state || typeof state !== "object" || !Array.isArray((state as Record<string, unknown>).assignments)) return [];
+        return ((state as Record<string, unknown>).assignments as unknown[]).map((assignment) => ({
+          ...(assignment && typeof assignment === "object" ? assignment : {}),
+          phaseId,
+        }));
+      });
+  return direct.filter((assignment): assignment is Record<string, unknown> => (
+    Boolean(assignment && typeof assignment === "object" && assignment.status !== "Suggested")
+  ));
+}
+
+function guidedAssignmentSummary(assignment: Record<string, unknown>) {
+  return [
+    assignment.phaseId,
+    assignment.role,
+    assignment.personnel,
+    assignment.unit,
+    assignment.supervisor,
+    assignment.responsibility,
+    assignment.status,
+    assignment.locationStatus || "Location not set",
+  ].map(textValue).filter(Boolean).join(" · ");
+}
+
+function guidedAssignmentLocation(assignment: Record<string, unknown>) {
+  return textValue(assignment.locationStatus) || "Location not set";
+}
+
 function automaticIcsValue(fieldName: string, incident: Record<string, unknown>) {
   const normalized = fieldName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const guidedAssignments = guidedAssignmentsForIcs(incident);
+  const firstGuidedAssignment = guidedAssignments[0];
+  const guidedAssignmentSummaries = guidedAssignments.map(guidedAssignmentSummary).filter(Boolean);
   const profile = incidentChemicalProfile(incident);
   const properties = profileSection(profile, "properties");
   const exposures = profileSection(profile, "exposures");
@@ -288,6 +327,41 @@ function automaticIcsValue(fieldName: string, incident: Record<string, unknown>)
   if (normalized === "communications" || normalized.includes("communicationsplan")) return textValue(incident.communications);
   if (normalized === "medicalplan" || normalized.includes("medicalplan")) return textValue(incident.medicalPlan);
   if (normalized === "stagingresources" || normalized.includes("staging") || normalized.includes("resourceassignment")) return textValue(incident.stagingResources);
+  if (normalized === "agencyorganizationrow1") return textValue(firstGuidedAssignment?.unit);
+  if (normalized === "namerow1") return [
+    firstGuidedAssignment?.personnel,
+    firstGuidedAssignment?.role,
+    firstGuidedAssignment?.responsibility,
+  ].map(textValue).filter(Boolean).join(" · ");
+  if (normalized === "6workassignments") return guidedAssignmentSummaries.join("\n");
+  if (normalized.startsWith("resourceidentifierrow1")) return textValue(firstGuidedAssignment?.unit);
+  if (normalized === "leaderrow1") return textValue(firstGuidedAssignment?.personnel);
+  if (normalized === "numberofpersonsrow1") return firstGuidedAssignment ? "1" : "";
+  if (normalized.startsWith("reportinglocationspecialequipmentandsuppliesremarksnotesinformation")) {
+    return [firstGuidedAssignment?.responsibility, firstGuidedAssignment && guidedAssignmentLocation(firstGuidedAssignment)]
+      .map(textValue).filter(Boolean).join(" · ");
+  }
+  if (normalized === "notableactivitiesrow1" || normalized === "notableactivitiesrow12") {
+    const history = Array.isArray(incident.guidedResponseAssignmentHistory)
+      ? incident.guidedResponseAssignmentHistory
+        .map((entry) => entry && typeof entry === "object" ? [
+          (entry as Record<string, unknown>).action || "assignment",
+          (entry as Record<string, unknown>).phaseId,
+          ((entry as Record<string, unknown>).assignment as Record<string, unknown> | undefined)?.personnel,
+          ((entry as Record<string, unknown>).assignment as Record<string, unknown> | undefined)?.unit,
+          (entry as Record<string, unknown>).changedAt,
+          (entry as Record<string, unknown>).changedBy,
+        ].map(textValue).filter(Boolean).join(" · ") : "")
+        .filter(Boolean)
+      : [];
+    return [...guidedAssignmentSummaries, ...history].join("\n");
+  }
+  if (normalized === "6resources1") return guidedAssignmentSummaries.join("\n");
+  if (normalized === "workassignment1") return [
+    firstGuidedAssignment?.role,
+    firstGuidedAssignment?.responsibility,
+  ].map(textValue).filter(Boolean).join(" · ");
+  if (normalized === "reportinglocation1") return firstGuidedAssignment ? guidedAssignmentLocation(firstGuidedAssignment) : "";
   if (normalized.includes("incidentlocation")) {
     return [incident.facilityName, incident.address, incident.city, incident.state, incident.zip]
       .map(textValue)

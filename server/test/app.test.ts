@@ -863,6 +863,46 @@ describe("API routes", () => {
     expect(body.fields).toContainEqual(expect.objectContaining({ name: "UELRow1", value: "28" }));
   });
 
+  it("maps Guided Response assignments and history into operational ICS forms", async () => {
+    const incident = {
+      incidentId: "incident-guided-assignment-1",
+      incidentName: "Warehouse response",
+      guidedResponseAssignments: [{
+        phaseId: "identify-isolate-notify",
+        role: "Entry Team",
+        personnel: "Entry Team 2",
+        unit: "Unit 4",
+        supervisor: "Command",
+        responsibility: "Initial Perimeter",
+        status: "Confirmed",
+        locationStatus: "Location not set",
+      }],
+      guidedResponseAssignmentHistory: [{
+        action: "assigned",
+        phaseId: "identify-isolate-notify",
+        assignment: { personnel: "Entry Team 2", unit: "Unit 4" },
+        changedAt: "2026-10-21T00:00:00.000Z",
+        changedBy: "Commander",
+      }],
+      icsForms: { "203": { fields: {} }, "204": { fields: {} }, "214": { fields: {} }, "215": { fields: {} } },
+    };
+    const request = (formId: string) => app.request(`/api/ics-forms/${formId}/prepare`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(incident),
+    });
+    const prepared203 = await (await request("203")).json() as { fields: Array<{ name: string; value: string }> };
+    const prepared204 = await (await request("204")).json() as { fields: Array<{ name: string; value: string }> };
+    const prepared214 = await (await request("214")).json() as { fields: Array<{ name: string; value: string }> };
+    const prepared215 = await (await request("215")).json() as { fields: Array<{ name: string; value: string }> };
+    expect(prepared203.fields).toContainEqual(expect.objectContaining({ name: "AgencyOrganizationRow1", value: "Unit 4" }));
+    expect(prepared203.fields).toContainEqual(expect.objectContaining({ name: "NameRow1", value: expect.stringContaining("Entry Team 2") }));
+    expect(prepared204.fields).toContainEqual(expect.objectContaining({ name: "LeaderRow1", value: "Entry Team 2" }));
+    expect(prepared204.fields).toContainEqual(expect.objectContaining({ name: "6 Work Assignments", value: expect.stringContaining("Location not set") }));
+    expect(prepared214.fields).toContainEqual(expect.objectContaining({ name: "Notable ActivitiesRow1", value: expect.stringContaining("Entry Team 2") }));
+    expect(prepared215.fields).toContainEqual(expect.objectContaining({ name: "Work Assignment 1", value: expect.stringContaining("Initial Perimeter") }));
+  });
+
   it("serves the static UI at /", async () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);

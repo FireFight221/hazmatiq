@@ -9,6 +9,7 @@ const styles = [
   readFileSync(new URL("../server/public/styles.css", import.meta.url), "utf8"),
   readFileSync(new URL("../server/public/chemical-intel.css", import.meta.url), "utf8"),
   readFileSync(new URL("../server/public/guided-response-overrides.css", import.meta.url), "utf8"),
+  readFileSync(new URL("../server/public/dashboard-header.css", import.meta.url), "utf8"),
 ].join("\n");
 const guidedHtml = html.slice(
   html.indexOf('<section id="guided-response"'),
@@ -106,8 +107,9 @@ describe("Guided Response workflow", () => {
 
   it("provides the new view, required actions, and compact disclaimers", () => {
     expect(html).toContain('id="guided-response" class="view guided-response-page"');
-    expect(guidedHtml).toContain('class="guided-response-logo" src="assets/emergenz-hero-header.png?v=3"');
-    expect(guidedHtml).toMatch(/guided-response-logo[^>]*>[\s\S]*<div class="hazmat-page-hero-content">[\s\S]*<h1 class="hazmat-hero-title">Guided Response<\/h1>/s);
+    expect(guidedHtml).toContain('class="hazmat-page-hero hazmat-page-hero-compact emergenz-page-header variant-guided-response guided-response-page-header"');
+    expect(guidedHtml).toContain('class="emergenz-page-header-icon"');
+    expect(guidedHtml).toContain('<h1 class="hazmat-hero-title">Guided Response</h1>');
     expect(guidedHtml).toContain('Command Actions');
     for (const id of [
       "guided-open-plume-btn",
@@ -136,6 +138,51 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain("@media (max-width: 900px)");
   });
 
+  it("uses the shared compact header and explicit phase icons", () => {
+    expect(styles).toContain('#guided-response > .emergenz-page-header.emergenz-page-header.emergenz-page-header');
+    expect(styles).not.toContain('.guided-response-heading');
+    for (const title of [
+      'Identify, Isolate, and Notify',
+      'Establish Zones and Prepare Resources',
+      'Reconnaissance and Assessment',
+      'Select and Execute a Strategy',
+      'Withdraw, Decontaminate, and Provide Medical/Rehab',
+      'Verify Control and Arrange Recovery/Transfer',
+      'Complete Notifications and Documentation',
+    ]) expect(script).toContain(`title: '${title}'`);
+    expect(script).toContain('function createGuidedPhaseIcon(phase)');
+    expect(script).toContain('guidedPhaseIconPaths');
+    for (const iconId of [
+      'identify-isolate-notify',
+      'zones-resources',
+      'recon-assessment',
+      'mitigation-strategy',
+      'withdraw-decon-rehab',
+      'verify-recovery',
+      'notifications-documentation',
+    ]) expect(script).toContain(`'${iconId}': [`);
+  });
+
+  it("keeps goal status, commander notes, and actionable next tasks explicit", () => {
+    expect(script).toContain("const guidedGoalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Accomplished', 'Needs Reassessment'])");
+    expect(script).toContain("goalStatusHeading.textContent = 'Goal Status'");
+    expect(script).toContain("nextDecisionHeading.textContent = 'Next Decision / Task'");
+    expect(script).toContain("notesHeading.textContent = 'COMMANDER NOTES / OBSERVATIONS'");
+    expect(script).toContain('Commander note saved');
+    expect(styles).toContain('.guided-phase-decision-grid');
+  });
+
+  it("requires explicit assignment activation and keeps assignment history/location semantics", () => {
+    expect(script).toContain("button.textContent = assignment.personnel || assignment.unit ? 'Update' : 'Assign'");
+    expect(script).toContain("Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.");
+    expect(script).toContain("locationStatus: assignment.locationStatus || 'Location not set'");
+    expect(script).toContain("type: 'guided-response-assignment'");
+    expect(script).toContain('guidedResponseAssignmentHistory');
+    expect(script).toContain('function beginIncidentResourcePlacement(assignment)');
+    expect(script).toContain('No location is assumed.');
+    expect(script).toContain('Place on Map');
+  });
+
   it("puts the command checkpoints first and makes them interactive", () => {
     expect(script).toContain("const checkpointsSection = createGuidedSupportingSection('COMMAND CHECKPOINTS'");
     expect(script).toContain("checkpointsSection.classList.add('guided-command-checkpoints')");
@@ -153,23 +200,21 @@ describe("Guided Response workflow", () => {
   });
 
   it("keeps the Guided Response title box compact", () => {
-    expect(styles).toContain("padding: 5px 12px");
-    expect(styles).toContain("height: 62px");
-    expect(styles).toContain("min-height: 36px");
+    expect(styles).toContain("height: 112px !important");
+    expect(styles).toContain("padding: 12px 20px 12px 22px !important");
+    expect(styles).toContain("gap: 13px !important");
   });
 
   it("makes the upper-left HazMatIQ identity prominent and symmetrical", () => {
-    expect(styles).toContain("width: clamp(265px, 26vw, 360px)");
-    expect(styles).toContain("font-size: clamp(2.35rem, 3.5vw, 3.25rem)");
-    expect(styles).toContain("align-self: start");
-    expect(styles).toContain("justify-self: start");
-    expect(styles).toContain("text-align: center");
+    expect(guidedHtml).toContain('class="emergenz-page-header-copy"');
+    expect(styles).toContain("flex: 0 0 74px !important");
+    expect(styles).toContain("font-size: clamp(1.7rem, 2.85vw, 2.95rem) !important");
   });
 
   it("uses page-scoped navy hero text and menu controls over the light smoke image", () => {
-    expect(styles).toMatch(/#guided-response \.hazmat-hero-title,[\s\S]*color: #082b4a !important;/);
-    expect(styles).toMatch(/#guided-response \.internal-command-menu span,[\s\S]*background: #082b4a !important;/);
-    expect(styles).toMatch(/#guided-response > \.guided-response-heading::before[\s\S]*rgba\(245, 248, 250, 0\.96\)/);
+    expect(styles).toMatch(/#guided-response > \.emergenz-page-header\.emergenz-page-header[\s\S]*background-image: linear-gradient/);
+    expect(styles).toContain('color: #eef7ff !important;');
+    expect(styles).toContain('color: #cce9fc !important;');
   });
 
   it("resolves the active incident chemical before rendering Guided Response", () => {
