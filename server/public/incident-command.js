@@ -170,6 +170,28 @@
       tacticalMitigation.nonInterventionConsiderations && `Non-intervention considerations: ${tacticalMitigation.nonInterventionConsiderations}`,
       tacticalMitigation.requiredVerification && `Required verification: ${Array.isArray(tacticalMitigation.requiredVerification) ? tacticalMitigation.requiredVerification.join(' · ') : tacticalMitigation.requiredVerification}`,
     ].filter(Boolean).join('\n');
+    const phaseEvents = Object.entries(source.guidedResponsePhaseState || {})
+      .map(([phaseId, event]) => [phaseId, event?.status, event?.changedAt, event?.evidence].filter(Boolean).join(' · '))
+      .filter(Boolean);
+    const recordedTimeline = state.reporting.timeline
+      .map((event) => [event.changedAt || event.createdAt || event.timestamp, event.type, event.message || event.evidence].filter(Boolean).join(' · '))
+      .filter(Boolean);
+    const monitoring = source.monitoringStatus || source.monitoringReadings || source.monitoringLog || '';
+    const plumeFacts = state.plume.result
+      ? [
+          source.plumeSummary,
+          state.plume.result.model?.confidenceStatus,
+          state.plume.result.weather?.source,
+          state.plume.result.inputs?.releasePhase,
+          state.plume.result.release?.quantity,
+        ].filter(Boolean).join(' · ')
+      : '';
+    const recordedActions = [
+      phaseEvents.length ? `Guided phase events:\n${phaseEvents.join('\n')}` : '',
+      monitoring ? `Monitoring:\n${monitoring}` : '',
+      recordedTimeline.length ? `Incident timeline:\n${recordedTimeline.join('\n')}` : '',
+    ].filter(Boolean).join('\n');
+    const expandedSituation = [situation, plumeFacts && `Plume / release record: ${plumeFacts}`, recordedActions].filter(Boolean).join(' · ');
     return Object.freeze({
       incidentId: state.incidentId,
       shared: {
@@ -180,15 +202,15 @@
         incidentLocation: location,
       },
       forms: {
-        '201': { incidentName: state.incidentName, incidentLocation: location, situationSummary: situation },
+        '201': { incidentName: state.incidentName, incidentLocation: location, situationSummary: expandedSituation },
         '202': { incidentName: state.incidentName, objectives },
         '203': { incidentName: state.incidentName, commandStructure: state.command.structure },
         '204': { incidentName: state.incidentName, assignments: state.command.stagingResources },
         '205': { incidentName: state.incidentName, communications: state.command.communications },
         '206': { incidentName: state.incidentName, medicalPlan: state.command.medicalPlan || state.operational.medical || '' },
-        '208': { incidentName: state.incidentName, safetyMessage: safety },
-        '209': { incidentName: state.incidentName, status: state.status, situationSummary: situation },
-        '214': { incidentName: state.incidentName, activityLog: [state.reporting.notes.map((note) => note.text || note).join('\n'), tacticalDocumentation].filter(Boolean).join('\n') },
+        '208': { incidentName: state.incidentName, safetyMessage: [safety, monitoring && `Monitoring record: ${monitoring}`].filter(Boolean).join('\n') },
+        '209': { incidentName: state.incidentName, status: state.status, situationSummary: expandedSituation },
+        '214': { incidentName: state.incidentName, activityLog: [state.reporting.notes.map((note) => note.text || note).join('\n'), recordedActions, tacticalDocumentation].filter(Boolean).join('\n') },
         '215': { incidentName: state.incidentName, objectives, resources: state.command.stagingResources },
         '215A': { incidentName: state.incidentName, safetyAnalysis: [safety, tacticalDocumentation].filter(Boolean).join('\n') },
       },

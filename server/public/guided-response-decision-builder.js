@@ -969,6 +969,20 @@
     stages.flatMap((item) => item.sources).forEach((source) => {
       if (source?.label) sourceCatalog[source.label] = source;
     });
+    const phases = [
+      ['identify-isolate-notify', 1, 'Identify, isolate, and notify', [stages[0], stages[1]], 'Confirm identity and establish the initial perimeter; start condition-based notifications.'],
+      ['zones-resources', 2, 'Establish zones and prepare resources', [stages[1], stages[2]], 'Establish zones, PPE, decon, medical/rehab, monitoring, and communications readiness.'],
+      ['recon-assessment', 3, 'Reconnaissance and assessment', [stages[0], stages[3]], 'Verify container, release, atmosphere, and field conditions with a qualified recon team.'],
+      ['mitigation-strategy', 4, 'Select and execute a supported mitigation strategy', [stages[4], stages[5]], 'Select only a source-backed, agency-approved control objective that matches the scenario.'],
+      ['withdraw-decon-rehab', 5, 'Withdraw, decontaminate, and provide medical/rehab', [stages[6], stages[7]], 'Withdraw on task completion or the agency trigger, then complete compatible decon and medical/rehab.'],
+      ['verify-recovery', 6, 'Verify control and arrange recovery/transfer', [stages[8], stages[9]], 'Verify control with monitoring and identify the qualified recovery or transfer path.'],
+      ['notifications-documentation', 7, 'Complete notifications and documentation', [stages[8], stages[9]], 'Review jurisdiction-specific notifications and preserve a timestamped, reviewable record.'],
+    ].map(([id, number, title, linkedStages, action]) => ({
+      id, number, title, action,
+      status: linkedStages.some((item) => item.status === 'VERIFY' || item.status === 'ACTION REQUIRED' || item.status === 'NO CURRENT DATA') ? 'VERIFY' : 'SOURCE-BACKED',
+      sources: [...new Map(linkedStages.flatMap((item) => item.sources || []).filter((source) => source?.label).map((source) => [source.label, source])).values()],
+      stages: linkedStages.map((item) => item.id),
+    }));
     return {
       identification: stages[0],
       isolation: stages[1],
@@ -989,6 +1003,7 @@
       termination: stages[9],
       controlMitigation: stages[5],
       sequence: stages,
+      phases,
       sources: sourceCatalog,
       currentStep: stages[currentIndex]?.title || stages[0].title,
     };

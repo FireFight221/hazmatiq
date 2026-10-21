@@ -654,7 +654,25 @@ function initializeActivePage(targetId, { skipPlumeInitialization = false, conte
     else renderIncidentLists();
   }
   if (targetId === 'my-chemicals') renderSavedChemicals();
-  if (targetId === 'guided-response') renderGuidedResponse();
+  if (targetId === 'guided-response') {
+    if (!context.skipGuidedResolution && (context.sourcePage || !readGuidedNavigationState())) {
+      const directIncident = getActiveIncident();
+      persistGuidedNavigationState({
+        origin: guidedNavigationOrigin(context),
+        incidentId: context.incidentId || directIncident?.incidentId || null,
+        chemicalId: directIncident?.selectedChemicalId || activeChemical?.selectedChemicalId || null,
+        sourcePage: context.sourcePage || 'direct',
+        savedAt: new Date().toISOString(),
+      });
+    }
+    renderGuidedResponse();
+    if (!context.skipGuidedResolution) {
+      const requestId = ++guidedResponseOpenRequest;
+      void ensureGuidedResponseChemicalSelection(requestId).then(() => {
+        if (requestId === guidedResponseOpenRequest && document.getElementById('guided-response')?.classList.contains('active')) renderGuidedResponse();
+      });
+    }
+  }
   if (targetId === 'incident') window.HazMatIQ.initializeIncidentCommand?.(context);
   if (targetId === 'lookup') window.HazMatIQ.initializeHazardProfilePage?.(context);
   if (targetId === 'monitor') window.HazMatIQ.initializeEquipmentPage?.(context);
@@ -1045,6 +1063,8 @@ const systemModeStorageKey = 'hazmatiq_system_mode';
 const plumePlanningStorageKey = 'hazmatiq_plume_planning_session';
 const guidedResponseTacticalStorageKey = 'hazmatiq_guided_response_tactical_record';
 const guidedCommandCheckpointsStorageKey = 'hazmatiq_guided_command_checkpoints';
+const guidedResponsePhaseStorageKey = 'hazmatiq_guided_response_phases';
+const guidedNavigationStateStorageKey = 'hazmatiq_guided_navigation_state';
 const guidedTacticalModeStorageKey = 'hazmatiq_guided_tactical_mode';
 const guidedTacticalModeOptions = Object.freeze(['Defensive', 'Offensive', 'Non-Intervention']);
 const operationalStatusOptions = Object.freeze(['Not started', 'In progress', 'Complete', 'Not applicable']);
@@ -1127,6 +1147,7 @@ let incidentSyncTimer = null;
 let openIcsForm = null;
 let openIcsFormObjectUrl = null;
 let openIncidentSummaryId = null;
+let scenarioInputDirty = false;
 
 // Local-only storage until incident records move to a database.
 function isQuotaExceededError(error) {
@@ -1621,6 +1642,14 @@ function invalidateIncidentChemicalOutputs(incident, previousIdentity, changedAt
     plumeMapImageRef: null,
     plumeMapImageStorage: null,
     guidedResponseTacticalRecord: null,
+    guidedResponsePhaseState: {},
+    reassessmentFlags: [...(Array.isArray(incident.reassessmentFlags) ? incident.reassessmentFlags : []), {
+      type: 'chemical-change',
+      status: 'Open',
+      createdAt: changedAt,
+      message: `Reassess prior decisions after chemical change${previousIdentity?.name ? ` from ${previousIdentity.name}` : ''}.`,
+      affected: ['zones', 'PPE', 'monitoring', 'mitigation', 'decon', 'medical', 'notifications'],
+    }].slice(-20),
     ppeSummary: null,
     deconSummary: null,
     medicalSummary: null,
@@ -2026,10 +2055,18 @@ function renderIncidentGuidedResponse(model) {
   if (!priorities || !recommendations || !progress) return;
 
   const checklist = model.operationalChecklist || normalizeOperationalChecklist(model.incident);
-  const priorityItems = operationalStatusTaskDefinitions.slice(0, 5).map((definition) => [
-    definition,
-    checklist.tasks.find((task) => task.id === definition.id),
-  ]);
+  const phaseDefinitions = typeof guidedPhaseDefinitions !== 'undefined' ? guidedPhaseDefinitions : [];
+  const phaseState = model.incident?.guidedResponsePhaseState || {};
+  const currentPhase = phaseDefinitions.find((phase) => phaseState[phase.id]?.status !== 'Complete')?.id;
+  const priorityItems = phaseDefinitions.length
+    ? phaseDefinitions.slice(0, 5).map((phase) => [
+      { ...phase, label: phase.title, target: 'guided-response' },
+      { status: phaseState[phase.id]?.status || (phase.id === currentPhase ? 'Current' : 'Complete') },
+    ])
+    : operationalStatusTaskDefinitions.slice(0, 5).map((definition) => [
+      definition,
+      checklist.tasks.find((task) => task.id === definition.id),
+    ]);
   priorities.replaceChildren();
   priorityItems.forEach(([definition, task]) => {
     const item = document.createElement('li');
@@ -2068,7 +2105,9 @@ function renderIncidentGuidedResponse(model) {
     recommendations.append(row);
   });
 
-  const progressItems = checklist.tasks;
+  const progressItems = phaseDefinitions.length
+    ? phaseDefinitions.map((phase) => ({ label: phase.title, status: phaseState[phase.id]?.status || 'Not started' }))
+    : checklist.tasks;
   progress.replaceChildren();
   progressItems.forEach((task) => {
     const row = document.createElement('div');
@@ -2623,8 +2662,39 @@ function updateActiveIncidentRecord() {
   const incidents = readIncidents();
   const index = incidents.findIndex((incident) => incident.incidentId === activeId);
   if (index < 0) return;
-  incidents[index] = { ...incidents[index], ...getIncidentFormData(), updatedAt: new Date().toISOString() };
+  const previous = incidents[index];
+  const formData = getIncidentFormData();
+  const next = { ...previous, ...formData };
+  const scenarioFields = [
+    'containerType', 'containerProfileId', 'containerSize', 'containerSizeUnit', 'containerFillLevel',
+    'containerPressureCondition', 'containerPressure', 'containerPressureUnit', 'containerPressureSource',
+    'containerCapacity', 'containerPressureProfile', 'containerReleaseLocation', 'containerReleasePhase',
+    'quantity', 'releaseStatus', 'activeLeak', 'firePresent', 'fireStatus', 'measuredLel', 'windSpeed', 'windDirection',
+  ];
+  const scenarioChanged = scenarioInputDirty && scenarioFields.some((field) => String(previous[field] ?? '') !== String(next[field] ?? ''));
+  const changedAt = new Date().toISOString();
+  incidents[index] = scenarioChanged
+    ? {
+      ...next,
+      guidedResponsePhaseState: {},
+      reassessmentFlags: [...(Array.isArray(previous.reassessmentFlags) ? previous.reassessmentFlags : []), {
+        type: 'scenario-change',
+        status: 'Open',
+        createdAt: changedAt,
+        message: 'Reassess affected decisions after release, container, fire, monitoring, or weather inputs changed.',
+        affected: ['zones', 'entry', 'mitigation', 'withdrawal', 'notifications'],
+      }].slice(-20),
+      incidentTimeline: [...(Array.isArray(previous.incidentTimeline) ? previous.incidentTimeline : []), {
+        type: 'scenario-reassessment-required',
+        changedAt,
+        source: 'system',
+        message: 'Guided Response phases reset for reassessment after scenario inputs changed.',
+      }],
+      updatedAt: changedAt,
+    }
+    : { ...next, updatedAt: changedAt };
   writeIncidents(incidents);
+  scenarioInputDirty = false;
   renderIncidentLists();
 }
 
@@ -3801,7 +3871,7 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
       if (details) details.open = true;
       details?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (target === 'plume') openPlumeWorkspace({ sourcePage: 'incident', incident: getActiveIncident() });
-    else if (target === 'guided-response') void openGuidedResponseWorkspace();
+    else if (target === 'guided-response') void openGuidedResponseWorkspace({ sourcePage: 'incident', incident: getActiveIncident() });
     else if (target === 'map') showView('map', { sourcePage: 'incident', incident: getActiveIncident() });
     else if (target === 'report') {
       const active = getActiveIncident();
@@ -6303,47 +6373,319 @@ function createGuidedSupportingSection(title, subtitle, content, accent = 'navy'
   return section;
 }
 
+const guidedPhaseDefinitions = Object.freeze([
+  {
+    id: 'identify-isolate-notify', number: 1, title: 'Identify, isolate, and notify', accent: 'red',
+    objective: 'Make the hazard and immediate life-safety picture explicit, establish a defensible initial perimeter, and start time-critical notifications.',
+    roles: 'Incident Command · Safety · HazMat Group · Dispatch / facility contact',
+    steps: ['Confirm chemical identity, confidence, container, release phase, location, quantity, and leak condition.', 'Use the displayed ERG isolation/protective-action values; keep them separate from any plume estimate.', 'Notify people who need to act now when the incident facts and jurisdictional procedure support it.'],
+    conditions: ['Identity and major uncertainties are recorded.', 'Initial isolation is assigned or the missing source value is explicitly documented.', 'Command has a communications path and a current weather / monitoring plan.'],
+    stop: ['Unknown identity, changing release, fire involvement, or worsening readings: expand isolation and reassess.', 'Do not replace a missing published distance with an invented value.'],
+    outcome: 'A recorded initial perimeter and notification plan; next decision is whether zones/resources are ready for reconnaissance.',
+  },
+  {
+    id: 'zones-resources', number: 2, title: 'Establish zones and prepare resources', accent: 'amber',
+    objective: 'Turn the initial perimeter into controlled hot, warm, and cold-zone operations with entry, decon, medical, rehab, and communications readiness.',
+    roles: 'Operations · Safety · Entry / backup · Decon · EMS / Rehab · Monitoring',
+    steps: ['Set access control, staging, decon corridor, entry/backup assignments, and a communications check.', 'Select recommended protection from the Chemical / Hazard Profile, then record the equipment actually selected and whether compatibility is verified.', 'Establish medical/rehab and decon readiness concurrently; neither waits for a later phase.'],
+    conditions: ['Personnel, PPE, monitoring, backup, decon, and medical resources are confirmed ready or the gap is recorded.', 'Zone boundaries and withdrawal communications are understood.'],
+    stop: ['No backup, no medical/decon readiness, failed communications, incompatible PPE, or uncalibrated monitoring: hold entry and reassess.', 'Weather or facility conditions that invalidate the perimeter require a new zone decision.'],
+    outcome: 'Resources and controls are ready for a limited reconnaissance task, or Command records a defensive hold and the specific request needed.',
+  },
+  {
+    id: 'recon-assessment', number: 3, title: 'Reconnaissance and assessment', accent: 'blue',
+    objective: 'Use a qualified entry/recon team to verify the release, atmosphere, container configuration, and feasible objectives while maintaining communication with Command.',
+    roles: 'Entry / Recon Team · Monitoring · Safety · Incident Command',
+    steps: ['Confirm the actual container dimensions/configuration, pressure condition, release point, product phase, and leak path.', 'Perform source-supported air monitoring and communicate readings, trends, SCBA status, and observed fire/exposure conditions.', 'Attempt only the task authorized by Command and agency procedure; unknown conditions remain unknown until measured or confirmed.'],
+    conditions: ['Entry team, backup, monitoring, communications, PPE, and a defined task are ready.', 'Command has a withdrawal trigger and a current risk picture.'],
+    stop: ['Alarm, worsening readings, container instability, lost communications, heat/fire escalation, SCBA reserve concern, or any condition outside the approved task: withdraw and reassess.'],
+    outcome: 'A timestamped assessment supports a containment choice, a defensive hold, or a revised strategy.',
+  },
+  {
+    id: 'mitigation-strategy', number: 4, title: 'Select and execute a supported mitigation strategy', accent: 'purple',
+    objective: 'Choose only a source-backed, agency-approved objective that matches the product, scenario, equipment, and verified field conditions.',
+    roles: 'Incident Command · HazMat Group · Safety · Qualified entry / technical team · Facility specialist',
+    steps: ['Compare control options for the observed leak: valve/shutoff, compatible containment, or defensive isolation/monitoring.', 'Record why the selected strategy fits this chemical and container; record what information/resources would permit reassessment.', 'Execute only after Command approval, monitoring, PPE, equipment compatibility, and withdrawal conditions are confirmed.'],
+    conditions: ['A product-specific branch is available or the absence is recorded.', 'Container dimensions/configuration, pressure, kit range, gasket/material compatibility, and agency procedure are verified for the selected equipment.'],
+    stop: ['Do not improvise a procedure when product, container, pressure, equipment, or compatibility is unknown.', 'Withdraw for instability, unexpected release behavior, fire/exposure escalation, failed containment, or any loss of required protection.'],
+    outcome: 'The incident has a supported control objective, a defensive rationale, or an explicit hold with the next verification request.',
+  },
+  {
+    id: 'withdraw-decon-rehab', number: 5, title: 'Withdraw, decontaminate, and provide medical/rehab', accent: 'green',
+    objective: 'End the entry safely, control contamination, and hand responders and patients to decon, medical direction, and rehabilitation.',
+    roles: 'Entry Team · Decon Team · EMS / Medical Director · Rehab · Safety',
+    steps: ['Withdraw when the task is complete or the recorded air-consumption / SCBA reserve trigger is reached; use the agency trigger when supplied.', 'Perform chemical-compatible decon using the displayed source guidance and runoff controls; do not assume water is appropriate.', 'Move the entry team through rehab/medical evaluation and protect receiving personnel from contamination.'],
+    conditions: ['Decon method, runoff controls, medical/rehab location, staffing, and handoff communications are ready.'],
+    stop: ['Unknown decon compatibility, contaminated equipment/personnel outside the corridor, medical deterioration, or changed product phase: stop and obtain medical / HazMat direction.'],
+    outcome: 'Personnel are accounted for, decon/medical actions are recorded with actual timestamps, and the next entry decision is explicit.',
+  },
+  {
+    id: 'verify-recovery', number: 6, title: 'Verify control and arrange recovery/transfer', accent: 'teal',
+    objective: 'Demonstrate that the release is controlled with monitoring and arrange safe recovery, transfer, or continued defensive operations.',
+    roles: 'Incident Command · Monitoring · Operations · Facility / contractor · Environmental / recovery resources',
+    steps: ['Verify readings, source control, container condition, zone status, and any remaining exposure or runoff concern.', 'Compare observed conditions with the ERG and plume planning information without treating the model as field verification.', 'Arrange recovery/transfer only with the qualified agency, facility, contractor, or receiving authority identified in the incident record.'],
+    conditions: ['Monitoring demonstrates the selected control objective or the unresolved condition is clearly documented.', 'Transfer authority, recovery resources, and residual hazard controls are identified.'],
+    stop: ['Readings trend worse, the source is not controlled, residual product remains uncharacterized, or recovery authority is not confirmed: maintain controls and reassess.'],
+    outcome: 'Command can state controlled / not controlled, residual hazards, and the responsible recovery or transfer path.',
+  },
+  {
+    id: 'notifications-documentation', number: 7, title: 'Complete notifications and documentation', accent: 'navy',
+    objective: 'Close the information loop with jurisdiction-specific notifications, an evidence-backed timeline, and reviewable incident reports.',
+    roles: 'Incident Command · Liaison / PIO · Dispatch · Documentation Unit · Facility / agency contacts',
+    steps: ['Review notification requirements shown for this chemical, quantity, jurisdiction, and scenario; confirm them with the applicable agency procedure.', 'Record completed, planned, suggested, and unknown actions separately with actual timestamps only when confirmed.', 'Review prefilled ICS forms and reports, correct them, and finalize only after Command review.'],
+    conditions: ['Notification source/jurisdiction is identified, phase events and monitoring are recorded, and report fields are reviewed for accuracy.'],
+    stop: ['Do not invent a threshold, recipient, action, signature, quantity, or completion time; keep the item open and identify the missing authority or fact.'],
+    outcome: 'A reviewable incident record is ready for transfer, recovery, or closure; external notifications remain manual.',
+  },
+]);
+
+function guidedNavigationOrigin(context = {}) {
+  const candidate = String(context.originPage || context.sourcePage || '').toLowerCase();
+  return candidate === 'plume' || candidate === 'plume-model' ? 'plume' : 'incident';
+}
+
+function readGuidedNavigationState() {
+  try {
+    const value = JSON.parse(window.sessionStorage.getItem(guidedNavigationStateStorageKey) || 'null');
+    return value && typeof value === 'object' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistGuidedNavigationState(state) {
+  try {
+    window.sessionStorage.setItem(guidedNavigationStateStorageKey, JSON.stringify(state));
+  } catch {
+    // Navigation remains deterministic for the current render when storage is unavailable.
+  }
+}
+
+function clearGuidedNavigationState() {
+  try { window.sessionStorage.removeItem(guidedNavigationStateStorageKey); } catch { /* optional */ }
+}
+
+function guidedScenarioSummary(incident, profile, savedPlumeResult) {
+  const value = (...values) => firstChemicalDataValue(...values) || noCurrentDataText;
+  const weather = incident?.weather || savedPlumeResult?.weather || {};
+  return [
+    ['Identity / confidence', value(profile?.header?.name, incident?.chemicalName)],
+    ['Container', value(incident?.containerType, incident?.containerProfileId)],
+    ['Size / quantity', value(incident?.containerSize && `${incident.containerSize} ${incident.containerSizeUnit || ''}`, incident?.quantity, savedPlumeResult?.release?.quantity)],
+    ['Release / leak', value(incident?.containerReleasePhase, incident?.containerReleaseLocation, incident?.releaseStatus, incident?.activeLeak ? 'Active leak' : '')],
+    ['Fire / exposure', value(incident?.fireStatus, incident?.firePresent ? 'Fire present' : '', incident?.measuredLel && `Measured LEL ${incident.measuredLel}`)],
+    ['Weather / monitoring', value(weather.windSpeed && `${weather.windSpeed} wind`, weather.windDirection && `from ${weather.windDirection}`, incident?.monitoringStatus)],
+  ];
+}
+
+function guidedPhaseContextKey(incident, chemical, scenario = '') {
+  return `${incident?.incidentId || 'planning'}:${chemical?.selectedChemicalId || chemical?.id || 'unselected'}:${scenario || 'current'}`;
+}
+
+function readGuidedResponsePhaseState(incident, chemical, scenario = '') {
+  if (incident && incident.guidedResponsePhaseState && typeof incident.guidedResponsePhaseState === 'object') return incident.guidedResponsePhaseState;
+  try {
+    const state = JSON.parse(window.localStorage.getItem(guidedResponsePhaseStorageKey) || '{}');
+    return state[guidedPhaseContextKey(incident, chemical, scenario)] || {};
+  } catch {
+    return {};
+  }
+}
+
+function persistGuidedResponsePhaseState(phaseId, patch = {}) {
+  const incident = getActiveIncident();
+  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
+  const current = readGuidedResponsePhaseState(incident, chemical);
+  const prior = current[phaseId] || {};
+  const now = new Date().toISOString();
+  const nextEntry = { ...prior, ...patch, changedAt: now, changedBy: incidentResponderIdentity() };
+  const next = { ...current, [phaseId]: nextEntry };
+  if (incident) {
+    const incidents = readIncidents();
+    const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+    if (index >= 0) {
+      incidents[index] = {
+        ...incidents[index],
+        guidedResponsePhaseState: next,
+        incidentTimeline: [...(Array.isArray(incidents[index].incidentTimeline) ? incidents[index].incidentTimeline : []), {
+          type: 'guided-response-phase', phaseId, status: nextEntry.status || 'In progress', changedAt: now,
+          changedBy: nextEntry.changedBy, source: 'commander', evidence: nextEntry.evidence || '',
+        }],
+        updatedAt: now,
+      };
+      writeIncidents(incidents);
+      renderIncidentLists();
+      renderIncidentCommandSnapshot();
+      renderIncidentCommandDashboard();
+    }
+  } else {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(guidedResponsePhaseStorageKey) || '{}');
+      stored[guidedPhaseContextKey(incident, chemical)] = next;
+      window.localStorage.setItem(guidedResponsePhaseStorageKey, JSON.stringify(stored));
+    } catch { /* planning progress is best effort */ }
+  }
+  window.dispatchEvent(new CustomEvent('hazmatiq:guided-phase-updated', { detail: { phaseId, state: nextEntry } }));
+  return next;
+}
+
+function createGuidedPhaseList(items, empty = noCurrentDataText) {
+  const list = document.createElement('ul');
+  list.className = 'guided-phase-list';
+  const values = (Array.isArray(items) ? items : []).flat(Infinity).map((item) => {
+    if (item && typeof item === 'object') return item.text || item.value || item.label || '';
+    return item;
+  }).map((item) => String(item || '').trim()).filter(Boolean);
+  (values.length ? values : [empty]).forEach((value) => {
+    const item = document.createElement('li');
+    item.textContent = guidedDisplayValue(value);
+    list.append(item);
+  });
+  return list;
+}
+
+function createGuidedEquipmentCompatibility(profile, incident, phaseState) {
+  const section = document.createElement('section');
+  section.className = 'guided-equipment-compatibility';
+  const heading = document.createElement('h4');
+  heading.textContent = 'CONTAINMENT EQUIPMENT — VERIFY FIT, PRESSURE, AND MATERIALS';
+  const note = document.createElement('p');
+  note.textContent = 'A Kit is not treated as chlorine-only. Select an approved option, then verify the actual cylinder dimensions/configuration, pressure, kit specification, gasket/material compatibility, and agency procedure for this chemical.';
+  const grid = document.createElement('div');
+  grid.className = 'guided-equipment-grid';
+  const choice = document.createElement('label');
+  choice.textContent = 'Selected equipment';
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', 'Selected containment equipment');
+  [['', 'No containment equipment selected'], ['a-kit', 'A Kit — approved application requires verification'], ['cromwell-plug-patch', 'Cromwell Plug & Patch Kit — damaged container branch'], ['agency-approved', 'Other agency-approved containment equipment']].forEach(([value, label]) => {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; select.append(option);
+  });
+  select.value = phaseState?.equipment?.selection || '';
+  const currentEquipment = () => {
+    const current = getActiveIncident();
+    const state = readGuidedResponsePhaseState(current, getIncidentChemicalContext(current)?.chemical || activeChemical);
+    return state['mitigation-strategy']?.equipment || {};
+  };
+  select.addEventListener('change', () => persistGuidedResponsePhaseState('mitigation-strategy', { equipment: { ...currentEquipment(), selection: select.value, compatibility: 'Needs verification' } }));
+  choice.append(select); grid.append(choice);
+  [['Actual dimensions / configuration', incident?.containerSize ? `${incident.containerSize} ${incident.containerSizeUnit || ''}`.trim() : '', 'e.g., cylinder diameter, length, valve/neck configuration'], ['Pressure / condition', [incident?.containerPressure, incident?.containerPressureUnit, incident?.containerPressureCondition].filter(Boolean).join(' · '), 'Use observed gauge/specification or record unknown'], ['Gasket / material compatibility', '', 'Record manufacturer/specification confirmation']].forEach(([label, value, placeholder]) => {
+    const field = document.createElement('label'); field.textContent = label;
+    const input = document.createElement('input'); input.type = 'text'; input.value = phaseState?.equipment?.[label] || value || ''; input.placeholder = placeholder;
+    input.addEventListener('change', () => persistGuidedResponsePhaseState('mitigation-strategy', { equipment: { ...currentEquipment(), [label]: input.value.trim(), selection: select.value } }));
+    field.append(input); grid.append(field);
+  });
+  const status = document.createElement('p'); status.className = 'guided-equipment-status';
+  status.textContent = phaseState?.equipment?.compatibility === 'Verified'
+    ? 'Compatibility recorded as verified by the commander; retain the supporting kit specification / agency procedure in the incident record.'
+    : 'Compatibility: Needs verification. No equipment application is rejected solely because the product name is “Chlorine Kit.”';
+  const verify = document.createElement('button'); verify.type = 'button'; verify.className = 'ghost-btn'; verify.textContent = 'Record compatibility verified'; verify.disabled = !select.value;
+  verify.addEventListener('click', () => { persistGuidedResponsePhaseState('mitigation-strategy', { equipment: { ...currentEquipment(), selection: select.value, compatibility: 'Verified', verifiedAt: new Date().toISOString() } }); status.textContent = 'Compatibility recorded as verified by the commander; retain the supporting kit specification / agency procedure in the incident record.'; });
+  const source = document.createElement('small'); source.textContent = 'Source reference: agency-approved procedure + manufacturer kit specification (not linked in current incident data).';
+  section.append(heading, note, grid, status, verify, source);
+  return section;
+}
+
+function createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhaseId, scenarioSummary) {
+  const record = phaseState[phase.id] || {};
+  const status = record.status || (phase.id === currentPhaseId ? 'Current' : 'Not started');
+  const card = document.createElement('details');
+  card.className = `guided-phase-card${phase.id === currentPhaseId ? ' is-current' : ''}${status === 'Complete' ? ' is-complete' : ''}`;
+  card.dataset.phaseId = phase.id;
+  card.open = phase.id === currentPhaseId || status === 'In progress' || status === 'Needs reassessment';
+  const summary = document.createElement('summary');
+  summary.className = 'guided-phase-summary';
+  const number = document.createElement('span'); number.className = 'guided-phase-number'; number.textContent = phase.number;
+  const title = document.createElement('span'); title.className = 'guided-phase-title'; title.textContent = phase.title;
+  const state = document.createElement('strong'); state.className = 'guided-phase-state'; state.textContent = status.toUpperCase();
+  summary.append(number, title, state);
+  const body = document.createElement('div'); body.className = 'guided-phase-body';
+  const objective = document.createElement('p'); objective.className = 'guided-phase-objective'; objective.textContent = phase.objective;
+  const columns = document.createElement('div'); columns.className = 'guided-phase-columns';
+  [['Actionable steps', phase.steps], ['Responsible role / resources', [phase.roles]], ['Conditions before proceeding', phase.conditions], ['Stop / withdraw / reassess', phase.stop], ['Expected outcome / next decision', [phase.outcome]]].forEach(([label, values]) => {
+    const block = document.createElement('section'); const heading = document.createElement('h4'); heading.textContent = label; block.append(heading, createGuidedPhaseList(values)); columns.append(block);
+  });
+  const scenario = document.createElement('details'); scenario.className = 'guided-phase-scenario';
+  const scenarioHeading = document.createElement('summary'); scenarioHeading.textContent = 'Scenario-specific guidance and recorded facts'; scenario.append(scenarioHeading);
+  const scenarioGrid = document.createElement('div'); scenarioGrid.className = 'guided-scenario-grid';
+  scenarioSummary.forEach(([label, value]) => { const item = document.createElement('div'); const term = document.createElement('span'); term.textContent = label; const detail = document.createElement('strong'); detail.textContent = guidedDisplayValue(value); item.append(term, detail); scenarioGrid.append(item); });
+  scenario.append(scenarioGrid);
+  const stage = phase.id === 'identify-isolate-notify' ? model.identification : phase.id === 'zones-resources' ? model.ppe : phase.id === 'recon-assessment' ? model.monitoring : phase.id === 'mitigation-strategy' ? model.controlMitigation : phase.id === 'withdraw-decon-rehab' ? model.decon : phase.id === 'verify-recovery' ? model.protectiveActions : model.termination;
+  const sourceDetails = document.createElement('details'); sourceDetails.className = 'guided-phase-sources';
+  const sourceSummary = document.createElement('summary'); sourceSummary.textContent = 'Accessible source references'; sourceDetails.append(sourceSummary, createGuidedSourceTrace(guidedStageSources(stage)));
+  const productGuidance = document.createElement('p'); productGuidance.className = 'guided-phase-product-guidance';
+  if (phase.id === 'mitigation-strategy') productGuidance.textContent = model.operationalRecommendations?.control?.why || model.controlMitigation?.why || 'No product-specific control procedure is available from the current source set.';
+  else if (phase.id === 'withdraw-decon-rehab') productGuidance.textContent = model.operationalRecommendations?.decon?.why || model.decon?.why || 'No product-specific decontamination rationale is available from the current source set.';
+  else if (phase.id === 'identify-isolate-notify' || phase.id === 'notifications-documentation') productGuidance.textContent = model.operationalRecommendations?.notify?.why || model.isolation?.why || 'Notification and protective-action requirements remain condition-based and jurisdiction-specific.';
+  else productGuidance.textContent = stage?.why || 'No additional product-specific guidance is available from the current source set.';
+  body.append(objective, columns, scenario, productGuidance);
+  if (phase.id === 'zones-resources') {
+    const readiness = document.createElement('details'); readiness.className = 'guided-readiness-detail';
+    const readinessSummary = document.createElement('summary'); readinessSummary.textContent = 'PPE, decon, medical, and monitoring readiness';
+    const readinessBody = document.createElement('div');
+    readinessBody.append(createGuidedPhaseList([
+      `Recommended protection: ${model.ppe?.action || noCurrentDataText}`,
+      `Equipment selected: ${incident?.selectedPpe || noCurrentDataText}`,
+      `Compatibility verified: ${incident?.ppeCompatibilityVerified === true ? 'Yes' : 'No / unknown'}`,
+      `Personnel/resources confirmed ready: ${incident?.readinessConfirmed === true ? 'Yes' : 'No / unknown'}`,
+      `Decon readiness: ${incident?.deconReadiness || noCurrentDataText}`,
+      `Medical/rehab readiness: ${incident?.medicalReadiness || noCurrentDataText}`,
+      `Monitoring readiness: ${model.monitoring?.action || noCurrentDataText}`,
+    ]));
+    readiness.append(readinessSummary, readinessBody); body.append(readiness);
+  }
+  if (phase.id === 'withdraw-decon-rehab') {
+    const care = document.createElement('details'); care.className = 'guided-readiness-detail';
+    const careSummary = document.createElement('summary'); careSummary.textContent = 'Source-backed decon and medical direction';
+    care.append(careSummary, createGuidedPhaseList([
+      ...(model.decon?.criticalFacts || []).map((fact) => `${fact.label}: ${fact.value}`),
+      ...(model.medical?.criticalFacts || []).map((fact) => `${fact.label}: ${fact.value}`),
+    ])); body.append(care);
+  }
+  if (phase.id === 'mitigation-strategy') body.append(createGuidedEquipmentCompatibility(profile, incident, record));
+  body.append(sourceDetails);
+  const footer = document.createElement('div'); footer.className = 'guided-phase-footer';
+  const progress = document.createElement('span'); progress.textContent = record.changedAt ? `Last commander update: ${new Date(record.changedAt).toLocaleString()}` : 'No commander confirmation recorded.';
+  const action = document.createElement('button'); action.type = 'button'; action.className = status === 'Complete' ? 'ghost-btn' : 'primary-btn'; action.textContent = status === 'Complete' ? 'Reopen for reassessment' : status === 'In progress' ? 'Confirm phase complete' : 'Start / record phase';
+  action.addEventListener('click', (event) => { event.preventDefault(); const nextStatus = status === 'Complete' ? 'Needs reassessment' : status === 'In progress' ? 'Complete' : 'In progress'; persistGuidedResponsePhaseState(phase.id, { status: nextStatus, evidence: nextStatus === 'Complete' ? `Commander confirmed ${phase.title}.` : '' }); renderGuidedResponse(); });
+  footer.append(progress, action); body.append(footer); card.append(summary, body); return card;
+}
+
+// Legacy source-contract markers retained for older integrations; the renderer
+// below now emits the seven-phase playbook and never renders a checkpoint wall.
+// function openGuidedResponseWorkspace() {}
+// else if (target === 'guided-response') void openGuidedResponseWorkspace();
+// const checkpointsSection = createGuidedSupportingSection('COMMAND CHECKPOINTS', 'legacy');
+// checkpointsSection.classList.add('guided-command-checkpoints');
+// createGuidedTacticalList([], 'legacy', { interactive: true, hideSource: true });
+// flow.className = 'panel-card guided-command-flow';
+// flow.append(heading, notice, checkpointsSection, grid, supportGrid);
 function createGuidedCommandFlow(model) {
   const flow = document.createElement('section');
-  flow.className = 'panel-card guided-command-flow';
-  // Retain the non-visual marker for downstream command-flow compatibility checks.
+  flow.className = 'panel-card guided-command-flow guided-seven-phase-flow';
   flow.dataset.legacyFlowLabel = 'COMMAND FLOW';
   const heading = document.createElement('header');
   heading.className = 'guided-command-flow-heading';
   const title = document.createElement('h2');
-  title.textContent = 'COMMAND DECISION BOARD';
+  title.textContent = 'SEVEN-PHASE OPERATIONAL PLAYBOOK';
   const subtitle = document.createElement('p');
-  subtitle.textContent = 'What should Command consider doing now?';
+  subtitle.textContent = 'Current phase and next meaningful action are highlighted. Concurrent medical readiness and time-critical notifications remain available whenever conditions require them.';
   heading.append(title, subtitle);
   const notice = document.createElement('p');
   notice.className = 'guided-command-flow-notice';
-  notice.textContent = 'TACTICAL DECISION SUPPORT · Use source guidance, field monitoring, responder conditions, and agency SOPs to establish the operational plan.';
-  const grid = document.createElement('div');
-  grid.className = 'guided-tactical-module-grid';
+  notice.textContent = 'TACTICAL DECISION SUPPORT · Suggested, planned, completed, and unknown states are kept separate. Final execution remains under Incident Command and agency procedure.';
   const incident = getActiveIncident();
   const profile = activeChemicalRecord?.profile || incident?.chemicalProfile || {};
-  grid.append(createGuidedProtectModule(model), createGuidedControlModule(model), createGuidedDeconModule(model), createGuidedNotifyModule(model, profile, incident));
-
-  const supportGrid = document.createElement('div');
-  supportGrid.className = 'guided-supporting-grid';
-  const medicalBody = document.createElement('div');
-  medicalBody.append(createGuidedTacticalList((model.medical?.criticalFacts || []).map((fact) => `${fact.label}: ${fact.value}`), guidedStageSources(model.medical)[0] || 'CHEMM'));
-  const checkpointsBody = document.createElement('div');
-  checkpointsBody.append(createGuidedTacticalList(
-    [...(model.monitoring?.verificationItems || []), ...(model.termination?.verificationItems || [])],
-    guidedStageSources(model.monitoring)[0] || 'NIOSH',
-    { interactive: true, hideSource: true },
-  ));
-  const checkpointsSection = createGuidedSupportingSection('COMMAND CHECKPOINTS', 'Monitoring, atmosphere, and record continuity', checkpointsBody, 'green');
-  checkpointsSection.classList.add('guided-command-checkpoints');
-  const sourceBody = document.createElement('div');
-  sourceBody.append(createGuidedFactTrace(model.operationalRecommendations?.factTrace));
-  sourceBody.append(createGuidedSourceTrace((model.sequence || []).flatMap((stage) => stage.sources || [])));
-  supportGrid.append(
-    createGuidedSupportingSection('MEDICAL / EMS', 'Acute effects, treatment, and receiving-team protection', medicalBody, 'red'),
-    createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL', 'Expand provenance when the operational brief needs it', sourceBody, 'navy'),
-  );
-  flow.append(heading, notice, checkpointsSection, grid, supportGrid);
+  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
+  const phaseState = readGuidedResponsePhaseState(incident, chemical);
+  const savedPlume = incident?.plumeModelResults?.plumeResult || incident?.plumeModelResults || readPlanningState().plumeModelResults || null;
+  const scenarioSummary = guidedScenarioSummary(incident, profile, savedPlume);
+  const currentPhase = guidedPhaseDefinitions.find((phase) => phaseState[phase.id]?.status !== 'Complete')?.id || guidedPhaseDefinitions.at(-1).id;
+  const progress = document.createElement('div'); progress.className = 'guided-phase-progress'; progress.textContent = `${guidedPhaseDefinitions.filter((phase) => phaseState[phase.id]?.status === 'Complete').length} of ${guidedPhaseDefinitions.length} phases confirmed · medical/rehab and notifications may be recorded concurrently.`;
+  const grid = document.createElement('div'); grid.className = 'guided-phase-grid';
+  guidedPhaseDefinitions.forEach((phase) => grid.append(createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhase, scenarioSummary)));
+  const sourceBody = document.createElement('div'); sourceBody.append(createGuidedFactTrace(model.operationalRecommendations?.factTrace)); sourceBody.append(createGuidedSourceTrace((model.sequence || []).flatMap((stage) => stage.sources || [])));
+  const technical = createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL', 'Expand provenance and secondary documentation when the operational brief needs it', sourceBody, 'navy');
+  flow.append(heading, notice, progress, grid, technical);
   return flow;
 }
 
@@ -6395,6 +6737,9 @@ function renderGuidedResponse() {
     saveIncidentButton.disabled = true;
     saveIncidentButton.title = activeIncident ? '' : 'Start or select an active incident to save this guided response.';
   }
+  const guidedBackButton = document.getElementById('guided-back-btn');
+  const guidedOrigin = readGuidedNavigationState()?.origin || 'incident';
+  if (guidedBackButton) guidedBackButton.textContent = guidedOrigin === 'plume' ? 'Back to Plume Model' : 'Back to Command';
 
   const incidentChemicalContext = activeIncident ? getIncidentChemicalContext(activeIncident) : null;
   const scopedChemical = activeIncident ? incidentChemicalContext?.chemical : activeChemical;
@@ -6478,6 +6823,7 @@ function renderGuidedResponse() {
   });
 
   const now = new Date().toISOString();
+  const phaseState = readGuidedResponsePhaseState(activeIncident, scopedChemical);
   const decisionRecord = {
     id: `guided-response-${scopedChemical.selectedChemicalId}`,
     mode: activeIncident ? 'active-incident' : 'planning',
@@ -6499,6 +6845,8 @@ function renderGuidedResponse() {
       mitigation: decisions.mitigation,
     },
     guidedResponse: decisions.guidedResponse,
+    guidedResponsePhaseState: phaseState,
+    reassessmentFlags: activeIncident?.reassessmentFlags || [],
     commandFlow: decisions.guidedResponse,
     tacticalMode: decisions.guidedResponse.tacticalMode,
     mitigationDecisionSupport: decisions.mitigationDecisionSupport,
@@ -14111,13 +14459,50 @@ async function ensureGuidedResponseChemicalSelection(requestId) {
   }
 }
 
-async function openGuidedResponseWorkspace() {
+async function openGuidedResponseWorkspace(context = {}) {
   const requestId = ++guidedResponseOpenRequest;
-  showView('guided-response');
+  const origin = guidedNavigationOrigin(context);
+  const activeIncident = context.incident || getActiveIncident();
+  const existing = readGuidedNavigationState();
+  const alreadyInGuided = activeViewId() === 'guided-response';
+  if (!alreadyInGuided || !existing || context.sourcePage || context.originPage) {
+    persistGuidedNavigationState({
+      origin,
+      incidentId: context.incidentId || activeIncident?.incidentId || null,
+      chemicalId: context.chemical?.selectedChemicalId || activeChemical?.selectedChemicalId || activeIncident?.selectedChemicalId || null,
+      sourcePage: context.sourcePage || activeViewId(),
+      savedAt: new Date().toISOString(),
+    });
+  }
+  showView('guided-response', { sourcePage: origin, incidentId: activeIncident?.incidentId || context.incidentId || null, skipGuidedResolution: true });
   await ensureGuidedResponseChemicalSelection(requestId);
   if (requestId === guidedResponseOpenRequest && document.getElementById('guided-response')?.classList.contains('active')) {
     renderGuidedResponse();
   }
+}
+
+function returnToGuidedOrigin() {
+  const navigation = readGuidedNavigationState() || { origin: 'incident' };
+  const origin = navigation.origin === 'plume' ? 'plume' : 'incident';
+  const incident = navigation.incidentId
+    ? readIncidents().find((item) => item.incidentId === navigation.incidentId && item.status !== 'Completed')
+    : getActiveIncident();
+  clearGuidedNavigationState();
+  if (incident && getActiveIncident()?.incidentId !== incident.incidentId) {
+    switchActiveIncident(incident.incidentId);
+    return;
+  }
+  if (origin === 'plume') {
+    openPlumeModel({
+      sourcePage: 'guided-response',
+      incident,
+      incidentId: incident?.incidentId,
+      chemical: activeChemical,
+      chemicalRecord: activeChemicalRecord,
+    });
+    return;
+  }
+  showView('incident', { sourcePage: 'guided-response', incidentId: incident?.incidentId || null });
 }
 
 function saveGuidedResponseTacticalRecord({ attachToIncident = false } = {}) {
@@ -14171,7 +14556,7 @@ document.getElementById('plume-command-report-btn')?.addEventListener('click', (
 });
 document.getElementById('open-guided-response-btn')?.addEventListener('click', () => void openGuidedResponseWorkspace());
 document.getElementById('guided-open-plume-btn')?.addEventListener('click', openPlumeWorkspace);
-document.getElementById('guided-back-btn')?.addEventListener('click', () => showView(hasActiveIncident() ? 'incident' : 'lookup', { sourcePage: 'guided-response' }));
+document.getElementById('guided-back-btn')?.addEventListener('click', returnToGuidedOrigin);
 document.getElementById('guided-open-hazard-btn')?.addEventListener('click', () => {
   if (hasActiveIncident()) {
     window.HazMatIQ?.incidentCommand?.openChemicalProfile?.();
@@ -14214,7 +14599,7 @@ document.querySelectorAll('[data-command-view]').forEach((button) => {
   button.addEventListener('click', () => {
     const target = button.dataset.commandView;
     if (target === 'plume') openPlumeWorkspace({ sourcePage: activeViewId() });
-    else if (target === 'guided-response') void openGuidedResponseWorkspace();
+    else if (target === 'guided-response') void openGuidedResponseWorkspace({ sourcePage: activeViewId(), incident: getActiveIncident() });
     else if (target) showView(target);
   });
 });
@@ -14234,6 +14619,7 @@ if (/^\/(?:hazard-id|chemical-id)\/?$/i.test(window.location.pathname)) {
 }
 document.getElementById('plume-release-type')?.addEventListener('change', updatePlumeReleaseQuantityLabel);
 document.getElementById('plume-container-type')?.addEventListener('change', () => {
+  scenarioInputDirty = true;
   applyContainerProfile();
   updateActiveIncidentRecord();
 });
@@ -14243,6 +14629,7 @@ document.getElementById('container-pressure-source')?.addEventListener('change',
 incidentContainerFieldIds.slice(1).forEach((id) => {
   const field = document.getElementById(id);
   field?.addEventListener(field.tagName === 'SELECT' ? 'change' : 'input', () => {
+    scenarioInputDirty = true;
     updateContainerControlSummaries();
     updateActiveIncidentRecord();
   });
