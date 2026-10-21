@@ -6407,7 +6407,7 @@ const guidedPhaseDefinitions = Object.freeze([
     roles: 'Incident Command · HazMat Group · Safety · Qualified entry / technical team · Facility specialist',
     steps: ['Compare control options for the observed leak: valve/shutoff, compatible containment, or defensive isolation/monitoring.', 'Record why the selected strategy fits this chemical and container; record what information/resources would permit reassessment.', 'Execute only after Command approval, monitoring, PPE, equipment compatibility, and withdrawal conditions are confirmed.'],
     conditions: ['A product-specific branch is available or the absence is recorded.', 'Container dimensions/configuration, pressure, kit range, gasket/material compatibility, and agency procedure are verified for the selected equipment.'],
-    stop: ['Do not improvise a procedure when product, container, pressure, equipment, or compatibility is unknown.', 'Withdraw for instability, unexpected release behavior, fire/exposure escalation, failed containment, or any loss of required protection.'],
+    stop: ['Do not improvise a procedure when product, container, pressure, equipment, or compatibility is unknown.', 'Withdraw for instability, unexpected release behavior, fire/exposure escalation, failed containment, or any loss of required protection.', 'Use the configured agency SCBA turn-around / withdrawal criteria; if it is missing, stop and obtain the procedure before entry.'],
     outcome: 'The incident has a supported control objective, a defensive rationale, or an explicit hold with the next verification request.',
   },
   {
@@ -6507,6 +6507,7 @@ function persistGuidedResponsePhaseState(phaseId, patch = {}) {
       incidents[index] = {
         ...incidents[index],
         guidedResponsePhaseState: next,
+        guidedResponseAssignments: Object.entries(next).flatMap(([phaseId, phase]) => (Array.isArray(phase?.assignments) ? phase.assignments : []).map((assignment) => ({ ...assignment, phaseId }))),
         incidentTimeline: [...(Array.isArray(incidents[index].incidentTimeline) ? incidents[index].incidentTimeline : []), {
           type: 'guided-response-phase', phaseId, status: nextEntry.status || 'In progress', changedAt: now,
           changedBy: nextEntry.changedBy, source: 'commander', evidence: nextEntry.evidence || '',
@@ -6585,6 +6586,128 @@ function createGuidedEquipmentCompatibility(profile, incident, phaseState) {
   return section;
 }
 
+function persistGuidedPhaseAssignment(phaseId, assignment) {
+  const incident = getActiveIncident();
+  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
+  const current = readGuidedResponsePhaseState(incident, chemical);
+  const assignments = Array.isArray(current[phaseId]?.assignments) ? current[phaseId].assignments : [];
+  const nextAssignment = {
+    ...assignment,
+    phaseId,
+    role: assignment.role || guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.roles || '',
+    updatedAt: new Date().toISOString(),
+    changedBy: incidentResponderIdentity(),
+  };
+  const nextAssignments = assignments.length ? [nextAssignment, ...assignments.slice(1)] : [nextAssignment];
+  return persistGuidedResponsePhaseState(phaseId, { assignments: nextAssignments });
+}
+
+function createGuidedRoleAssignment(phase, incident, record) {
+  const panel = document.createElement('div');
+  panel.className = 'guided-role-assignment';
+  const suggested = document.createElement('p');
+  suggested.className = 'guided-role-suggestion';
+  suggested.textContent = `Suggested roles/resources: ${phase.roles}. These are recommendations until a commander confirms an assignment.`;
+  panel.append(suggested);
+  const assignment = Array.isArray(record.assignments) && record.assignments[0] ? record.assignments[0] : {};
+  const knownPersonnel = [incident?.personnelRecords, incident?.personnel, incident?.resources]
+    .flatMap((value) => Array.isArray(value) ? value : [])
+    .map((value) => typeof value === 'string' ? value : value?.name || value?.personnel || value?.unit || '')
+    .map((value) => String(value).trim()).filter(Boolean);
+  const grid = document.createElement('div');
+  grid.className = 'guided-assignment-grid';
+  const fields = [
+    ['Personnel / team', 'personnel', 'Assigned person or team'],
+    ['Unit / resource', 'unit', 'Unit, apparatus, or resource'],
+    ['Supervisor', 'supervisor', 'Supervisor or group leader'],
+    ['Responsibility', 'responsibility', 'Confirmed responsibility for this phase'],
+  ];
+  const controls = {};
+  fields.forEach(([label, key, placeholder]) => {
+    const field = document.createElement('label');
+    field.textContent = label;
+    const input = document.createElement('input');
+    input.type = 'text'; input.value = assignment[key] || ''; input.placeholder = placeholder;
+    if (key === 'personnel' && knownPersonnel.length) {
+      const listId = `guided-personnel-${phase.id}`;
+      input.setAttribute('list', listId);
+      if (!document.getElementById(listId)) {
+        const datalist = document.createElement('datalist'); datalist.id = listId;
+        knownPersonnel.forEach((value) => { const option = document.createElement('option'); option.value = value; datalist.append(option); });
+        panel.append(datalist);
+      }
+    }
+    input.addEventListener('change', () => {
+      persistGuidedPhaseAssignment(phase.id, { ...assignment, ...Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.value.trim()])), status: statusSelect.value });
+    });
+    controls[key] = input;
+    field.append(input); grid.append(field);
+  });
+  const statusField = document.createElement('label');
+  statusField.textContent = 'Assignment state';
+  const statusSelect = document.createElement('select');
+  [['Suggested', 'Suggested — not assigned'], ['Planned', 'Planned — awaiting confirmation'], ['Confirmed', 'Confirmed — actual assignment']].forEach(([value, label]) => {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; statusSelect.append(option);
+  });
+  statusSelect.value = assignment.status || 'Suggested';
+  statusSelect.addEventListener('change', () => {
+    persistGuidedPhaseAssignment(phase.id, { ...assignment, ...Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.value.trim()])), status: statusSelect.value });
+  });
+  statusField.append(statusSelect); grid.append(statusField);
+  const note = document.createElement('p');
+  note.className = 'guided-assignment-note';
+  note.textContent = assignment.status === 'Confirmed'
+    ? `Confirmed assignment recorded ${assignment.updatedAt ? new Date(assignment.updatedAt).toLocaleString() : 'with the incident'}.`
+    : 'No confirmed assignment is shown until Command records the actual personnel/resource and responsibility.';
+  panel.append(grid, note);
+  return panel;
+}
+
+function createGuidedScbaManagement(record) {
+  const section = document.createElement('div');
+  section.className = 'guided-scba-management';
+  const heading = document.createElement('h5'); heading.textContent = 'SCBA Air Management';
+  const note = document.createElement('p');
+  note.textContent = 'Record team readings separately when needed. Fill percentage is not estimated operating time; pressure alone cannot guarantee a safe work duration.';
+  const state = record.scba || {};
+  const grid = document.createElement('div'); grid.className = 'guided-scba-grid';
+  const fields = [
+    ['Rated service pressure', 'ratedServicePressure', 'e.g., 2216'],
+    ['Pressure units', 'pressureUnits', 'psi / bar'],
+    ['Starting pressure', 'startingPressure', 'Manual reading'],
+    ['Starting fill percentage', 'startingFillPercentage', 'Manual percentage'],
+    ['Current pressure', 'currentPressure', 'Manual reading'],
+    ['Current fill percentage', 'currentFillPercentage', 'Manual percentage'],
+    ['Observation time', 'observationTime', 'When the reading was observed'],
+    ['Agency turn-around / withdrawal criteria', 'agencyCriteria', 'Required agency procedure or unknown'],
+    ['Work allowance', 'workAllowance', 'Agency-defined allowance'],
+    ['Egress allowance', 'egressAllowance', 'Agency-defined allowance'],
+    ['Decon allowance', 'deconAllowance', 'Agency-defined allowance'],
+    ['Emergency reserve', 'emergencyReserve', 'Agency-defined reserve'],
+  ];
+  fields.forEach(([label, key, placeholder]) => {
+    const field = document.createElement('label'); field.textContent = label;
+    const input = document.createElement('input'); input.type = key === 'observationTime' ? 'datetime-local' : 'text';
+    input.value = state[key] || ''; input.placeholder = placeholder;
+    input.addEventListener('change', () => {
+      const currentIncident = getActiveIncident();
+      const chemical = getIncidentChemicalContext(currentIncident)?.chemical || activeChemical;
+      const current = readGuidedResponsePhaseState(currentIncident, chemical);
+      persistGuidedResponsePhaseState('mitigation-strategy', { scba: { ...state, ...(current['mitigation-strategy']?.scba || {}), [key]: input.value, source: 'manual' } });
+      if (key === 'agencyCriteria') status.textContent = input.value.trim()
+        ? 'Air-management readings are manual entries; use the configured agency procedure for the withdrawal decision.'
+        : 'Missing setting: configure the agency air-management procedure before entry. No universal pressure or percentage threshold is assumed.';
+    });
+    field.append(input); grid.append(field);
+  });
+  const status = document.createElement('p'); status.className = 'guided-scba-status';
+  status.textContent = state.agencyCriteria
+    ? 'Air-management readings are manual entries; use the configured agency procedure for the withdrawal decision.'
+    : 'Missing setting: configure the agency air-management procedure before entry. No universal pressure or percentage threshold is assumed.';
+  section.append(heading, note, grid, status);
+  return section;
+}
+
 function createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhaseId, scenarioSummary) {
   const record = phaseState[phase.id] || {};
   const status = record.status || (phase.id === currentPhaseId ? 'Current' : 'Not started');
@@ -6599,11 +6722,7 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   const state = document.createElement('strong'); state.className = 'guided-phase-state'; state.textContent = status.toUpperCase();
   summary.append(number, title, state);
   const body = document.createElement('div'); body.className = 'guided-phase-body';
-  const objective = document.createElement('p'); objective.className = 'guided-phase-objective'; objective.textContent = phase.objective;
-  const columns = document.createElement('div'); columns.className = 'guided-phase-columns';
-  [['Actionable steps', phase.steps], ['Responsible role / resources', [phase.roles]], ['Conditions before proceeding', phase.conditions], ['Stop / withdraw / reassess', phase.stop], ['Expected outcome / next decision', [phase.outcome]]].forEach(([label, values]) => {
-    const block = document.createElement('section'); const heading = document.createElement('h4'); heading.textContent = label; block.append(heading, createGuidedPhaseList(values)); columns.append(block);
-  });
+  const goal = document.createElement('div'); goal.className = 'guided-phase-goal'; goal.textContent = `GOAL: ${phase.objective}`;
   const scenario = document.createElement('details'); scenario.className = 'guided-phase-scenario';
   const scenarioHeading = document.createElement('summary'); scenarioHeading.textContent = 'Scenario-specific guidance and recorded facts'; scenario.append(scenarioHeading);
   const scenarioGrid = document.createElement('div'); scenarioGrid.className = 'guided-scenario-grid';
@@ -6617,7 +6736,12 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   else if (phase.id === 'withdraw-decon-rehab') productGuidance.textContent = model.operationalRecommendations?.decon?.why || model.decon?.why || 'No product-specific decontamination rationale is available from the current source set.';
   else if (phase.id === 'identify-isolate-notify' || phase.id === 'notifications-documentation') productGuidance.textContent = model.operationalRecommendations?.notify?.why || model.isolation?.why || 'Notification and protective-action requirements remain condition-based and jurisdiction-specific.';
   else productGuidance.textContent = stage?.why || 'No additional product-specific guidance is available from the current source set.';
-  body.append(objective, columns, scenario, productGuidance);
+  const objectives = document.createElement('section'); const objectivesHeading = document.createElement('h3'); objectivesHeading.textContent = 'OBJECTIVES';
+  objectives.append(objectivesHeading, createGuidedPhaseList(phase.steps));
+  const guidance = document.createElement('p'); guidance.className = 'guided-phase-product-guidance'; guidance.textContent = `Product/scenario guidance: ${productGuidance.textContent}`; objectives.append(guidance);
+  const roles = document.createElement('section'); const rolesHeading = document.createElement('h3'); rolesHeading.textContent = 'ROLES & RESPONSIBILITIES'; roles.append(rolesHeading, createGuidedRoleAssignment(phase, incident, record));
+  const conditions = document.createElement('section'); const conditionsHeading = document.createElement('h3'); conditionsHeading.textContent = 'CONDITIONS & CONSIDERATIONS';
+  conditions.append(conditionsHeading, createGuidedPhaseList(phase.conditions));
   if (phase.id === 'zones-resources') {
     const readiness = document.createElement('details'); readiness.className = 'guided-readiness-detail';
     const readinessSummary = document.createElement('summary'); readinessSummary.textContent = 'PPE, decon, medical, and monitoring readiness';
@@ -6631,8 +6755,12 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
       `Medical/rehab readiness: ${incident?.medicalReadiness || noCurrentDataText}`,
       `Monitoring readiness: ${model.monitoring?.action || noCurrentDataText}`,
     ]));
-    readiness.append(readinessSummary, readinessBody); body.append(readiness);
+    readiness.append(readinessSummary, readinessBody); conditions.append(readiness);
   }
+  if (phase.id === 'mitigation-strategy') conditions.append(createGuidedScbaManagement(record));
+  const stop = document.createElement('section'); const stopHeading = document.createElement('h3'); stopHeading.textContent = 'STOP / WITHDRAW / REASSESS'; stop.append(stopHeading, createGuidedPhaseList(phase.stop));
+  const outcome = document.createElement('div'); outcome.className = 'guided-phase-next-decision'; outcome.textContent = `EXPECTED OUTCOME / NEXT DECISION: ${phase.outcome}`;
+  body.append(goal, objectives, roles, conditions, stop, outcome);
   if (phase.id === 'withdraw-decon-rehab') {
     const care = document.createElement('details'); care.className = 'guided-readiness-detail';
     const careSummary = document.createElement('summary'); careSummary.textContent = 'Source-backed decon and medical direction';
@@ -6644,10 +6772,12 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   if (phase.id === 'mitigation-strategy') body.append(createGuidedEquipmentCompatibility(profile, incident, record));
   body.append(sourceDetails);
   const footer = document.createElement('div'); footer.className = 'guided-phase-footer';
+  const activity = document.createElement('textarea'); activity.className = 'guided-phase-evidence'; activity.rows = 2; activity.placeholder = 'Optional: record the confirmed action, observation, or evidence.'; activity.value = record.evidence || '';
+  activity.setAttribute('aria-label', `Confirmed activity for phase ${phase.number}`);
   const progress = document.createElement('span'); progress.textContent = record.changedAt ? `Last commander update: ${new Date(record.changedAt).toLocaleString()}` : 'No commander confirmation recorded.';
   const action = document.createElement('button'); action.type = 'button'; action.className = status === 'Complete' ? 'ghost-btn' : 'primary-btn'; action.textContent = status === 'Complete' ? 'Reopen for reassessment' : status === 'In progress' ? 'Confirm phase complete' : 'Start / record phase';
-  action.addEventListener('click', (event) => { event.preventDefault(); const nextStatus = status === 'Complete' ? 'Needs reassessment' : status === 'In progress' ? 'Complete' : 'In progress'; persistGuidedResponsePhaseState(phase.id, { status: nextStatus, evidence: nextStatus === 'Complete' ? `Commander confirmed ${phase.title}.` : '' }); renderGuidedResponse(); });
-  footer.append(progress, action); body.append(footer); card.append(summary, body); return card;
+  action.addEventListener('click', (event) => { event.preventDefault(); const nextStatus = status === 'Complete' ? 'Needs reassessment' : status === 'In progress' ? 'Complete' : 'In progress'; persistGuidedResponsePhaseState(phase.id, { status: nextStatus, evidence: activity.value.trim() }); renderGuidedResponse(); });
+  footer.append(activity, progress, action); body.append(footer); card.append(summary, body); return card;
 }
 
 // Legacy source-contract markers retained for older integrations; the renderer
@@ -6666,7 +6796,7 @@ function createGuidedCommandFlow(model) {
   const heading = document.createElement('header');
   heading.className = 'guided-command-flow-heading';
   const title = document.createElement('h2');
-  title.textContent = 'SEVEN-PHASE OPERATIONAL PLAYBOOK';
+  title.textContent = 'Operational Guidance';
   const subtitle = document.createElement('p');
   subtitle.textContent = 'Current phase and next meaningful action are highlighted. Concurrent medical readiness and time-critical notifications remain available whenever conditions require them.';
   heading.append(title, subtitle);

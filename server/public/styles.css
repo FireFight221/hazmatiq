@@ -8439,6 +8439,98 @@ body.workspace-drawer-open { overflow: hidden; }
   }
 }
 
+/* Operational Guidance owns its phase-card typography here so the field
+   workflow does not depend on a later override stylesheet. */
+#guided-response .guided-seven-phase-flow,
+#guided-response .guided-seven-phase-flow button,
+#guided-response .guided-seven-phase-flow input,
+#guided-response .guided-seven-phase-flow select,
+#guided-response .guided-seven-phase-flow textarea {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+#guided-response .guided-seven-phase-flow { display: grid; gap: 16px; }
+#guided-response .guided-command-flow-heading { align-items: start; margin: 0 2px 4px; }
+#guided-response .guided-command-flow-heading h2 { color: #fff; font-size: clamp(1.375rem, 2vw, 1.625rem); font-weight: 850; letter-spacing: normal; line-height: 1.2; }
+#guided-response .guided-command-flow-heading p,
+#guided-response .guided-command-flow-notice { color: #fff; font-size: 1rem; line-height: 1.5; }
+#guided-response .guided-command-flow-notice { margin: 0; padding: 10px 12px; border: 1px solid #5c8bb2; border-left: 5px solid #f6c343; border-radius: 6px; background: #0b2944; }
+#guided-response .guided-phase-progress { padding: 10px 12px; border: 1px solid #9eb8c9; border-left: 5px solid #168349; border-radius: 7px; background: #eef8f1; color: #164c32; font-size: 1rem; font-weight: 750; line-height: 1.5; }
+#guided-response .guided-phase-grid { display: grid; gap: 14px; }
+#guided-response .guided-phase-card { overflow: hidden; border: 1px solid #c4d2dc; border-left: 6px solid #7794a7; border-radius: 9px; background: #fff; box-shadow: 0 2px 7px rgba(19, 50, 69, .07); }
+#guided-response .guided-phase-card.is-current { border-color: #e3a029; border-left-color: #e3a029; box-shadow: 0 0 0 3px rgba(227, 160, 41, .18); }
+#guided-response .guided-phase-card.is-complete { border-left-color: #258a4a; }
+#guided-response .guided-phase-summary { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; cursor: pointer; list-style: none; }
+#guided-response .guided-phase-card > .guided-phase-summary { background: #fff; }
+#guided-response .guided-phase-summary::-webkit-details-marker { display: none; }
+#guided-response .guided-phase-number { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #123d5a; color: #fff; font-size: 1rem; font-weight: 850; }
+#guided-response .guided-phase-card.is-current .guided-phase-number { background: #c47d08; }
+#guided-response .guided-phase-card.is-complete .guided-phase-number { background: #258a4a; }
+#guided-response .guided-phase-title { color: #153d56; font-size: 1.25rem; font-weight: 850; line-height: 1.3; }
+#guided-response .guided-phase-state { color: #607789; font-size: .9rem; font-weight: 800; letter-spacing: .04em; }
+#guided-response .guided-phase-card.is-current .guided-phase-state { color: #9b6100; }
+#guided-response .guided-phase-card.is-complete .guided-phase-state { color: #17723c; }
+#guided-response .guided-phase-body { display: grid; gap: 14px; padding: 0 16px 16px; }
+#guided-response .guided-phase-goal { padding: 14px 16px; border: 2px solid #2d6388; border-radius: 7px; background: #eaf4fa; color: #102f46; font-size: 1.25rem; font-weight: 850; line-height: 1.5; }
+#guided-response .guided-phase-body > section { min-width: 0; padding: 14px 16px; border: 1px solid #d1dee6; border-radius: 7px; background: #fbfdfe; }
+#guided-response .guided-phase-body > section h3 { margin: 0 0 9px; color: #173e57; font-size: 1.25rem; font-weight: 850; line-height: 1.25; }
+#guided-response .guided-phase-list { display: grid; gap: 7px; margin: 0; padding-left: 22px; color: #1e3c50; font-size: 1.125rem; line-height: 1.5; }
+#guided-response .guided-phase-list li::marker { color: #258a4a; }
+#guided-response .guided-role-suggestion,
+#guided-response .guided-phase-product-guidance,
+#guided-response .guided-assignment-note,
+#guided-response .guided-scba-management > p { margin: 0 0 10px; color: #294a5e; font-size: 1.05rem; line-height: 1.5; }
+#guided-response .guided-role-assignment { display: grid; gap: 10px; }
+#guided-response .guided-assignment-grid,
+#guided-response .guided-scba-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#guided-response .guided-assignment-grid label,
+#guided-response .guided-scba-grid label { display: grid; gap: 5px; min-width: 0; color: #173e57; font-size: 1rem; font-weight: 750; line-height: 1.35; }
+#guided-response .guided-assignment-grid input,
+#guided-response .guided-assignment-grid select,
+#guided-response .guided-scba-grid input,
+#guided-response .guided-phase-evidence,
+#guided-response .guided-equipment-grid select,
+#guided-response .guided-equipment-grid input { min-height: 42px; width: 100%; max-width: 100%; padding: 8px 10px; border: 1px solid #7794a7; border-radius: 5px; background: #fff; color: #102f46; font: inherit; font-size: 1rem; line-height: 1.35; }
+#guided-response .guided-assignment-grid input:focus-visible,
+#guided-response .guided-assignment-grid select:focus-visible,
+#guided-response .guided-scba-grid input:focus-visible,
+#guided-response .guided-phase-evidence:focus-visible { outline: 3px solid #f6c343; outline-offset: 2px; }
+#guided-response .guided-phase-body > section:nth-of-type(4) { border-color: #d89a96; background: #fff8f7; }
+#guided-response .guided-phase-next-decision { padding: 13px 15px; border-left: 5px solid #258a4a; background: #f1faf4; color: #164c32; font-size: 1.1rem; font-weight: 750; line-height: 1.5; }
+#guided-response .guided-phase-scenario,
+#guided-response .guided-readiness-detail,
+#guided-response .guided-phase-sources { border: 1px solid #c1d3df; border-radius: 6px; background: #f4f8fa; }
+#guided-response .guided-phase-scenario summary,
+#guided-response .guided-readiness-detail summary,
+#guided-response .guided-phase-sources summary { padding: 10px 12px; color: #173e57; cursor: pointer; font-size: 1rem; font-weight: 800; line-height: 1.5; }
+#guided-response .guided-scenario-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; padding: 0 12px 12px; }
+#guided-response .guided-scenario-grid div { display: grid; gap: 3px; min-width: 0; }
+#guided-response .guided-scenario-grid span { color: #4a6878; font-size: .9rem; font-weight: 800; }
+#guided-response .guided-scenario-grid strong { overflow-wrap: anywhere; color: #173e57; font-size: 1rem; line-height: 1.4; }
+#guided-response .guided-readiness-detail > .guided-phase-list { padding: 0 12px 12px 32px; }
+#guided-response .guided-phase-sources .guided-source-trace { margin: 0 12px 12px; }
+#guided-response .guided-phase-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: end; padding-top: 4px; border-top: 1px solid #d9e3e8; }
+#guided-response .guided-phase-footer span { color: #4a6878; font-size: .95rem; line-height: 1.4; }
+#guided-response .guided-phase-evidence { grid-column: 1 / -1; resize: vertical; }
+#guided-response .guided-scba-management { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c1d3df; }
+#guided-response .guided-scba-management h5 { margin: 0 0 7px; color: #173e57; font-size: 1.15rem; font-weight: 850; line-height: 1.3; }
+#guided-response .guided-scba-status { margin: 10px 0 0; color: #7a4d00; font-size: 1rem; font-weight: 750; line-height: 1.5; }
+#guided-response .guided-equipment-compatibility { display: grid; gap: 10px; padding: 14px; border: 1px solid #d3b5e2; border-left: 5px solid #7653b3; border-radius: 7px; background: #faf7fd; }
+#guided-response .guided-equipment-compatibility h4 { margin: 0; color: #4b3b5d; font-size: 1.15rem; line-height: 1.3; }
+#guided-response .guided-equipment-compatibility > p { margin: 0; color: #4c3b60; font-size: 1.05rem; line-height: 1.5; }
+#guided-response .guided-equipment-status { margin: 0; color: #7a4d00; font-size: 1rem; font-weight: 800; line-height: 1.5; }
+#guided-response .guided-equipment-compatibility small { color: #6a5874; font-size: .95rem; line-height: 1.45; }
+
+@media (max-width: 700px) {
+  #guided-response .guided-assignment-grid,
+  #guided-response .guided-scba-grid,
+  #guided-response .guided-scenario-grid { grid-template-columns: 1fr; }
+  #guided-response .guided-phase-summary { grid-template-columns: 34px minmax(0, 1fr); }
+  #guided-response .guided-phase-state { grid-column: 2; }
+  #guided-response .guided-phase-footer { grid-template-columns: 1fr; align-items: stretch; }
+  #guided-response .guided-phase-footer .primary-btn,
+  #guided-response .guided-phase-footer .ghost-btn { width: 100%; min-height: 46px; }
+}
+
 @media (max-width: 380px) {
   .brand { gap: 9px; }
   .brand-emblem { width: 40px; height: 40px; flex-basis: 40px; }
