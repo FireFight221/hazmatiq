@@ -150,21 +150,21 @@ body {
 .app-shell > .app-header-row .app-primary-nav .app-nav-item {
   box-sizing: border-box !important;
   display: grid !important;
-  grid-template-rows: 24px minmax(0, auto) !important;
+  grid-template-rows: 22px minmax(0, auto) !important;
   place-content: center !important;
   align-items: center !important;
   justify-items: center !important;
-  gap: 4px !important;
+  gap: 3px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  padding: 5px 4px !important;
+  padding: 4px 3px !important;
   border: 1px solid rgba(143, 180, 207, 0.42) !important;
   border-radius: 5px !important;
   background: #09233b !important;
   color: #e8f0f6 !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   font-weight: 900 !important;
   letter-spacing: 0.025em !important;
   line-height: 1.05 !important;
@@ -199,8 +199,8 @@ body {
 .app-shell > .app-header-row .app-nav-icon {
   display: grid !important;
   place-items: center !important;
-  width: 22px !important;
-  height: 22px !important;
+  width: 20px !important;
+  height: 20px !important;
   color: currentColor !important;
   font-size: 0 !important;
   line-height: 1 !important;
@@ -208,8 +208,8 @@ body {
 
 .app-shell > .app-header-row .app-nav-icon svg {
   display: block;
-  width: 21px;
-  height: 21px;
+  width: 19px;
+  height: 19px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.75;
@@ -237,8 +237,16 @@ body {
 .app-shell:has(#overview.view.active) > .app-header-row {
   width: calc(100% - (2 * var(--dashboard-content-gutter))) !important;
   margin-right: var(--dashboard-content-gutter) !important;
+  margin-bottom: 14px !important;
   margin-left: var(--dashboard-content-gutter) !important;
-  grid-template-columns: calc((100% - (2 * var(--dashboard-card-gap))) / 3) minmax(0, 1fr) !important;
+  grid-template-columns: calc((100% + var(--dashboard-card-gap)) / 3) minmax(0, 1fr) !important;
+}
+
+@media (min-width: 1101px) {
+  .app-shell:has(#overview.view.active) > .app-header-row .hazmat-command-identity {
+    padding-block: 2px !important;
+    padding-right: var(--dashboard-card-gap) !important;
+  }
 }
 
 .app-shell:has(#overview.view.active) > .layout {
@@ -290,7 +298,7 @@ body {
   }
 
   .app-shell > .app-header-row .app-nav-label {
-    font-size: 10.5px !important;
+    font-size: 11.5px !important;
   }
 
   .app-shell:has(#overview.view.active) > .app-header-row {
@@ -730,7 +738,7 @@ body {
   }
 
   .app-shell > .app-header-row .app-nav-label {
-    font-size: 11px !important;
+    font-size: 11.5px !important;
     line-height: 1.1 !important;
   }
 }

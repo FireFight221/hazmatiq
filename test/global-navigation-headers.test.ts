@@ -6,6 +6,7 @@ const script = readFileSync(new URL('../server/public/script.js', import.meta.ur
 const globalStyles = readFileSync(new URL('../server/public/global-ui-overrides.css', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../server/public/styles.css', import.meta.url), 'utf8');
 const sharedHeaderStyles = readFileSync(new URL('../server/public/dashboard-header.css', import.meta.url), 'utf8');
+const pageNavIcons = readFileSync(new URL('../server/public/assets/page-nav-icons.svg', import.meta.url), 'utf8');
 const compass = readFileSync(new URL('../server/public/assets/emergenz-compass-tight.png', import.meta.url));
 const wordmark = readFileSync(new URL('../server/public/assets/emergenz-wordmark-tight.png', import.meta.url));
 
@@ -30,6 +31,9 @@ describe('global navigation and page header contract', () => {
     expect(nav).not.toContain('data-view="source"');
     expect(nav).not.toContain('data-view="planning-tools"');
     expect(nav.match(/class="module-btn app-nav-item/g)).toHaveLength(9);
+    const iconReferences = [...nav.matchAll(/assets\/page-nav-icons\.svg#(nav-[a-z-]+)/g)].map((match) => match[1]);
+    expect(iconReferences).toHaveLength(9);
+    for (const icon of iconReferences) expect(pageNavIcons).toContain(`id="${icon}"`);
   });
 
   it('synchronizes active navigation state through the canonical page activation path', () => {
@@ -84,6 +88,16 @@ describe('global navigation and page header contract', () => {
     expect(sharedHeaderStyles).toContain('max-height: 70px !important;');
     expect(sharedHeaderStyles).toContain('max-width: calc(100% - 76px) !important;');
     expect(sharedHeaderStyles).toContain('max-width: none !important;');
+    expect(sharedHeaderStyles).toContain('margin-bottom: 14px !important;');
+    expect(sharedHeaderStyles).toContain(
+      'grid-template-columns: calc((100% + var(--dashboard-card-gap)) / 3) minmax(0, 1fr) !important;',
+    );
+    expect(sharedHeaderStyles).toContain('padding-block: 2px !important;');
+    expect(sharedHeaderStyles).toContain('padding-right: var(--dashboard-card-gap) !important;');
+    expect(sharedHeaderStyles).toContain('grid-template-rows: 22px minmax(0, auto) !important;');
+    expect(sharedHeaderStyles).toContain('width: 20px !important;\n  height: 20px !important;');
+    expect(sharedHeaderStyles).toContain('font-size: 12px !important;');
+    expect(sharedHeaderStyles).toContain('font-size: 11.5px !important;');
     expect(sharedHeaderStyles).toContain(
       'grid-template-columns: calc((100% - (2 * var(--dashboard-card-gap))) / 3) minmax(0, 1fr) !important;',
     );
