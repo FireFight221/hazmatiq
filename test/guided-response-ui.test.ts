@@ -189,6 +189,12 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-save-incident-btn');
   });
 
+  it("does not render the redundant Source / Technical Detail box", () => {
+    expect(script).not.toContain("createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL'");
+    expect(script).toContain("flow.append(heading, notice, grid);");
+    expect(script).toContain("createGuidedSourceTrace(phaseSources)");
+  });
+
   it("keeps goal status, commander notes, and actionable next tasks explicit", () => {
     expect(script).toContain("const guidedGoalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Accomplished', 'Needs Reassessment'])");
     expect(script).toContain("goalStatusHeading.textContent = 'Goal Status'");

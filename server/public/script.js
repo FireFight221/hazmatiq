@@ -6966,9 +6966,7 @@ function createGuidedCommandFlow(model) {
   const currentPhase = guidedPhaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id || guidedPhaseDefinitions.at(-1).id;
   const grid = document.createElement('div'); grid.className = 'guided-phase-grid';
   guidedPhaseDefinitions.forEach((phase) => grid.append(createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhase, scenarioSummary)));
-  const sourceBody = document.createElement('div'); sourceBody.append(createGuidedFactTrace(model.operationalRecommendations?.factTrace)); sourceBody.append(createGuidedSourceTrace((model.sequence || []).flatMap((stage) => stage.sources || [])));
-  const technical = createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL', 'Expand provenance and secondary documentation when the operational brief needs it', sourceBody, 'navy');
-  flow.append(heading, notice, grid, technical);
+  flow.append(heading, notice, grid);
   return flow;
 }
 
