@@ -867,6 +867,6 @@ describe("API routes", () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);
     const text = await res.text();
-    expect(text).toContain("HazMatIQ");
+    expect(text).toContain("EMERGENZ");
   });
 });

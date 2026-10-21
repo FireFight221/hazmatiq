@@ -298,8 +298,7 @@
                     <div class="incident-info-card-heading"><h2><span aria-hidden="true">⚗</span> Chemical / Hazard ID</h2><span class="incident-info-badge" id="ic-header-hazard-badge" hidden>HAZARDOUS</span></div>
                     <div class="incident-info-field"><label class="sr-only" for="incident-product">Chemical, UN, or CAS</label><div class="chemical-search-input-wrap"><input class="incident-info-primary-field" id="incident-product" type="text" role="combobox" placeholder="Type chemical, UN, or CAS" autocomplete="off" aria-autocomplete="list" aria-controls="incident-product-suggestions" aria-expanded="false" /><div id="incident-product-suggestions" class="chemical-search-suggestions" role="listbox" hidden></div></div></div>
                     <p class="incident-plume-chemical-note">This explicit selection is the single chemical used for plume calculations. Facility inventory additions do not change it.</p>
-                    <div class="incident-info-card-divider" aria-hidden="true"></div>
-                    <div class="incident-info-detail-grid incident-info-chemical-details"><div><span>UN / NA</span><strong id="ic-header-un">No Current Data Exists</strong></div><div><span>ERG Guide</span><strong id="ic-header-erg">No Current Data Exists</strong></div><div><span>Hazard Class</span><strong id="ic-header-hazard-class">No Current Data Exists</strong></div><div><span>IDLH</span><strong id="ic-header-idlh">No Current Data Exists</strong></div></div>
+                    <p id="ic-header-chemical-name" class="incident-info-compact-value">No Current Data Exists</p>
                   </article>
 
                   <article class="incident-info-card incident-info-card-facility">
@@ -309,16 +308,16 @@
                       <input class="incident-info-primary-field" id="incident-facility-name" type="search" role="combobox" placeholder="Search facility name or location" autocomplete="off" aria-autocomplete="list" aria-controls="incident-facility-suggestions" aria-expanded="false" />
                       <div id="incident-facility-suggestions" class="facility-search-suggestions" role="listbox" hidden></div>
                     </div>
+                    <button id="incident-facility-manual-btn" class="ghost-btn incident-facility-manual-btn" type="button">Use manual facility entry</button>
                     <p id="incident-facility-search-status" class="facility-search-status" role="status" aria-live="polite"></p>
-                    <div class="incident-info-card-divider" aria-hidden="true"></div>
-                    <div class="incident-info-detail-grid incident-info-facility-details"><div><span>Address</span><strong id="ic-header-facility-address">Not specified</strong></div><div><span>Type</span><strong id="ic-header-facility-type">Not specified</strong></div></div>
+                    <div class="incident-info-compact-summary"><span id="ic-facility-verification-state">Not selected</span><strong id="ic-header-facility-address">Not specified</strong></div>
                   </article>
 
                   <article class="incident-info-card incident-info-card-mode">
                     <div class="incident-info-card-heading"><h2><span aria-hidden="true">🛡</span> Operational Mode</h2></div>
                     <select id="incident-operational-mode" aria-label="Operational mode"><option value="Research &amp; Assessment">Research &amp; Assessment</option><option value="Offensive/Entry">Offensive/Entry</option><option value="Defensive/Control/Contain">Defensive/Control/Contain</option><option value="Non-Intervention">Non-Intervention</option></select>
-                    <div class="incident-info-card-divider" aria-hidden="true"></div>
-                    <div class="incident-info-mode-footer"><div><span>Real Time</span><time id="ic-real-time" datetime="">--/--/---- --:--:--</time></div></div>
+                    <p class="incident-info-card-help">Commander-selected strategy only. It does not authorize entry or change plume science.</p>
+                    <div class="incident-info-mode-footer"><div><span>Real Time</span><time id="ic-real-time" datetime="">--/--/---- --:--:--</time><small id="ic-mode-history-summary">Commander-selected strategy is recorded with the incident.</small></div></div>
                   </article>
                 </section>
 
@@ -382,7 +381,7 @@
                   </article>
 
                   <article class="incident-command-panel incident-command-tactical-panel">
-                    <h2><span aria-hidden="true">🛡️</span><span class="incident-command-panel-title">Operational Status</span><span class="sr-only">Tactical Status</span><small class="incident-command-panel-subtitle">Current protection, PPE, decon, monitoring, and response status</small></h2>
+                    <h2><span aria-hidden="true">🛡️</span><span class="incident-command-panel-title">Operational Status</span><span class="sr-only">Tactical Status</span><small class="incident-command-panel-subtitle">Explicit commander task states; system signals are evidence, not completion</small></h2>
                     <div id="ic-tactical-list" class="incident-command-tactical-list"></div>
                   </article>
 

@@ -114,6 +114,9 @@
         stagingResources: source.stagingResources || '',
       },
       operational: {
+        mode: source.operationalMode || 'Research & Assessment',
+        modeHistory: Array.isArray(source.operationalModeHistory) ? source.operationalModeHistory : [],
+        checklist: source.operationalChecklist || { tasks: [], history: [] },
         protectiveActions: source.protectiveActionSummary || null,
         ppe: source.ppeSummary || null,
         monitoring: source.monitoringStatus || null,
@@ -124,6 +127,7 @@
       reporting: {
         forms: source.icsForms || {},
         notes: source.incidentNotes || [],
+        timeline: Array.isArray(source.incidentTimeline) ? source.incidentTimeline : [],
       },
       raw: source,
     });

@@ -975,7 +975,7 @@
 #incident .incident-command-tool[data-incident-command-action="ics"] strong,
 #incident .incident-command-tool[data-incident-command-action="generate-report"] strong { color: #111827 !important; }
 
-/* Incident Command top-board contract. Keep the four summary cards content-sized;
+/* Incident Command top-board contract: four equal compact cards on desktop;
    the inventory and weather bands own their height instead of stretching the row. */
 #incident .incident-command-dashboard { padding: 0 0 58px; }
 #incident #incident-command-active { min-width: 0; }
@@ -984,6 +984,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: start;
   gap: 12px;
+  grid-auto-rows: 144px;
   margin: 0 0 14px;
   padding: 0;
   background: transparent;
@@ -992,7 +993,7 @@
   align-self: start;
   min-width: 0;
   min-height: 0;
-  height: auto;
+  height: 144px;
   padding: 12px;
   overflow: visible;
 }
@@ -1007,6 +1008,16 @@
 #incident .incident-info-chemical-details > div:nth-child(3) { grid-column: 1 / -1; }
 #incident .incident-info-detail-grid strong { font-size: .8rem; }
 #incident .incident-info-card-mode select { min-height: 38px; margin-top: 2px; padding: 5px 8px; font-size: .86rem; }
+#incident .incident-info-compact-value,
+#incident .incident-info-compact-summary { display: grid; gap: 3px; margin: 8px 0 0; color: #d9edf7; font-size: .75rem; line-height: 1.25; }
+#incident .incident-info-compact-summary strong { color: #fff; font-size: .76rem; overflow-wrap: anywhere; }
+#incident .incident-info-compact-summary span { color: #8fe5a6; font-size: .67rem; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; }
+#incident .incident-info-card-help { margin: 7px 0 0; color: #d2e5ef; font-size: .68rem; line-height: 1.25; }
+#incident .incident-info-mode-footer small { display: block; margin-top: 3px; color: #c4dce8; font-size: .62rem; line-height: 1.25; }
+#incident .incident-facility-manual-btn { min-height: 26px; margin-top: 5px; padding: 3px 7px; font-size: .66rem; }
+#incident .incident-command-status-control { display: grid; gap: 4px; margin-top: 6px; }
+#incident .incident-command-status-select { width: min(100%, 180px); min-height: 30px; padding: 3px 6px; border: 1px solid #5d8db3; border-radius: 5px; color: #071f36; background: #f3f7fa; font: inherit; font-size: .72rem; font-weight: 800; }
+#incident .incident-command-status-evidence { color: #b8d2df; font-size: .68rem; line-height: 1.3; }
 
 #incident .incident-involved-chemicals-panel {
   display: grid;
@@ -1087,11 +1098,13 @@
 .incident-involved-chemicals-dialog-empty { margin: 8px 0; padding: 12px; border: 1px dashed #5d8db3; border-radius: 7px; color: #d5e5ef; }
 
 @media (max-width: 1180px) {
-  #incident .incident-command-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #incident .incident-command-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 152px; }
+  #incident .incident-info-card { height: 152px; }
   #incident .incident-involved-chemicals-panel > ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  #incident .incident-command-info-grid { grid-template-columns: 1fr; gap: 8px; }
+  #incident .incident-command-info-grid { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 8px; }
+  #incident .incident-info-card { height: auto; }
   #incident .incident-involved-chemicals-heading { align-items: flex-start; flex-direction: column; gap: 9px; }
   #incident .incident-involved-chemicals-actions { width: 100%; justify-content: space-between; }
   #incident .incident-involved-chemicals-panel > ul { grid-template-columns: 1fr; }

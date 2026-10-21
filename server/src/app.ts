@@ -1371,8 +1371,15 @@ function tier2FacilityMapFields(
   row: schema.Tier2FacilityRow,
   counts: { chemicalCount: number; ehsCount: number; contactCount: number } = { chemicalCount: 0, ehsCount: 0, contactCount: 0 },
 ) {
+  const name = row.facilityName || row.companyName || `Facility ${row.sourceFacilityId}`;
+  const address = [row.street, row.city, row.state, row.zip].filter(Boolean).join(", ");
   return {
     id: row.id,
+    name,
+    address,
+    source: row.sourceSystem,
+    lastUpdated: row.lastModifiedDate || row.filingYear || row.importedAt,
+    aliases: [row.companyName, row.stateFacilityId, row.sourceFacilityId].filter((value): value is string => Boolean(value && value.trim() && value.trim() !== name)),
     sourceFacilityId: row.sourceFacilityId,
     stateFacilityId: row.stateFacilityId,
     facilityName: row.facilityName,
@@ -1395,6 +1402,96 @@ function tier2FacilityMapFields(
     chemicalCount: counts.chemicalCount,
     ehsCount: counts.ehsCount,
     contactCount: counts.contactCount,
+  };
+}
+
+function normalizeFacilitySearchText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function facilityMatchesQuery(values: unknown[], query: string): boolean {
+  const normalizedQuery = normalizeFacilitySearchText(query);
+  if (!normalizedQuery) return true;
+  return values.some((value) => normalizeFacilitySearchText(value).includes(normalizedQuery));
+}
+
+function commandChemicalFromTier2(row: schema.Tier2ChemicalRow, facility: schema.Tier2FacilityRow) {
+  return {
+    id: row.id,
+    facilityId: row.facilityId || facility.id,
+    chemicalId: row.id,
+    chemicalName: row.chemicalName,
+    cas: row.casNumber,
+    un: null,
+    ergGuide: null,
+    hazardClass: null,
+    ehsStatus: row.ehsStatus,
+    maxDailyAmountValue: row.maximumQuantity,
+    maxDailyAmountUnit: null,
+    averageDailyQuantity: row.averageDailyQuantity,
+    maximumAmountLargestContainer: row.maximumAmountLargestContainer,
+    physicalState: row.physicalState,
+    hazardFlags: row.hazardFlags,
+    storageInformation: row.storageInformation,
+    container: null,
+    conditions: null,
+    lastReportedYear: row.importedAt?.slice(0, 4) || null,
+    reportingDate: row.importedAt,
+    source: row.sourceSystem,
+    sourceSystem: row.sourceSystem,
+    importedAt: row.importedAt,
+  };
+}
+
+function commandChemicalFromLegacy(row: {
+  id?: number;
+  facilityId: string;
+  chemicalId: string;
+  maxDailyAmountValue?: string | null;
+  maxDailyAmountUnit?: string | null;
+  container?: string | null;
+  conditions?: string | null;
+  lastReportedYear?: number | null;
+  updatedAt?: string | null;
+  chemicalName: string | null;
+  cas: string | null;
+  un: string | null;
+  ergGuide: string | null;
+  hazardClass?: string | null;
+}) {
+  return {
+    ...row,
+    source: "Legacy facility inventory",
+    sourceSystem: "Legacy facility inventory",
+    reportingDate: row.lastReportedYear ? String(row.lastReportedYear) : row.updatedAt,
+  };
+}
+
+function legacyFacilityMapFields(row: schema.FacilityRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    city: null,
+    state: null,
+    zip: null,
+    latitude: row.lat ? Number(row.lat) : null,
+    longitude: row.lng ? Number(row.lng) : null,
+    lat: row.lat,
+    lng: row.lng,
+    source: row.source,
+    sourceSystem: row.source,
+    lastUpdated: row.lastUpdated,
+    aliases: [],
+    dunn: row.dunn,
+    ehsFlag: row.ehsFlag,
   };
 }
 
@@ -1472,17 +1569,34 @@ app.get("/api/tier2/facilities/:id", async (c) => {
 
 app.get("/api/facilities", async (c) => {
   const db = getDb();
-  const q = c.req.query("q");
-  const rows = await db.select().from(schema.facilities);
-  const filtered = q
-    ? rows.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q.toLowerCase()) ||
-          r.address.toLowerCase().includes(q.toLowerCase()),
-      )
-    : rows;
-  const facilityIds = filtered.map((facility) => facility.id);
-  const chemicalRows = facilityIds.length
+  const q = c.req.query("q")?.trim() || "";
+  const normalizedQuery = normalizeFacilitySearchText(q);
+  const requestedLimit = Number(c.req.query("limit") || 100);
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(200, Math.floor(requestedLimit))) : 100;
+  const requestedOffset = Number(c.req.query("offset") || 0);
+  const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.floor(requestedOffset)) : 0;
+
+  const legacyRows = await db.select().from(schema.facilities);
+  const tier2Rows = await db.select().from(schema.tier2Facilities);
+  const legacyMatches = !normalizedQuery || normalizedQuery.length < 2
+    ? (normalizedQuery ? [] : legacyRows)
+    : legacyRows.filter((row) => facilityMatchesQuery([row.name, row.address, row.dunn], q));
+  const tier2Matches = !normalizedQuery || normalizedQuery.length < 2
+    ? (normalizedQuery ? [] : tier2Rows)
+    : tier2Rows.filter((row) => facilityMatchesQuery([
+      row.facilityName,
+      row.companyName,
+      row.street,
+      row.city,
+      row.county,
+      row.state,
+      row.zip,
+      row.sourceFacilityId,
+      row.stateFacilityId,
+    ], q));
+
+  const legacyIds = legacyMatches.map((facility) => facility.id);
+  const legacyChemicalRows = legacyIds.length
     ? await db
       .select({
         facilityId: schema.facilityChemicals.facilityId,
@@ -1495,19 +1609,58 @@ app.get("/api/facilities", async (c) => {
       })
       .from(schema.facilityChemicals)
       .leftJoin(schema.chemicals, eq(schema.facilityChemicals.chemicalId, schema.chemicals.id))
-      .where(inArray(schema.facilityChemicals.facilityId, facilityIds))
+      .where(inArray(schema.facilityChemicals.facilityId, legacyIds))
     : [];
-  const chemicalsByFacility = new Map<string, typeof chemicalRows>();
-  chemicalRows.forEach((chemical) => {
-    const existing = chemicalsByFacility.get(chemical.facilityId) || [];
+  const legacyChemicalsByFacility = new Map<string, typeof legacyChemicalRows>();
+  legacyChemicalRows.forEach((chemical) => {
+    const existing = legacyChemicalsByFacility.get(chemical.facilityId) || [];
     existing.push(chemical);
-    chemicalsByFacility.set(chemical.facilityId, existing);
+    legacyChemicalsByFacility.set(chemical.facilityId, existing);
   });
-  return c.json({
-    facilities: filtered.map((facility) => ({
-      ...facility,
-      chemicals: chemicalsByFacility.get(facility.id) || [],
+
+  const tier2SourceIds = tier2Matches.map((facility) => facility.sourceFacilityId);
+  const tier2ChemicalRows = tier2SourceIds.length
+    ? await db.select().from(schema.tier2Chemicals).where(inArray(schema.tier2Chemicals.sourceFacilityId, tier2SourceIds))
+    : [];
+  const tier2ChemicalsBySource = new Map<string, typeof tier2ChemicalRows>();
+  tier2ChemicalRows.forEach((chemical) => {
+    const existing = tier2ChemicalsBySource.get(chemical.sourceFacilityId) || [];
+    existing.push(chemical);
+    tier2ChemicalsBySource.set(chemical.sourceFacilityId, existing);
+  });
+
+  const combined = [
+    ...legacyMatches.map((facility) => ({
+      ...legacyFacilityMapFields(facility),
+      chemicals: (legacyChemicalsByFacility.get(facility.id) || []).map(commandChemicalFromLegacy),
     })),
+    ...tier2Matches.map((facility) => ({
+      ...tier2FacilityMapFields(facility, {
+        chemicalCount: tier2ChemicalsBySource.get(facility.sourceFacilityId)?.length || 0,
+        ehsCount: (tier2ChemicalsBySource.get(facility.sourceFacilityId) || []).filter((chemical) => /^(y|yes|true|1)$/i.test(chemical.ehsStatus?.trim() ?? "")).length,
+        contactCount: 0,
+      }),
+      chemicals: (tier2ChemicalsBySource.get(facility.sourceFacilityId) || []).map((chemical) => commandChemicalFromTier2(chemical, facility)),
+    })),
+  ];
+  const sorted = combined.sort((left, right) => {
+    if (!normalizedQuery) return String(left.name).localeCompare(String(right.name));
+    const leftName = normalizeFacilitySearchText(left.name);
+    const rightName = normalizeFacilitySearchText(right.name);
+    return Number(!leftName.startsWith(normalizedQuery)) - Number(!rightName.startsWith(normalizedQuery))
+      || String(left.name).localeCompare(String(right.name));
+  });
+  const paged = sorted.slice(offset, offset + limit);
+  return c.json({
+    facilities: paged,
+    total: sorted.length,
+    limit,
+    offset,
+    query: q,
+    sourceCounts: {
+      legacy: legacyMatches.length,
+      tier2: tier2Matches.length,
+    },
   });
 });
 
@@ -1518,7 +1671,33 @@ app.get("/api/facilities/:id", async (c) => {
     .select()
     .from(schema.facilities)
     .where(eq(schema.facilities.id, id));
-  if (facilityRows.length === 0) return c.json({ error: "not found" }, 404);
+  if (facilityRows.length === 0) {
+    const tier2Rows = await db.select().from(schema.tier2Facilities).where(eq(schema.tier2Facilities.id, id));
+    if (tier2Rows.length === 0) return c.json({ error: "not found" }, 404);
+    const facility = tier2Rows[0];
+    const chemicals = await db.select().from(schema.tier2Chemicals).where(or(
+      eq(schema.tier2Chemicals.facilityId, facility.id),
+      eq(schema.tier2Chemicals.sourceFacilityId, facility.sourceFacilityId),
+    ));
+    const contacts = await db.select().from(schema.tier2FacilityContacts).where(or(
+      eq(schema.tier2FacilityContacts.facilityId, facility.id),
+      eq(schema.tier2FacilityContacts.sourceFacilityId, facility.sourceFacilityId),
+    ));
+    const mappedFacility = {
+      ...tier2FacilityMapFields(facility, { chemicalCount: chemicals.length, ehsCount: chemicals.filter((chemical) => /^(y|yes|true|1)$/i.test(chemical.ehsStatus?.trim() ?? "")).length, contactCount: contacts.length }),
+      lastModifiedDate: facility.lastModifiedDate,
+      firstSubmitDate: facility.firstSubmitDate,
+      deRegistrationDate: facility.deRegistrationDate,
+      hasDocuments: facility.hasDocuments,
+      facilityNote: facility.facilityNote,
+    };
+    return c.json({
+      ...mappedFacility,
+      facility: mappedFacility,
+      chemicals: chemicals.map((chemical) => commandChemicalFromTier2(chemical, facility)),
+      contacts,
+    });
+  }
   const chemRows = await db
     .select({
       id: schema.facilityChemicals.id,
@@ -1538,7 +1717,8 @@ app.get("/api/facilities/:id", async (c) => {
     .from(schema.facilityChemicals)
     .leftJoin(schema.chemicals, eq(schema.facilityChemicals.chemicalId, schema.chemicals.id))
     .where(eq(schema.facilityChemicals.facilityId, id));
-  return c.json({ ...facilityRows[0], chemicals: chemRows });
+  const facility = { ...legacyFacilityMapFields(facilityRows[0]), ...facilityRows[0] };
+  return c.json({ ...facility, facility, chemicals: chemRows.map(commandChemicalFromLegacy) });
 });
 
 app.post("/api/threat-zones/facilities", async (c) => {

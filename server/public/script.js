@@ -1047,6 +1047,17 @@ const guidedResponseTacticalStorageKey = 'hazmatiq_guided_response_tactical_reco
 const guidedCommandCheckpointsStorageKey = 'hazmatiq_guided_command_checkpoints';
 const guidedTacticalModeStorageKey = 'hazmatiq_guided_tactical_mode';
 const guidedTacticalModeOptions = Object.freeze(['Defensive', 'Offensive', 'Non-Intervention']);
+const operationalStatusOptions = Object.freeze(['Not started', 'In progress', 'Complete', 'Not applicable']);
+const operationalStatusTaskDefinitions = Object.freeze([
+  { id: 'facility-identification', label: 'Facility identification', summary: 'Verify a linked facility record or document a manual scene location.', target: 'details' },
+  { id: 'hazard-verification', label: 'Hazard identity', summary: 'Confirm the product or hazard identity from an approved source.', target: 'lookup' },
+  { id: 'protective-actions', label: 'Protective actions', summary: 'Commander confirms the protective-action decision for the current scene.', target: 'details' },
+  { id: 'ppe-entry', label: 'PPE and entry', summary: 'Commander confirms PPE and entry conditions with field verification.', target: 'lookup' },
+  { id: 'decontamination', label: 'Decontamination', summary: 'Commander confirms the decontamination plan or records why it is not applicable.', target: 'lookup' },
+  { id: 'field-monitoring', label: 'Field monitoring', summary: 'Commander confirms monitoring coverage and field readings.', target: 'monitor' },
+  { id: 'plume-assessment', label: 'Plume assessment', summary: 'Review the current planning estimate and confirm it against field conditions.', target: 'plume' },
+  { id: 'documentation', label: 'Documentation', summary: 'Record decisions, evidence, and corrections in the incident record.', target: 'report' },
+]);
 const noCurrentDataText = 'No Current Data Exists';
 const responderText = window.HazMatResponderText || {
   normalizeResponderText: (value) => String(value ?? '').replace(/\s+/g, ' ').trim(),
@@ -1714,6 +1725,115 @@ function isIncidentPlumeCurrent(plume, incident) {
   return true;
 }
 
+function incidentResponderIdentity() {
+  try {
+    return window.HazMatIQ?.user?.name
+      || window.localStorage.getItem('hazmatiq_user_identity')
+      || window.localStorage.getItem('hazmatiq_user_name')
+      || 'Local responder';
+  } catch {
+    return 'Local responder';
+  }
+}
+
+function normalizeOperationalChecklist(incident) {
+  const saved = incident?.operationalChecklist;
+  const savedTasks = Array.isArray(saved?.tasks) ? saved.tasks : [];
+  const tasks = operationalStatusTaskDefinitions.map((definition) => {
+    const current = savedTasks.find((task) => task?.id === definition.id) || {};
+    const status = operationalStatusOptions.includes(current.status) ? current.status : 'Not started';
+    const hasConfirmation = Boolean(current.confirmedAt && current.evidence);
+    return {
+      ...definition,
+      ...current,
+      id: definition.id,
+      label: definition.label,
+      status: status === 'Complete' && !hasConfirmation ? 'In progress' : status,
+    };
+  });
+  return {
+    tasks,
+    history: Array.isArray(saved?.history) ? saved.history : [],
+  };
+}
+
+function operationalTaskEvidence(taskId, model) {
+  const incident = model?.incident || getActiveIncident();
+  switch (taskId) {
+    case 'facility-identification':
+      return incident?.selectedFacility?.id && incident?.facilityVerificationStatus === 'verified'
+        ? `System: verified facility record selected (${incident.selectedFacility.name || incident.selectedFacility.id}). Commander confirmation required.`
+        : incident?.selectedFacility?.name
+          ? 'System: manual facility entry recorded. Stable facility identity is not verified.'
+          : 'System: no facility record selected. Commander confirmation required.';
+    case 'hazard-verification':
+      return model?.hazards?.length ? `System: ${model.hazards.join(' · ')} loaded from the selected Chemical Companion record. Commander confirmation required.` : 'System: no canonical hazard identity selected.';
+    case 'protective-actions':
+      return model?.tacticalStatus?.find((item) => item.id === 'protective')?.summary || 'System: protective-action recommendation is unavailable.';
+    case 'ppe-entry':
+      return model?.entryTeamPpe || 'System: PPE recommendation is unavailable.';
+    case 'decontamination':
+      return model?.deconTeamPpe || 'System: decontamination guidance is unavailable.';
+    case 'field-monitoring':
+      return model?.monitoringStatus || 'System: no monitoring assignment or reading is linked.';
+    case 'plume-assessment':
+      return model?.plumeStatus || 'System: no current plume assessment is linked.';
+    case 'documentation':
+      return incident?.updatedAt ? `System: incident record last updated ${new Date(incident.updatedAt).toLocaleString()}.` : 'System: incident record has not been updated.';
+    default:
+      return 'System signal unavailable.';
+  }
+}
+
+function updateOperationalTaskStatus(taskId, status, evidence = '') {
+  if (!operationalStatusOptions.includes(status)) return null;
+  const incident = getActiveIncident();
+  if (!incident) return null;
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (index < 0) return null;
+  const checklist = normalizeOperationalChecklist(incident);
+  const task = checklist.tasks.find((item) => item.id === taskId);
+  if (!task || task.status === status && (!evidence || task.evidence === evidence)) return incidents[index];
+  const now = new Date().toISOString();
+  const changedBy = incidentResponderIdentity();
+  const confirmation = status === 'Complete' ? (evidence.trim() || `Commander marked ${task.label} complete.`) : '';
+  const historyEntry = {
+    taskId,
+    label: task.label,
+    from: task.status,
+    to: status,
+    changedAt: now,
+    changedBy,
+    source: 'commander',
+    evidence: confirmation,
+  };
+  checklist.tasks = checklist.tasks.map((item) => item.id === taskId ? {
+    ...item,
+    status,
+    changedAt: now,
+    changedBy,
+    source: 'commander',
+    evidence: confirmation,
+    confirmedAt: status === 'Complete' ? now : null,
+  } : item);
+  checklist.history = [...checklist.history, historyEntry];
+  incidents[index] = {
+    ...incidents[index],
+    operationalChecklist: checklist,
+    incidentTimeline: [...(Array.isArray(incidents[index].incidentTimeline) ? incidents[index].incidentTimeline : []), {
+      type: 'operational-status', ...historyEntry,
+    }],
+    updatedAt: now,
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentCommandSnapshot();
+  renderIncidentCommandDashboard();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+  return incidents[index];
+}
+
 function cleanIncidentOperationalMode(value) {
   const normalized = String(value ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_');
   const modes = {
@@ -1724,7 +1844,7 @@ function cleanIncidentOperationalMode(value) {
     BLOCKED_MISSING_REQUIRED_DATA: 'Missing Required Data',
     PLANNING_ESTIMATE: 'EMERGENZ Estimate',
   };
-  return modes[normalized] || (value ? String(value).replace(/_/g, ' ') : 'Assessment Pending');
+  return modes[normalized] || (value ? String(value).replace(/_/g, ' ') : 'Research & Assessment');
 }
 
 function incidentCommandSummary(value, fallback, limit = 2) {
@@ -1786,13 +1906,8 @@ function buildIncidentCommandViewModel() {
   const plumeStatus = plume
     ? incident.plumeUpdatedAt ? `Plotted · ${new Date(incident.plumeUpdatedAt).toLocaleString()}` : 'Plotted'
     : plumeRequiresRecalculation ? 'PLUME REQUIRES RECALCULATION' : noCurrentDataText;
-  const operationalMode = cleanIncidentOperationalMode(
-    incident.operationalMode
-      || incident.plumeConfidenceTier
-      || incident.plumeModelResults?.confidenceTier
-      || incident.plumeModelResults?.modelMode
-      || incident.operationalMode,
-  );
+  const operationalMode = cleanIncidentOperationalMode(incident.operationalMode);
+  const facilityVerified = Boolean(incident.selectedFacility?.id && incident.facilityVerificationStatus === 'verified');
   const weather = incident.weather
     || [incident.windSpeed && `Wind ${incident.windSpeed} mph`, incident.windDirection && `from ${incident.windDirection}°`].filter(Boolean).join(' ');
   const notes = Array.isArray(incident.incidentNotes) ? incident.incidentNotes : [];
@@ -1835,15 +1950,17 @@ function buildIncidentCommandViewModel() {
   const hasPpe = ppeSummary !== ppePending;
   const hasDecon = deconSummary !== deconPending;
   const hasMedical = medicalSummary !== medicalPending;
-  const facilitySummary = location
-    ? `${incident.facilityName || 'Scene location'} identified${incident.address ? ` · ${incident.address}` : ''}`
-    : 'No facility or scene location linked';
+  const facilitySummary = facilityVerified
+    ? `${incident.selectedFacility.name || incident.facilityName || 'Facility'} verified${incident.address ? ` · ${incident.address}` : ''}`
+    : incident.selectedFacility?.name || location
+      ? 'Manual scene location recorded · facility identity not verified'
+      : 'No facility or scene location linked';
   const tacticalStatus = [
     { id: 'protective', icon: '🛡️', label: 'Protective Actions', available: Boolean(incident.protectiveActionSummary || plume), status: operationalStatus(sourceStatus.protectiveActions, incident.protectiveActionSummary ? 'Available' : 'Assessment Pending'), summary: protectiveSummary, actionLabel: 'Open', target: 'details' },
     { id: 'ppe', icon: '🥽', label: 'PPE', available: hasPpe, status: operationalStatus(ppeSource?.status || ppeSource?.recommendationStatus, hasPpe ? 'Source Backed' : 'Review Pending'), summary: ppeSummary, actionLabel: 'Open', target: 'lookup' },
     { id: 'decon', icon: '💧', label: 'Decon', available: hasDecon, status: hasDecon ? 'Available' : 'Review Pending', summary: deconSummary, actionLabel: 'Open', target: 'lookup' },
     { id: 'medical', icon: '❤️', label: 'Medical', available: hasMedical, status: operationalStatus(medicalSource?.status, hasMedical ? 'Available' : 'Review Pending'), summary: medicalSummary, actionLabel: 'Open', target: 'lookup' },
-    { id: 'eplan', icon: '🏭', label: 'Facility / E-Plan', available: Boolean(location), status: incident.facilityName ? 'Facility Identified' : (location ? 'Scene Located' : 'Not Linked'), summary: facilitySummary, actionLabel: 'Review', target: 'details' },
+    { id: 'eplan', icon: '🏭', label: 'Facility / E-Plan', available: facilityVerified, status: facilityVerified ? 'Verified Facility' : (location ? 'Manual Entry' : 'Not Linked'), summary: facilitySummary, actionLabel: 'Review', target: 'details' },
     { id: 'plume', icon: '☁️', label: 'Plume', available: Boolean(plume), status: plume ? 'Plotted' : plumeRequiresRecalculation ? 'Recalculation Required' : 'Not Plotted', summary: plume ? plumeStatus : plumeRequiresRecalculation ? 'Saved plume belongs to a different chemical or incident state.' : 'No plume run saved for this incident', actionLabel: plume ? 'View' : 'Plot', target: 'plume' },
     { id: 'monitoring', icon: '📡', label: 'Monitoring', available: monitoring.available, status: monitoring.status, summary: monitoring.summary, actionLabel: monitoring.available ? 'Open' : 'Deploy', target: 'monitor' },
   ];
@@ -1857,6 +1974,8 @@ function buildIncidentCommandViewModel() {
     facilityName: incidentCommandValue(incident.facilityName, 'Not specified'),
     facilityAddress: incidentCommandValue([incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', '), 'Not specified'),
     facilityType: incidentCommandValue(incident.facilityType, 'Not specified'),
+    facilityVerified,
+    facilityVerificationStatus: facilityVerified ? 'Verified facility record' : incident.selectedFacility?.name ? 'Manual entry — not verified' : 'No facility selected',
     chemical: {
       name: incidentCommandValue(chemicalData.chemicalName),
       unNumber: incidentCommandValue(chemicalData.unNumber),
@@ -1884,6 +2003,7 @@ function buildIncidentCommandViewModel() {
     keyTacticalNotes: incidentCommandValue(incident.notes || notes.at(-1)?.text, 'No tactical notes entered'),
     lastUpdated: incident.updatedAt ? new Date(incident.updatedAt).toLocaleString() : 'Not yet updated',
     notes,
+    operationalChecklist: normalizeOperationalChecklist(incident),
     tacticalStatus,
     completedReports: readIncidents().filter((item) => item.status === 'Completed').slice(0, 4),
     incident,
@@ -1892,7 +2012,7 @@ function buildIncidentCommandViewModel() {
 
 function incidentCommandStatusClass(status) {
   const normalized = String(status).toLowerCase();
-  if (/completed|verified|available|source backed|imported|facility identified/.test(normalized)) return 'is-available';
+  if (/complete|completed|verified|available|source backed|imported|facility identified/.test(normalized)) return 'is-available';
   if (/active|plotted|deployed|scene located|planning estimate/.test(normalized)) return 'is-active';
   if (/blocked|missing|no current/.test(normalized)) return 'is-missing';
   if (/review|not started|not plotted|not linked|not deployed|pending|draft/.test(normalized)) return 'is-review';
@@ -1905,24 +2025,22 @@ function renderIncidentGuidedResponse(model) {
   const progress = document.getElementById('ic-guided-progress');
   if (!priorities || !recommendations || !progress) return;
 
-  const priorityItems = [
-    ['Confirm product identity', model.hazards.length > 0, 'lookup'],
-    ['Establish protective actions', model.tacticalStatus[0]?.available, 'details'],
-    ['Select and verify PPE', model.entryTeamPpe !== noCurrentDataText && !/pending|identify/i.test(model.entryTeamPpe), 'lookup'],
-    ['Establish decontamination', model.deconTeamPpe !== noCurrentDataText && !/pending|identify/i.test(model.deconTeamPpe), 'lookup'],
-    ['Initiate field monitoring', model.monitoringStatus !== 'No monitors assigned to this incident', 'monitor'],
-  ];
+  const checklist = model.operationalChecklist || normalizeOperationalChecklist(model.incident);
+  const priorityItems = operationalStatusTaskDefinitions.slice(0, 5).map((definition) => [
+    definition,
+    checklist.tasks.find((task) => task.id === definition.id),
+  ]);
   priorities.replaceChildren();
-  priorityItems.forEach(([label, complete, target]) => {
+  priorityItems.forEach(([definition, task]) => {
     const item = document.createElement('li');
-    item.className = complete ? 'is-complete' : 'is-pending';
+    item.className = task.status === 'Complete' ? 'is-complete' : 'is-pending';
     const button = document.createElement('button');
     button.type = 'button';
-    button.dataset.commandView = target;
-    button.textContent = complete ? '✓' : '○';
-    button.setAttribute('aria-label', `${complete ? 'Complete' : 'Pending'}: ${label}`);
+    button.dataset.commandView = definition.target;
+    button.textContent = task.status;
+    button.setAttribute('aria-label', `${definition.label}: ${task.status}`);
     const text = document.createElement('span');
-    text.textContent = label;
+    text.textContent = definition.label;
     item.append(button, text);
     priorities.append(item);
   });
@@ -1950,21 +2068,15 @@ function renderIncidentGuidedResponse(model) {
     recommendations.append(row);
   });
 
-  const savedRecord = model.incident.guidedResponseTacticalRecord;
-  const progressItems = [
-    ['Incident established', true],
-    ['Chemical verified', model.hazards.length > 0],
-    ['Guided decision record', Boolean(savedRecord)],
-    ['Plume assessment', Boolean(isIncidentPlumeCurrent(model.incident.plumeModelResults, model.incident))],
-  ];
+  const progressItems = checklist.tasks;
   progress.replaceChildren();
-  progressItems.forEach(([label, complete]) => {
+  progressItems.forEach((task) => {
     const row = document.createElement('div');
     const state = document.createElement('span');
     const title = document.createElement('strong');
-    row.className = complete ? 'is-complete' : 'is-pending';
-    state.textContent = complete ? 'COMPLETE' : 'PENDING';
-    title.textContent = label;
+    row.className = task.status === 'Complete' ? 'is-complete' : 'is-pending';
+    state.textContent = task.status;
+    title.textContent = task.label;
     row.append(state, title);
     progress.append(row);
   });
@@ -1989,6 +2101,7 @@ function renderIncidentCommandHeader(model) {
   setText('ic-header-facility-name', model.facilityName);
   setText('ic-header-facility-address', model.facilityAddress);
   setText('ic-header-facility-type', model.facilityType);
+  setText('ic-facility-verification-state', model.facilityVerificationStatus);
   setText('ic-hero-mode', model.operationalMode);
   const hazardBadge = document.getElementById('ic-header-hazard-badge');
   if (hazardBadge) hazardBadge.hidden = model.chemical.name === noCurrentDataText;
@@ -2059,6 +2172,11 @@ function renderIncidentCommandDashboard() {
   if (productInput && document.activeElement !== productInput) productInput.value = model.incident.chemicalName || '';
   const modeInput = document.getElementById('incident-operational-mode');
   if (modeInput) modeInput.value = model.incident.operationalMode || 'Research & Assessment';
+  const modeHistory = Array.isArray(model.incident.operationalModeHistory) ? model.incident.operationalModeHistory : [];
+  const latestModeChange = modeHistory.at(-1);
+  setText('ic-mode-history-summary', latestModeChange
+    ? `Recorded ${new Date(latestModeChange.changedAt).toLocaleString()} by ${latestModeChange.changedBy || 'Local responder'}`
+    : 'Commander-selected strategy is recorded with the incident.');
   [
     ['incident-objectives', 'objectives'],
     ['incident-command-structure', 'commandStructure'],
@@ -2114,7 +2232,42 @@ function renderIncidentCommandDashboard() {
     badge.textContent = item.status;
     const summary = document.createElement('p');
     summary.textContent = item.summary;
-    row.append(identity, badge, summary);
+    const task = model.operationalChecklist.tasks.find((candidate) => candidate.id === item.id)
+      || model.operationalChecklist.tasks.find((candidate) => candidate.id === ({ eplan: 'facility-identification', plume: 'plume-assessment', monitoring: 'field-monitoring', ppe: 'ppe-entry', decon: 'decontamination', protective: 'protective-actions', medical: 'documentation' }[item.id] || ''));
+    if (task) {
+      const control = document.createElement('label');
+      control.className = 'incident-command-status-control';
+      const select = document.createElement('select');
+      select.className = 'incident-command-status-select';
+      select.setAttribute('aria-label', `${task.label} status`);
+      operationalStatusOptions.forEach((status) => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        option.selected = status === task.status;
+        select.append(option);
+      });
+      select.addEventListener('change', () => {
+        const evidence = select.value === 'Complete'
+          ? window.prompt(`Evidence or confirmation for “${task.label}”`, task.evidence || '') || ''
+          : '';
+        if (select.value === 'Complete' && !evidence.trim()) {
+          select.value = task.status;
+          return;
+        }
+        updateOperationalTaskStatus(task.id, select.value, evidence);
+      });
+      control.append(select);
+      const evidence = document.createElement('small');
+      evidence.className = 'incident-command-status-evidence';
+      evidence.textContent = task.status === 'Complete' && task.evidence
+        ? `Confirmed by ${task.changedBy || 'Local responder'} · ${task.evidence}`
+        : `System signal: ${operationalTaskEvidence(task.id, model)} Commander confirmation required.`;
+      control.append(evidence);
+      row.append(identity, badge, summary, control);
+    } else {
+      row.append(identity, badge, summary);
+    }
     tactical?.append(row);
   });
   renderIncidentGuidedResponse(model);
@@ -2331,6 +2484,8 @@ function clearActiveIncidentState() {
 function createIncidentRecord() {
   const now = new Date();
   const incidents = readIncidents();
+  const changedBy = incidentResponderIdentity();
+  const initialMode = 'Research & Assessment';
   const incident = {
     incidentId: window.crypto?.randomUUID?.() || `incident-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     incidentName: document.getElementById('incidentName')?.value.trim() || 'New Incident',
@@ -2341,6 +2496,10 @@ function createIncidentRecord() {
     startedAt: now.toISOString(),
     updatedAt: now.toISOString(),
     status: 'Active',
+    operationalMode: initialMode,
+    operationalModeHistory: [{ mode: initialMode, changedAt: now.toISOString(), changedBy, source: 'commander', reason: 'Incident created' }],
+    operationalChecklist: { tasks: operationalStatusTaskDefinitions.map((task) => ({ id: task.id, status: 'Not started' })), history: [] },
+    incidentTimeline: [{ type: 'incident-created', changedAt: now.toISOString(), changedBy, source: 'system' }],
     icsForms: Object.fromEntries(icsFormCatalog.map(([id]) => [id, { fields: {}, createdAt: now.toISOString() }])),
   };
   writeIncidents([incident, ...incidents]);
@@ -2871,6 +3030,7 @@ function openIncidentSummary(incidentId) {
   appendIncidentSummarySection(content, 'Location', [
     ['Facility', incident.facilityName],
     ['Address', [incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', ')],
+    ['Facility verification', incident.facilityVerificationStatus === 'verified' ? 'Verified linked facility record' : incident.selectedFacility?.name ? 'Manual entry — not verified' : 'No facility selected'],
     ['GPS', incident.latitude !== '' && incident.longitude !== '' ? `${incident.latitude}, ${incident.longitude}` : ''],
   ]);
   appendIncidentSummarySection(content, 'Chemical and Release', [
@@ -2891,6 +3051,13 @@ function openIncidentSummary(incidentId) {
     ['Sources', incident.chemicalSources],
   ]);
   appendChemicalProfileToIncidentReport(content, chemicalContext.profile);
+  const checklist = normalizeOperationalChecklist(incident);
+  appendIncidentSummarySection(content, 'Operational Mode and Status', [
+    ['Operational mode', incident.operationalMode || 'Research & Assessment'],
+    ['Mode history', (incident.operationalModeHistory || []).map((entry) => `${entry.mode} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
+    ['Checklist', checklist.tasks.map((task) => `${task.label}: ${task.status}${task.evidence ? ` · ${task.evidence}` : ''}`)],
+    ['Status history', checklist.history.map((entry) => `${entry.label}: ${entry.from} → ${entry.to} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
+  ]);
   appendGuidedResponseTacticalReport(content, incident);
   appendIncidentSummarySection(content, 'Conditions', [
     ['Weather', incident.weather],
@@ -2912,6 +3079,10 @@ function openIncidentSummary(incidentId) {
     });
   }
   appendIncidentSummarySection(content, 'Documentation Notes', [['Notes', incident.notes]]);
+  appendIncidentSummarySection(content, 'Incident Timeline', [[
+    'Recorded events',
+    (Array.isArray(incident.incidentTimeline) ? incident.incidentTimeline : []).map((entry) => `${entry.type || 'event'} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'System'}${entry.to ? ` · ${entry.to}` : ''}`),
+  ]]);
   if (incident.status === 'Completed') appendCompletedIcsForms(content, incident);
   document.querySelector('.report-tabs').hidden = true;
   ['current', 'previous', 'library'].forEach((name) => {
@@ -3376,9 +3547,34 @@ function persistIncidentStripField() {
   renderIncidentCommandDashboard();
 }
 
-['incidentName', 'incident-address-input', 'incident-facility-name', 'incident-operational-mode'].forEach((id) => {
+function persistOperationalModeChange() {
+  const incident = getActiveIncident();
+  const mode = document.getElementById('incident-operational-mode')?.value || 'Research & Assessment';
+  if (!incident || incident.operationalMode === mode) return;
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (index < 0) return;
+  const now = new Date().toISOString();
+  const changedBy = incidentResponderIdentity();
+  const entry = { mode, changedAt: now, changedBy, source: 'commander' };
+  incidents[index] = {
+    ...incidents[index],
+    operationalMode: mode,
+    operationalModeHistory: [...(Array.isArray(incident.operationalModeHistory) ? incident.operationalModeHistory : []), entry],
+    incidentTimeline: [...(Array.isArray(incident.incidentTimeline) ? incident.incidentTimeline : []), { type: 'operational-mode', ...entry }],
+    updatedAt: now,
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentCommandSnapshot();
+  renderIncidentCommandDashboard();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+}
+
+['incidentName', 'incident-address-input', 'incident-facility-name'].forEach((id) => {
   document.getElementById(id)?.addEventListener('change', persistIncidentStripField);
 });
+document.getElementById('incident-operational-mode')?.addEventListener('change', persistOperationalModeChange);
 document.getElementById('clear-incident-brief-btn')?.addEventListener('click', () => {
   incidentBriefFieldIds.forEach((id) => {
     const element = document.getElementById(id);
@@ -5247,7 +5443,7 @@ function guidedDisplayValue(value, missingText = noCurrentDataText) {
     const guidance = responderText.formatResponderGuidance(values);
     return guidance.length ? guidance.join(' · ') : missingText;
   }
-  const text = responderText.normalizeResponderText(value);
+  const text = responderText.normalizeResponderText(value).replace(/<\/?b\d*>/gi, '');
   return !text || /^(?:n\/?a|not available|null|undefined)$/i.test(text) ? missingText : text;
 }
 
@@ -14469,6 +14665,23 @@ function facilityInventoryItemIdentifier(item, index) {
   return String(item.id ?? `${item.chemicalId || 'inventory'}-${index}`);
 }
 
+async function openFacilityInventoryChemical(item, facilityName = '') {
+  const query = item?.chemicalName || item?.cas || item?.un || '';
+  if (!query) {
+    if (facilityInventoryStatus) facilityInventoryStatus.textContent = 'This inventory row has no chemical identifier to profile.';
+    return;
+  }
+  if (facilityInventoryStatus) facilityInventoryStatus.textContent = `Finding a verified hazard profile for ${query}…`;
+  const result = await fetchJson(`/api/chemicals/search?q=${encodeURIComponent(query)}`);
+  const candidate = result?.chemicals?.find((chemical) => chemical.guidanceEligible !== false && isChemicalCompanionSelection(chemical));
+  if (!candidate) {
+    if (facilityInventoryStatus) facilityInventoryStatus.textContent = `No verified Chemical Companion profile matched ${query}. No profile was opened.`;
+    return;
+  }
+  closeFacilityInventoryDialog();
+  await (window.HazMatIQ?.openHazardProfile?.(candidate, { facilityName, sourcePage: 'facility-inventory' }) || openChemical(candidate, facilityName));
+}
+
 function renderFacilityInventoryRows(facility, chemicals) {
   if (!facilityInventoryList) return;
   if (!chemicals.length) {
@@ -14522,14 +14735,30 @@ function renderFacilityInventoryRows(facility, chemicals) {
     const amount = reportedIdentifierValue(item.maxDailyAmountValue);
     const unit = reportedIdentifierValue(item.maxDailyAmountUnit);
     quantity.textContent = `Reported quantity: ${amount || 'Unavailable'}${unit ? ` ${unit}` : ''}`;
+    const reportedDetail = [
+      item.averageDailyQuantity ? `Average daily ${item.averageDailyQuantity}` : '',
+      item.maximumAmountLargestContainer ? `Largest container ${item.maximumAmountLargestContainer}` : '',
+      item.physicalState ? `State ${item.physicalState}` : '',
+      item.source || item.sourceSystem ? `Source ${item.source || item.sourceSystem}` : '',
+      item.reportingDate || item.lastReportedYear ? `Reported ${item.reportingDate || item.lastReportedYear}` : '',
+    ].filter(Boolean).join(' · ');
     const reported = document.createElement('small');
     reported.textContent = [
-      item.lastReportedYear ? `Reported ${item.lastReportedYear}` : '',
       item.container ? `Container ${item.container}` : '',
+      reportedDetail,
       checkbox.disabled ? 'Already identified as involved' : '',
     ].filter(Boolean).join(' · ');
+    const profileButton = document.createElement('button');
+    profileButton.type = 'button';
+    profileButton.className = 'ghost-btn facility-inventory-profile-btn';
+    profileButton.textContent = 'Open hazard profile';
+    profileButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      void openFacilityInventoryChemical(item, facility.name || 'Reported facility inventory');
+    });
     content.append(name, identifiers, quantity);
     if (reported.textContent) content.append(reported);
+    content.append(profileButton);
     row.append(checkbox, content);
     fragment.append(row);
   });
@@ -14607,11 +14836,11 @@ function persistCommandFacilitySelection(facility) {
     const input = document.getElementById(id);
     if (input) input.value = value || '';
   };
-  setValue('incident-facility-name', facility.name);
-  setValue('incident-address-input', facility.address);
-  setValue('incident-city', '');
-  setValue('incident-state', '');
-  setValue('incident-zip', '');
+  setValue('incident-facility-name', facility.name || facility.facilityName || facility.companyName);
+  setValue('incident-address-input', facility.street || facility.address);
+  setValue('incident-city', facility.city);
+  setValue('incident-state', facility.state);
+  setValue('incident-zip', facility.zip);
   const latitude = Number(facility.lat ?? facility.latitude);
   const longitude = Number(facility.lng ?? facility.longitude);
   setValue('incident-coordinates-input', Number.isFinite(latitude) && Number.isFinite(longitude) ? `${latitude}, ${longitude}` : '');
@@ -14622,15 +14851,23 @@ function persistCommandFacilitySelection(facility) {
   if (index < 0) return null;
   const selectedFacility = {
     id: String(facility.id),
-    name: facility.name || '',
-    address: facility.address || '',
+    name: facility.name || facility.facilityName || facility.companyName || '',
+    address: facility.address || [facility.street, facility.city, facility.state, facility.zip].filter(Boolean).join(', '),
+    city: facility.city || '',
+    state: facility.state || '',
+    zip: facility.zip || '',
+    aliases: Array.isArray(facility.aliases) ? facility.aliases : [],
     source: facility.source || '',
+    sourceSystem: facility.sourceSystem || facility.source || '',
+    verified: true,
   };
   incidents[index] = {
     ...incidents[index],
     ...getIncidentFormData(),
     facilityId: selectedFacility.id,
     selectedFacility,
+    facilityVerificationStatus: 'verified',
+    facilityVerifiedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
   writeIncidents(incidents);
@@ -14673,12 +14910,18 @@ function renderCommandFacilityMatches(facilities) {
     name.textContent = facility.name;
     const location = document.createElement('small');
     location.textContent = facility.address || 'Address / location unavailable';
+    const aliases = document.createElement('small');
+    aliases.textContent = Array.isArray(facility.aliases) && facility.aliases.length
+      ? `Also known as: ${facility.aliases.slice(0, 2).join(' · ')}`
+      : '';
     const inventory = document.createElement('small');
     const chemicalSummary = facilityChemicalSummary(facility);
     inventory.textContent = chemicalSummary.length
       ? `Associated hazards: ${chemicalSummary.join(' · ')}`
       : 'No associated chemical inventory reported';
-    option.append(name, location, inventory);
+    option.append(name, location);
+    if (aliases.textContent) option.append(aliases);
+    option.append(inventory);
     option.addEventListener('click', () => void selectCommandFacility(facility));
     option.addEventListener('keydown', (event) => {
       const options = [...commandFacilitySuggestions.querySelectorAll('button')];
@@ -14725,6 +14968,10 @@ async function searchCommandFacilities(query) {
 }
 
 commandFacilityInput?.addEventListener('input', () => {
+  const incident = getActiveIncident();
+  if (incident?.selectedFacility && commandFacilityInput.value.trim() !== incident.selectedFacility.name) {
+    clearSelectedCommandFacility();
+  }
   window.clearTimeout(commandFacilitySearchTimer);
   commandFacilitySearchTimer = window.setTimeout(() => {
     void searchCommandFacilities(commandFacilityInput.value);
@@ -14736,24 +14983,69 @@ commandFacilityInput?.addEventListener('keydown', (event) => {
     commandFacilitySuggestions.querySelector('button')?.focus();
   } else if (event.key === 'Escape') {
     clearCommandFacilitySuggestions();
+  } else if (event.key === 'Enter' && commandFacilitySuggestions && !commandFacilitySuggestions.hidden) {
+    event.preventDefault();
+    commandFacilitySuggestions.querySelector('button')?.click();
   }
 });
-commandFacilityInput?.addEventListener('change', () => {
+function clearSelectedCommandFacility({ manual = false } = {}) {
   const incident = getActiveIncident();
-  if (!incident?.selectedFacility || commandFacilityInput.value.trim() === incident.selectedFacility.name) return;
+  if (!incident) return;
   const incidents = readIncidents();
   const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
   if (index < 0) return;
+  const now = new Date().toISOString();
   incidents[index] = {
     ...incidents[index],
     facilityId: null,
     selectedFacility: null,
-    updatedAt: new Date().toISOString(),
+    facilityVerificationStatus: manual ? 'manual' : 'unselected',
+    facilityVerifiedAt: null,
+    involvedChemicals: manual ? [] : incidents[index].involvedChemicals,
+    updatedAt: now,
   };
   writeIncidents(incidents);
   renderIncidentLists();
   renderIncidentCommandSnapshot();
   window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+}
+commandFacilityInput?.addEventListener('change', () => {
+  const incident = getActiveIncident();
+  if (!incident?.selectedFacility || commandFacilityInput.value.trim() === incident.selectedFacility.name) return;
+  clearSelectedCommandFacility();
+});
+
+document.getElementById('incident-facility-manual-btn')?.addEventListener('click', () => {
+  const incident = getActiveIncident();
+  if (!incident) {
+    setCommandFacilitySearchStatus('Start an incident before recording a facility.', 'error');
+    return;
+  }
+  clearCommandFacilitySuggestions();
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (index < 0) return;
+  const name = commandFacilityInput?.value.trim() || document.getElementById('incident-facility-name')?.value.trim() || '';
+  const address = document.getElementById('incident-address-input')?.value.trim() || '';
+  if (!name && !address) {
+    setCommandFacilitySearchStatus('Enter a facility or scene name/address before using manual entry.', 'error');
+    return;
+  }
+  const now = new Date().toISOString();
+  incidents[index] = {
+    ...incidents[index],
+    facilityId: null,
+    facilityName: name,
+    selectedFacility: { id: null, name, address, source: 'Manual entry', verified: false },
+    facilityVerificationStatus: 'manual',
+    facilityVerifiedAt: null,
+    updatedAt: now,
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentCommandSnapshot();
+  renderIncidentCommandDashboard();
+  setCommandFacilitySearchStatus('Manual scene location recorded. No facility inventory was inferred.', 'success');
 });
 
 document.getElementById('close-incident-facility-inventory-btn')?.addEventListener('click', closeFacilityInventoryDialog);
@@ -14832,10 +15124,12 @@ function addSelectedFacilityChemicalsToIncident() {
 addFacilityChemicalsButton?.addEventListener('click', addSelectedFacilityChemicalsToIncident);
 
 function filterCommandFacilities(facilities, query) {
-  const normalized = String(query || '').trim().toLocaleLowerCase();
+  const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+  const normalized = normalize(query);
   if (!normalized) return [];
   return facilities.filter((facility) =>
-    [facility.name, facility.address].some((value) => String(value || '').toLocaleLowerCase().includes(normalized)));
+    [facility.name, facility.address, ...(Array.isArray(facility.aliases) ? facility.aliases : []), facility.city, facility.state, facility.zip]
+      .some((value) => normalize(value).includes(normalized)));
 }
 
 function facilityChemicalSummary(facility) {
