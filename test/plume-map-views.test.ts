@@ -133,6 +133,18 @@ describe("plume map views", () => {
     expect(styles).toContain('border: 1px solid #406b91;');
   });
 
+  it("keeps Plume map popups on a readable navy surface without changing measurement units", () => {
+    expect(plumeStyles).toContain("#plume.view.active .maplibregl-popup-content");
+    expect(plumeStyles).toContain("background: #082033;");
+    expect(plumeStyles).toContain("color: #fff;");
+    expect(plumeStyles).toContain(".maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #082033; }");
+    expect(plumeStyles).toContain(".plume-distance-measurement span");
+    expect(plumeStyles).toContain("font-size: 18px;");
+    expect(plumeUi).toContain("<div class=\"plume-distance-measurement\"><strong>Distance from release</strong><span>${miles.toFixed(2)} mi</span><span>${Math.round(feet).toLocaleString()} ft</span><span>${Math.round(meters).toLocaleString()} m</span></div>");
+    expect(plumeUi).toContain("const feet = meters * 3.28084;");
+    expect(plumeUi).toContain("const miles = meters / 1609.344;");
+  });
+
   it("keeps Chemical Release controls compact without shrinking usable inputs", () => {
     expect(plumeHtml).toContain('for="plume-release-type"');
     expect(plumeHtml).not.toContain('<span class="plume-required-badge">Required</span>');

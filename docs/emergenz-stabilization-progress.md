@@ -1,6 +1,19 @@
 # EMERGENZ stabilization progress
 
-Updated: 2026-10-15
+Updated: 2026-10-21
+
+## Platform contrast audit recovery
+
+- Current branch: `plume-model-repair-20261021`
+- Recovery checkpoint: `eadf995` (`Recovery checkpoint before contrast audit`)
+- No merge or rebase is in progress. The prior Plume, Operational Guidance, facility search, Incident Command, and Threat Zone work remains committed before this audit.
+- The local server was verified from this checkout at `http://127.0.0.1:3000/`; the first sandbox launch could not bind port 3000, so browser verification used the approved local server launch.
+- Chromium reproduced the confirmed defect: the live Plume measurement popup had `rgb(248,250,252)` text on a `rgb(255,255,255)` popup with a white pointer.
+- Completed: scoped Plume MapLibre popup contrast contract in `server/public/plume-overrides.css`; the measurement markup now has a bold title and explicit 18px value/unit rows, while distance calculations remain unchanged. The vendor popup defaults are not edited and no blanket white-text rule was added.
+- Browser evidence: [repaired Plume Distance popup screenshot](../contrast-audit-plume-distance-popup.png). The actual Distance control was activated and the map click path produced a popup with computed `rgb(8,32,51)` background, white text, 18px values, and a matching navy pointer. Satellite, Street, and 3D Terrain were exercised; 3D Plume correctly reported that an AEGL result is required before rendering.
+- Contrast audit: Plume, Weather, Live Map, dialog, tab, details, and form surface styles were inspected. Weather popups use explicit dark text on light content; Live Map facility popups use explicit dark text on light content; no matching inherited-color defect was found. Generated root PNG screenshots and local runtime/build files remain excluded from git.
+- Checks: `npm run typecheck` passed; `npm run lint` passed with 9 pre-existing `no-explicit-any` warnings; root Vitest passed 54 files / 577 tests; server Vitest passed 6 files / 71 tests with approved child-process permission.
+- Exact next step: commit the completed contrast implementation and then record the implementation SHA and final git status in this note.
 
 ## Recovery state
 

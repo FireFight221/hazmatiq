@@ -10322,7 +10322,7 @@ function showPlumePointMeasurement(selectedPoint) {
   plumeMeasurementPopup?.remove();
   plumeMeasurementPopup = new window.maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 10 })
     .setLngLat(selectedPoint)
-    .setHTML(`<strong>Distance from release</strong><br>${miles.toFixed(2)} mi<br>${Math.round(feet).toLocaleString()} ft<br>${Math.round(meters).toLocaleString()} m`)
+    .setHTML(`<div class="plume-distance-measurement"><strong>Distance from release</strong><span>${miles.toFixed(2)} mi</span><span>${Math.round(feet).toLocaleString()} ft</span><span>${Math.round(meters).toLocaleString()} m</span></div>`)
     .addTo(plumeMap);
 }
 

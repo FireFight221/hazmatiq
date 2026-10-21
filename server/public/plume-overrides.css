@@ -254,6 +254,60 @@
 #plume.view.active .container-bubble-grid { padding: 0 9px 9px; }
 #plume.view.active .plume-v2-map-card { display: flex; min-height: 0; height: 100%; flex: 1 1 auto; flex-direction: column; overflow: hidden; border: 1px solid #1d648f; border-radius: 10px; background: #020f1d; }
 
+/* MapLibre's vendor popup defaults are light. Keep the Plume map's generated
+   popups on the same navy surface as the map chrome so inherited light text
+   remains readable. Weather and Live Map popups own their separate content
+   contracts and are intentionally not changed here. */
+#plume.view.active .maplibregl-popup-content {
+  padding: 12px 28px 12px 12px;
+  border: 1px solid #1d648f;
+  border-radius: 8px;
+  background: #082033;
+  box-shadow: 0 10px 24px rgba(3, 14, 25, .42);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.45;
+}
+#plume.view.active .maplibregl-popup-content .plume-distance-measurement {
+  display: grid;
+  gap: 4px;
+}
+#plume.view.active .maplibregl-popup-content strong {
+  color: #fff;
+  font-weight: 900;
+}
+#plume.view.active .maplibregl-popup-content .plume-distance-measurement strong {
+  font-size: 13px;
+  letter-spacing: .02em;
+}
+#plume.view.active .maplibregl-popup-content .plume-distance-measurement span {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+#plume.view.active .maplibregl-popup-close-button {
+  padding: 3px 7px;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+#plume.view.active .maplibregl-popup-close-button:hover,
+#plume.view.active .maplibregl-popup-close-button:focus-visible {
+  background: #123e60;
+  color: #fff;
+  outline: 2px solid #ffd323;
+  outline-offset: -2px;
+}
+#plume.view.active .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-top-left .maplibregl-popup-tip { border-bottom-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip { border-top-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: #082033; }
+#plume.view.active .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: #082033; }
+
 /* Shared toolbar surface styling. Geometry is owned by
    plume-layout-correction.css. */
 #plume.view.active .plume-v2-location-toolbar {
