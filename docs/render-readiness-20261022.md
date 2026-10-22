@@ -33,3 +33,7 @@ Audited the actual Codespace branch `plume-model-repair-20261021` at `0fe65e76fb
 ## Deployment follow-up
 
 Render deployment is left to the owner. Its existing persistent database is not replaced by a code push; imported facility inventory availability there must be checked independently. Confirm GPU/WebGL 3D behavior on deployment in a normal supported browser. This audit does not certify the platform for operational use.
+
+## Owner-requested screen-space correction
+
+Removed the unrequested Open Incident Responses horizontal strip from Command, including its markup, renderer/export and unused styles. Existing incident records and Reports incident navigation remain. Verified no strip in the browser and top cards directly below the header. Affected Incident Command/navigation tests and root TypeScript passed.

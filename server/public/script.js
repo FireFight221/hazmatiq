@@ -1302,46 +1302,6 @@ function openNewIncidentEntry() {
   }
 }
 
-function renderIncidentResponseTabs() {
-  const shell = document.querySelector('.incident-response-tabs-shell');
-  const tabs = document.getElementById('incident-response-tabs');
-  const count = document.getElementById('incident-response-tabs-count');
-  if (!shell || !tabs) return;
-  const activeId = window.localStorage.getItem(activeIncidentIdStorageKey);
-  const openIncidents = readIncidents().filter((incident) => incident.status !== 'Completed');
-  tabs.replaceChildren();
-  if (openIncidents.length <= 1) {
-    // The active incident is already represented by the command cards below.
-    // Hide the parent shell so its border, padding, and margin cannot reserve
-    // vertical space for a redundant single-incident tab.
-    shell.hidden = true;
-    shell.setAttribute('aria-hidden', 'true');
-    tabs.hidden = true;
-    if (count) count.textContent = '';
-    return;
-  }
-  shell.hidden = false;
-  shell.removeAttribute('aria-hidden');
-  tabs.hidden = false;
-  if (count) count.textContent = `${openIncidents.length} RESPONSES`;
-  openIncidents.forEach((incident) => {
-    const tab = document.createElement('button');
-    tab.type = 'button';
-    tab.className = 'incident-response-tab';
-    tab.setAttribute('role', 'tab');
-    tab.setAttribute('aria-selected', String(incident.incidentId === activeId));
-    tab.classList.toggle('is-active', incident.incidentId === activeId);
-    tab.dataset.incidentTabId = incident.incidentId;
-    const title = document.createElement('strong');
-    title.textContent = incident.incidentName || 'New Incident';
-    const status = document.createElement('span');
-    status.textContent = incident.status || 'Active';
-    tab.append(title, status);
-    tab.addEventListener('click', () => switchActiveIncident(incident.incidentId));
-    tabs.append(tab);
-  });
-}
-
 function switchActiveIncident(incidentId) {
   const target = readIncidents().find((incident) => incident.incidentId === incidentId && incident.status !== 'Completed');
   if (!target) return null;
@@ -2781,7 +2741,6 @@ function renderIncidentLists() {
   const previous = incidents.filter((incident) => incident.status === 'Completed');
   previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId));
   if (!previous.length && previousContainer) previousContainer.textContent = 'No completed incident forms saved yet.';
-  renderIncidentResponseTabs();
   renderActiveIcsFormList();
   renderIncidentCommandDashboard();
 }
@@ -18082,7 +18041,6 @@ window.HazMatIQ.incidentCommandLegacy = {
   readIncidentMapSnapshot,
   writeIncidents,
   openNewIncidentEntry,
-  renderIncidentResponseTabs,
   renderIncidentCommandDashboard,
   renderIncidentLists,
   switchActiveIncident,
