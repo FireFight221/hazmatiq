@@ -517,40 +517,40 @@
 #plume.view.active .plume-readiness-grid span,
 #plume.view.active .plume-readiness-grid small { display: block; color: #9fb8cb; font-size: 10px; }
 #plume.view.active .plume-readiness-grid strong { display: block; margin: 2px 0; color: #fff; font-size: 12px; overflow-wrap: anywhere; }
-#plume.view.active .plume-zone-summary { display: grid; gap: 6px; }
+#plume.view.active .plume-zone-summary { display: grid; gap: 12px; }
 #plume.view.active .plume-zone-result {
-  position: relative;
-  display: block;
   min-width: 0;
-  min-height: 0;
-  overflow: hidden;
   border: 1px solid #2d7da5;
-  border-left-width: 4px;
+  border-left-width: 5px;
   border-radius: 8px;
   background: #071d32;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
 }
 #plume.view.active .plume-zone-result.level-3 { border-color: #d71920; }
 #plume.view.active .plume-zone-result.level-2 { border-color: #f28c18; }
 #plume.view.active .plume-zone-result.level-1 { border-color: #d6b615; }
 #plume.view.active .plume-zone-result-icon { display: none; }
-#plume.view.active .plume-zone-result > div { min-width: 0; padding: 6px 8px; }
-#plume.view.active .plume-zone-result strong { display: flex; align-items: baseline; justify-content: space-between; gap: 5px; color: #fff; font-size: 13px; line-height: 1.1; }
-#plume.view.active .plume-zone-result strong b { color: #fff; font-size: 14px; white-space: nowrap; }
-#plume.view.active .plume-zone-result small { display: block; margin-top: 2px; color: #b8ccda; font-size: 9px; line-height: 1.1; }
-#plume.view.active .plume-zone-impact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; margin: 5px 0 0; }
-#plume.view.active .plume-zone-impact > div { display: flex; justify-content: space-between; gap: 5px; min-width: 0; }
-#plume.view.active .plume-zone-impact dt { color: #9fb8cb; font-size: 8px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
-#plume.view.active .plume-zone-impact dd { margin: 0; color: #fff; font-size: 9px; text-align: right; overflow-wrap: anywhere; }
+#plume.view.active .plume-zone-result > div { min-width: 0; padding: 12px; }
+#plume.view.active .plume-zone-result strong { color: #fff; font-size: 20px; }
+#plume.view.active .plume-zone-result > div > strong { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+#plume.view.active .plume-zone-result strong b { color: #fff; font-size: 22px; }
+#plume.view.active .plume-zone-result small { display: block; color: #fff; font-size: 16px; }
+#plume.view.active .plume-zone-impact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 12px 0; }
+#plume.view.active .plume-zone-impact > div { min-width: 0; }
+#plume.view.active .plume-zone-impact dt { color: #fff; font-size: 16px; font-weight: 700; }
+#plume.view.active .plume-zone-impact dd { margin: 0; color: #fff; font-size: 18px; overflow-wrap: anywhere; }
 #plume.view.active .plume-zone-details,
-#plume.view.active .plume-zone-facilities { margin-top: 4px; border-top: 1px solid rgba(145,190,224,.18); }
-#plume.view.active .plume-zone-details summary,
-#plume.view.active .plume-zone-facilities summary { padding-top: 4px; color: #ffd323; cursor: pointer; font-size: 9px; font-weight: 850; }
-#plume.view.active .plume-zone-details dl { margin: 4px 0 0; }
-#plume.view.active .plume-zone-details dt,
-#plume.view.active .plume-zone-details dd { color: #b8ccda; font-size: 9px; }
-#plume.view.active .plume-zone-result[data-state="missing"] { opacity: .82; }
+#plume.view.active .plume-zone-facilities { margin-top: 10px; padding-top: 10px; border-top: 1px solid #477d9d; }
+#plume.view.active .plume-zone-details dl { margin: 0; }
+#plume.view.active .plume-zone-details dt { color: #fff; font-size: 16px; font-weight: 700; }
+#plume.view.active .plume-zone-details dd { margin: 0 0 8px; color: #fff; font-size: 18px; }
+#plume.view.active .plume-zone-facilities h3 { margin: 0; font: 700 20px Arial, sans-serif; color: #fff; }
+#plume.view.active .plume-zone-facilities ul { margin: 8px 0; padding-left: 24px; color: #fff; font-size: 18px; }
+#plume.view.active .plume-zone-facilities p { margin: 2px 0 8px; color: #fff; }
 #plume.view.active .plume-zone-result[data-state="unavailable"] { border-style: dashed; }
-#plume.view.active .plume-zone-facilities ul { margin: 4px 0 0; padding-left: 16px; color: #d5e6f0; font-size: 10px; }
 #plume.view.active .plume-command-facts-details { margin-top: 6px; border-top: 1px solid rgba(145,190,224,.18); }
 #plume.view.active .plume-command-facts-details > summary { padding-top: 5px; color: #b8ccda; cursor: pointer; font-size: 10px; font-weight: 850; }
 #plume.view.active .plume-command-facts { display: grid; gap: 4px; margin: 9px 0 0; }
@@ -1658,15 +1658,15 @@ body.plume-map-maximized-open { overflow: hidden; }
    connected to the same model and facility-detail elements. */
 #plume.view.active .plume-map-action-group .plume-threat-zone-button {
   border-color: #ffd18a;
-  background: linear-gradient(180deg, #ff9f1c 0%, #f97316 52%, #d9480f 100%);
-  color: #fff;
+  background: linear-gradient(180deg, #ff9f1c 0%, #f97316 52%, #f97316 100%);
+  color: #061a2e;
   box-shadow: inset 0 -3px 0 rgba(126, 32, 3, .48), 0 4px 0 #8f2d08, 0 7px 16px rgba(231, 92, 18, .34);
 }
 #plume.view.active .plume-map-action-group .plume-threat-zone-button:hover,
 #plume.view.active .plume-map-action-group .plume-threat-zone-button:focus-visible {
   border-color: #ffe2ae;
-  background: linear-gradient(180deg, #ffb347 0%, #fb7c18 52%, #e85d04 100%);
-  color: #fff;
+  background: linear-gradient(180deg, #ffb347 0%, #fb7c18 52%, #fb7c18 100%);
+  color: #061a2e;
   transform: translateY(-1px);
 }
 #plume.view.active .plume-map-action-group .plume-threat-zone-button:active {
@@ -1675,7 +1675,7 @@ body.plume-map-maximized-open { overflow: hidden; }
 }
 
 #plume.view.active .plume-threat-zone-dialog {
-  width: min(780px, calc(100vw - 32px));
+  width: min(1100px, calc(100vw - 24px));
   max-width: none;
   max-height: min(88dvh, 820px);
   padding: 0;
@@ -1716,7 +1716,33 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-threat-zone-dialog-close:focus-visible { border-color: #ffd323; color: #ffd323; outline: none; }
 #plume.view.active .plume-threat-zone-dialog-content { min-height: 0; padding: 12px; overflow: auto; }
 #plume.view.active .plume-threat-zone-dialog-content > .plume-intelligence-card { display: block !important; min-width: 0; margin: 0; border-color: #d65d21; }
-#plume.view.active .plume-threat-zone-dialog-content .plume-zone-summary { max-height: 50vh; overflow: auto; }
+#plume.view.active .plume-threat-zone-dialog-content .plume-zone-summary { max-height: none; overflow: visible; }
+#plume.view.active .plume-zone-summary[hidden],
+#plume.view.active .plume-zone-panel[hidden] { display: none; }
+#plume.view.active .plume-zone-panel { color: #fff; font: 18px/1.5 Arial, sans-serif; }
+#plume.view.active .plume-zone-panel :is(th, td, dt, dd, p, li, h3, caption) { color: #fff; }
+#plume.view.active .plume-zone-panel table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #071d32; color: #fff; }
+#plume.view.active .plume-zone-panel :is(th, td) { padding: 8px; border: 1px solid #477d9d; text-align: left; overflow-wrap: anywhere; font: inherit; }
+#plume.view.active .plume-zone-panel th { font-weight: 700; background: #102f47; }
+#plume.view.active .plume-zone-panel caption { text-align: left; padding-bottom: 12px; font-weight: 700; }
+#plume.view.active .plume-run-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#plume.view.active .plume-run-details > div { padding: 10px; border: 1px solid #477d9d; border-radius: 6px; overflow-wrap: anywhere; }
+#plume.view.active .plume-run-details dt { font-weight: 700; }
+#plume.view.active .plume-run-details dd { margin: 4px 0 0; }
+#plume.view.active .plume-threat-zone-dialog-content .plume-intelligence-note { position: static; margin-top: 12px; color: #fff; font-size: 16px; line-height: 1.5; }
+#plume.view.active .plume-threat-zone-dialog-content .plume-zone-tabs button { min-height: 44px; font-size: 17px; }
+#plume.view.active .plume-zone-tabs button:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 2px; }
+@media (max-width: 700px) {
+  #plume.view.active .plume-zone-panel table,
+  #plume.view.active .plume-zone-panel tbody,
+  #plume.view.active .plume-zone-panel tr,
+  #plume.view.active .plume-zone-panel :is(th, td) { display: block; width: auto; }
+  #plume.view.active .plume-zone-panel thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  #plume.view.active .plume-zone-panel td::before { content: attr(data-label) ": "; font-weight: 700; }
+  #plume.view.active .plume-zone-panel tr { margin-bottom: 12px; }
+  #plume.view.active .plume-run-details { grid-template-columns: minmax(0, 1fr); }
+  #plume.view.active .plume-threat-zone-dialog-content .plume-zone-tabs button { font-size: 16px; }
+}
 
 /* Keep the map navigator useful without letting it dominate the map face. */
 #plume.view.active .plume-compass-control {

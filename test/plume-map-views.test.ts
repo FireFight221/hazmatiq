@@ -112,7 +112,7 @@ describe("plume map views", () => {
     expect(plumeUi).toContain('dialogContent.append(threatZoneCard);');
     expect(plumeShellStyles).toContain('grid-template-areas: "inputs map" !important;');
     expect(tacticalMapStyles).toContain('.plume-threat-zone-button');
-    expect(tacticalMapStyles).toContain('background: linear-gradient(180deg, #ff9f1c 0%, #f97316 52%, #d9480f 100%);');
+    expect(tacticalMapStyles).toContain('background: linear-gradient(180deg, #ff9f1c 0%, #f97316 52%, #f97316 100%);');
     expect(tacticalMapStyles).toContain('.plume-compass-control');
   });
 

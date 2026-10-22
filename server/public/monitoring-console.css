@@ -303,7 +303,7 @@
 }
 #monitor .monitor-photo-source{color:#7ad5fa;font-size:.55rem;}
 #monitor .monitor-unit-actions{gap:5px;margin-top:7px;}
-#monitor button.monitor-btn-primary{background:linear-gradient(#1386ec,#0850bd);border-color:#1c9cfe;color:#fff;text-shadow:0 1px 2px #000;box-shadow:0 2px 8px #001e43;}
+#monitor button.monitor-btn-primary{background:linear-gradient(#0b65b8,#084a9c);border-color:#1c9cfe;color:#fff;text-shadow:0 1px 2px #000;box-shadow:0 2px 8px #001e43;}
 #monitor button.monitor-btn-primary:hover,#monitor .em-monitor-map-tools button:hover{filter:brightness(1.22);}
 #monitor button.monitor-btn-secondary{background:linear-gradient(#16436c,#092840);color:#e6f5ff;border-color:#447daa;}
 #monitor button.monitor-btn-plain{background:rgba(4,40,69,.65);color:#a6dfff;border-color:#42779d;}

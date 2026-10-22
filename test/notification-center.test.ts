@@ -142,7 +142,7 @@ describe("HazMatIQ Command Bar", () => {
       expect(styles).toContain(id);
     }
     expect(styles).toMatch(
-      /button\[data-view="plume"\][\s\S]*?color: #fff !important;[\s\S]*?background: linear-gradient\(180deg, #2c9b55, #176b39\) !important;/,
+      /button\[data-view="plume"\][\s\S]*?color: #fff !important;[\s\S]*?background: linear-gradient\(180deg, #146733, #10552b\) !important;/,
     );
   });
 

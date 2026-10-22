@@ -1076,6 +1076,7 @@ const operationalStatusTaskDefinitions = Object.freeze([
   { id: 'decontamination', label: 'Decontamination', summary: 'Commander confirms the decontamination plan or records why it is not applicable.', target: 'lookup' },
   { id: 'field-monitoring', label: 'Field monitoring', summary: 'Commander confirms monitoring coverage and field readings.', target: 'monitor' },
   { id: 'plume-assessment', label: 'Plume assessment', summary: 'Review the current planning estimate and confirm it against field conditions.', target: 'plume' },
+  { id: 'medical-rehab', label: 'Medical and rehab', summary: 'Confirm medical support and responder rehabilitation readiness.', target: 'details' },
   { id: 'documentation', label: 'Documentation', summary: 'Record decisions, evidence, and corrections in the incident record.', target: 'report' },
 ]);
 const noCurrentDataText = 'No Current Data Exists';
@@ -1807,6 +1808,8 @@ function operationalTaskEvidence(taskId, model) {
       return model?.monitoringStatus || 'System: no monitoring assignment or reading is linked.';
     case 'plume-assessment':
       return model?.plumeStatus || 'System: no current plume assessment is linked.';
+    case 'medical-rehab':
+      return model?.medicalConcerns || 'System: medical/rehab readiness requires confirmation.';
     case 'documentation':
       return incident?.updatedAt ? `System: incident record last updated ${new Date(incident.updatedAt).toLocaleString()}.` : 'System: incident record has not been updated.';
     default:
@@ -2057,11 +2060,11 @@ function renderIncidentGuidedResponse(model) {
   const checklist = model.operationalChecklist || normalizeOperationalChecklist(model.incident);
   const phaseDefinitions = typeof guidedPhaseDefinitions !== 'undefined' ? guidedPhaseDefinitions : [];
   const phaseState = model.incident?.guidedResponsePhaseState || {};
-  const currentPhase = phaseDefinitions.find((phase) => phaseState[phase.id]?.status !== 'Complete')?.id;
+  const currentPhase = phaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id;
   const priorityItems = phaseDefinitions.length
     ? phaseDefinitions.slice(0, 5).map((phase) => [
       { ...phase, label: phase.title, target: 'guided-response' },
-      { status: phaseState[phase.id]?.status || (phase.id === currentPhase ? 'Current' : 'Complete') },
+      { status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) },
     ])
     : operationalStatusTaskDefinitions.slice(0, 5).map((definition) => [
       definition,
@@ -2070,7 +2073,7 @@ function renderIncidentGuidedResponse(model) {
   priorities.replaceChildren();
   priorityItems.forEach(([definition, task]) => {
     const item = document.createElement('li');
-    item.className = task.status === 'Complete' ? 'is-complete' : 'is-pending';
+    item.className = ['Complete', 'Accomplished'].includes(task.status) ? 'is-complete' : 'is-pending';
     const button = document.createElement('button');
     button.type = 'button';
     button.dataset.commandView = definition.target;
@@ -2106,14 +2109,14 @@ function renderIncidentGuidedResponse(model) {
   });
 
   const progressItems = phaseDefinitions.length
-    ? phaseDefinitions.map((phase) => ({ label: phase.title, status: phaseState[phase.id]?.status || 'Not started' }))
+    ? phaseDefinitions.map((phase) => ({ label: phase.title, status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) }))
     : checklist.tasks;
   progress.replaceChildren();
   progressItems.forEach((task) => {
     const row = document.createElement('div');
     const state = document.createElement('span');
     const title = document.createElement('strong');
-    row.className = task.status === 'Complete' ? 'is-complete' : 'is-pending';
+    row.className = ['Complete', 'Accomplished'].includes(task.status) ? 'is-complete' : 'is-pending';
     state.textContent = task.status;
     title.textContent = task.label;
     row.append(state, title);
@@ -2209,6 +2212,8 @@ function renderIncidentCommandDashboard() {
   syncIncidentAddressDownstream();
   const productInput = document.getElementById('incident-product');
   if (productInput && document.activeElement !== productInput) productInput.value = model.incident.chemicalName || '';
+  const facilityInput = document.getElementById('incident-facility-name');
+  if (facilityInput && document.activeElement !== facilityInput) facilityInput.value = model.incident.facilityName || model.incident.selectedFacility?.name || '';
   const modeInput = document.getElementById('incident-operational-mode');
   if (modeInput) modeInput.value = model.incident.operationalMode || 'Research & Assessment';
   const modeHistory = Array.isArray(model.incident.operationalModeHistory) ? model.incident.operationalModeHistory : [];
@@ -2272,7 +2277,7 @@ function renderIncidentCommandDashboard() {
     const summary = document.createElement('p');
     summary.textContent = item.summary;
     const task = model.operationalChecklist.tasks.find((candidate) => candidate.id === item.id)
-      || model.operationalChecklist.tasks.find((candidate) => candidate.id === ({ eplan: 'facility-identification', plume: 'plume-assessment', monitoring: 'field-monitoring', ppe: 'ppe-entry', decon: 'decontamination', protective: 'protective-actions', medical: 'documentation' }[item.id] || ''));
+      || model.operationalChecklist.tasks.find((candidate) => candidate.id === ({ eplan: 'facility-identification', plume: 'plume-assessment', monitoring: 'field-monitoring', ppe: 'ppe-entry', decon: 'decontamination', protective: 'protective-actions', medical: 'medical-rehab' }[item.id] || ''));
     if (task) {
       const control = document.createElement('label');
       control.className = 'incident-command-status-control';
@@ -2301,7 +2306,7 @@ function renderIncidentCommandDashboard() {
       evidence.className = 'incident-command-status-evidence';
       evidence.textContent = task.status === 'Complete' && task.evidence
         ? `Confirmed by ${task.changedBy || 'Local responder'} · ${task.evidence}`
-        : `System signal: ${operationalTaskEvidence(task.id, model)} Commander confirmation required.`;
+        : 'Awaiting commander confirmation.';
       control.append(evidence);
       row.append(identity, badge, summary, control);
     } else {
@@ -10742,7 +10747,7 @@ function renderThreatZoneImpactDetails() {
     setText(`plume-zone-population-${level}`, population);
     setText(`plume-zone-area-${level}`, area);
     setText(`plume-zone-validity-${level}`, validity);
-    setText(`plume-zone-crosswind-${level}`, Number.isFinite(Number(crosswind)) ? formatZoneDistance(crosswind) : '—');
+    setText(`plume-zone-crosswind-${level}`, zone && crosswind !== null && crosswind !== undefined && Number.isFinite(Number(crosswind)) ? `${Math.round(Number(crosswind)).toLocaleString()} m half-width` : '—');
     card.dataset.impactState = zone ? (stats?.status || 'unavailable') : 'missing';
   });
 }
@@ -13503,7 +13508,8 @@ function facilityGroupLabel(category) {
 function renderThreatZoneFacilityDetails(level, zone) {
   const value = document.getElementById(`plume-zone-structures-${level}`);
   const list = document.getElementById(`plume-zone-facility-list-${level}`);
-  const status = threatIntelligence.status;
+  const status = ['error', 'unavailable'].includes(threatIntelligence.lookupStatus)
+    ? 'error' : threatIntelligence.status;
   if (value) {
     value.textContent = status === 'idle'
       ? 'Awaiting model'
@@ -13536,7 +13542,7 @@ function renderThreatZoneFacilityDetails(level, zone) {
   const facilities = zone?.facilities || [];
   if (!facilities.length) {
     const item = document.createElement('li');
-    item.textContent = '0 facilities identified';
+    item.textContent = 'No facilities identified in available data.';
     list.appendChild(item);
     return;
   }
@@ -13553,10 +13559,115 @@ function renderThreatZoneFacilityDetails(level, zone) {
     list.appendChild(heading);
     items.forEach((facility) => {
       const item = document.createElement('li');
-      item.textContent = facility.name || 'Unnamed facility';
+      const name = document.createElement('strong');
+      name.textContent = facility.name || 'Unnamed facility';
+      const description = document.createElement('p');
+      description.textContent = [facility.address || facility.metadata?.address, facilityGroupLabel(facility.category), facility.source].filter(Boolean).join(' · ');
+      item.append(name, description);
       list.appendChild(item);
     });
   });
+}
+
+// All panels use this completed result, never the editable controls or newer weather.
+function threatZonePanelData(result, intelligence = {}, features = []) {
+  const numeric = (value, unit) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
+    ? `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 })} ${unit}` : 'Not recorded';
+  const inputs = result?.inputs || {};
+  const submitted = result?.submittedInputs || {};
+  const identity = result?.chemicalIdentity || result?.chemical || {};
+  const facilityState = intelligence.lookupStatus || intelligence.status;
+  const rows = [3, 2, 1].map((level) => {
+    const zone = result?.isopleths?.find((item) => item.thresholdKind === 'AEGL' && Number(item.thresholdLevel) === level);
+    const threshold = result?.thresholdsUsed?.find((item) => item.kind === 'AEGL' && Number(item.level) === level);
+    const feature = features.find((item) => Number(item.properties?.thresholdLevel) === level);
+    const count = intelligence.zones?.[`aegl${level}`]?.facilities?.length;
+    const facilities = !zone ? 'Not modeled' : facilityState === 'loading' ? 'Checking facilities…'
+      : ['error', 'unavailable'].includes(facilityState) ? 'Unavailable'
+        : ['available', 'stale', 'ready', 'empty'].includes(facilityState) && count !== undefined ? `${count}${facilityState === 'stale' ? ' (stale data)' : ''}` : 'Not assessed';
+    return {
+      level, threshold: threshold ? numeric(threshold.valuePpm, 'ppm') : 'Not recorded',
+      duration: numeric(threshold?.durationMinutes ?? result?.endpoint?.selectedDurationMinutes, 'min'),
+      downwind: zone ? `${numeric(zone.maxDownwindM, 'm')}${zone.rangeTruncated ? ' (lower bound)' : ''}` : 'Not modeled',
+      crosswind: zone ? numeric(zone.maxCrosswindM, 'm') : 'Not modeled',
+      area: feature ? formatThreatZoneArea(threatZoneAreaSquareMeters(feature)) : 'Not modeled', facilities,
+    };
+  });
+  const details = [
+    ['Completed Run', result?.id || result?.computedAt || 'No completed run'],
+    ['Computed', result?.computedAt || result?.generatedAt || 'Not recorded'],
+    ['Chemical', identity.chemicalName || 'Not recorded'], ['CAS', identity.casNumber || 'Not recorded'],
+    ['Model', [result?.modelName || result?.modelModeLabel, result?.modelVersion].filter(Boolean).join(' · ') || 'Not recorded'],
+    ['Release Type', inputs.releaseKind || result?.releaseScenario || 'Not recorded'],
+    ['Container', inputs.containerType || submitted.containerType || 'Not recorded'],
+    ['Release Phase', submitted.releasePhase || 'Not recorded'],
+    ['Pressure Condition', submitted.pressureCondition || 'Not recorded'],
+    ['Release Rate', numeric(inputs.releaseRateKgPerSec, 'kg/s')], ['Total Mass', numeric(inputs.totalMassKg, 'kg')],
+    ['Release Duration', numeric(submitted.releaseDurationSec, 's')],
+    ['Puff Evaluation Time', numeric(inputs.durationSec, 's')], ['Release Height', numeric(inputs.releaseHeightM, 'm AGL')],
+    ['Wind Speed', numeric(inputs.windSpeedMps, 'm/s')], ['Wind From', numeric(inputs.windDirDeg, 'degrees')],
+    ['Temperature', numeric(inputs.tempC, '°C')], ['Relative Humidity', numeric(inputs.rh, '%')],
+    ['Weather Source', result?.weather?.source || submitted.weatherSource || 'Not recorded'],
+    ['Weather Observation', result?.weather?.observationTime || submitted.weatherObservationTime || 'Not recorded'],
+    ['Stability Class', inputs.stabilityClass || 'Not recorded'], ['Surface Roughness', inputs.surfaceRoughness || 'Not recorded'],
+    ['Molecular Weight', numeric(inputs.molecularWeight, 'g/mol')],
+    ['AEGL Source', result?.endpoint?.endpointSource || 'Not recorded'],
+    ['Exposure Duration', numeric(result?.endpoint?.selectedDurationMinutes, 'min')],
+    ['Source Term', result?.sourceStrength?.sourceStrengthMethod || 'Not recorded'],
+    ['Validation', result?.validationStatus || 'Not recorded'],
+  ];
+  return { rows, details, assumptions: result?.assumptions || [], limitations: result?.limitations || [] };
+}
+
+function renderThreatZonePanels(result) {
+  const data = threatZonePanelData(result, threatIntelligence, currentThreatZoneGeoJson?.features || []);
+  const distancePanel = document.getElementById('plume-distance-panel');
+  const modelPanel = document.getElementById('plume-model-panel');
+  const element = (tag, text) => { const node = document.createElement(tag); node.textContent = text; return node; };
+  if (distancePanel) {
+    const table = document.createElement('table');
+    table.append(element('caption', 'Modeled AEGL distances — not ERG isolation/protective-action distances'));
+    const head = document.createElement('thead'); const header = document.createElement('tr');
+    ['Level', 'Threshold', 'Duration', 'Downwind', 'Crosswind Half-Width', 'Area', 'Facilities'].forEach((label) => {
+      const cell = element('th', label); cell.scope = 'col'; header.append(cell);
+    });
+    head.append(header); table.append(head);
+    const body = document.createElement('tbody');
+    data.rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      const label = element('th', `AEGL-${row.level}`); label.scope = 'row'; tr.append(label);
+      ['threshold', 'duration', 'downwind', 'crosswind', 'area', 'facilities'].forEach((key, index) => {
+        const cell = element('td', row[key]); cell.dataset.label = ['Threshold', 'Duration', 'Downwind', 'Crosswind Half-Width', 'Area', 'Facilities'][index]; tr.append(cell);
+      });
+      body.append(tr);
+    });
+    table.append(body);
+    distancePanel.replaceChildren(table, element('p', 'Crosswind is the maximum distance from the centerline to one side (half-width). Facilities are assigned once to their highest-severity zone; counts are exclusive, not cumulative.'));
+  }
+  if (modelPanel) {
+    const list = document.createElement('dl'); list.className = 'plume-run-details';
+    data.details.forEach(([label, value]) => { const row = document.createElement('div'); row.append(element('dt', label), element('dd', value)); list.append(row); });
+    modelPanel.replaceChildren(element('h3', 'Completed Model Run'), element('p', 'Release values are operator-entered unless identified otherwise. Weather source and observation refer to this run. Missing values are not inferred from current controls.'), list);
+    [['Assumptions', data.assumptions], ['Limitations', data.limitations]].forEach(([title, items]) => {
+      if (!items.length) return;
+      const ul = document.createElement('ul'); items.forEach((item) => ul.append(element('li', item)));
+      modelPanel.append(element('h3', title), ul);
+    });
+  }
+  data.rows.forEach((row) => setText(`plume-zone-duration-${row.level}`, row.duration));
+}
+
+function selectThreatZoneTab(button, focus = false) {
+  const group = button.closest('.plume-zone-tabs');
+  group?.querySelectorAll('[role="tab"]').forEach((tab) => {
+    const active = tab === button;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    const panel = document.getElementById(tab.getAttribute('aria-controls'));
+    if (panel) panel.hidden = !active;
+  });
+  if (focus) button.focus();
 }
 
 function updatePlumeRightRailZoneResults(result = null) {
@@ -13566,10 +13677,9 @@ function updatePlumeRightRailZoneResults(result = null) {
     ? result.isopleths.filter((zone) => zone.thresholdKind === 'AEGL')
     : [];
   const isErg = result?.mode === 'erg-protective-action';
-  const releaseType = controlValue('plume-release-type', { selectedLabel: true });
-  const chemicalContext = getIncidentChemicalContext(getActiveIncident());
-  setText('plume-command-model-summary', chemicalContext.chemical?.name
-    ? `Model: ${chemicalContext.chemical.name} (${releaseType || 'Release'})`
+  const identity = result?.chemicalIdentity || result?.chemical;
+  setText('plume-command-model-summary', identity?.chemicalName
+    ? `Model: ${identity.chemicalName} (${result?.releaseScenario || result?.inputs?.releaseKind || 'Release'})`
     : 'Model: Awaiting verified chemical and release inputs.');
 
   [3, 2, 1].forEach((level) => {
@@ -13588,7 +13698,7 @@ function updatePlumeRightRailZoneResults(result = null) {
     renderThreatZoneFacilityDetails(level, threatIntelligence.zones?.[`aegl${level}`]);
   });
   renderThreatZoneImpactDetails();
-
+  renderThreatZonePanels(result);
 }
 
 function updatePlumeCommandPanel(result = null) {
@@ -14182,6 +14292,7 @@ async function plotPlumeFromControls(locationOverride = null) {
       return;
     }
 
+    modeled.result.submittedInputs = { ...inputs };
     updatePlumeEvidenceStatus(modeled.result);
 
     await mapReady;
@@ -15044,15 +15155,18 @@ document.querySelectorAll('[data-plume-card-toggle]').forEach((button) => {
   });
 });
 document.querySelectorAll('.plume-zone-tabs [role="tab"]').forEach((button) => {
-  button.addEventListener('click', () => {
-    const tabGroup = button.closest('.plume-zone-tabs');
-    tabGroup?.querySelectorAll('[role="tab"]').forEach((tab) => {
-      const active = tab === button;
-      tab.classList.toggle('active', active);
-      tab.setAttribute('aria-selected', String(active));
-    });
+  button.addEventListener('click', () => selectThreatZoneTab(button));
+  button.addEventListener('keydown', (event) => {
+    const tabs = Array.from(button.closest('.plume-zone-tabs').querySelectorAll('[role="tab"]'));
+    const index = tabs.indexOf(button);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+      : event.key === 'ArrowRight' ? (index + 1) % tabs.length
+        : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : null;
+    if (next === null) return;
+    event.preventDefault(); selectThreatZoneTab(tabs[next], true);
   });
 });
+renderThreatZonePanels(null);
 document.getElementById('plume-map-maximize-btn')?.addEventListener('click', () => setPlumeMapMaximized(true));
 document.getElementById('plume-map-minimize-btn')?.addEventListener('click', () => setPlumeMapMaximized(false));
 document.addEventListener('keydown', (event) => {
@@ -15635,7 +15749,7 @@ function renderCommandFacilityMatches(facilities) {
   }));
   commandFacilitySuggestions.hidden = false;
   commandFacilityInput?.setAttribute('aria-expanded', 'true');
-  setCommandFacilitySearchStatus(`${matches.length} matching facility${matches.length === 1 ? '' : 'ies'}. Select a facility to view its reported inventory.`);
+  setCommandFacilitySearchStatus(`${matches.length} matching ${matches.length === 1 ? 'facility' : 'facilities'}. Select a facility to view its reported inventory.`);
 }
 
 async function searchCommandFacilities(query) {
