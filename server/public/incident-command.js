@@ -4,6 +4,7 @@
 (() => {
   let initialized = false;
   let activeIncidentState = null;
+  let plumePreviewHydration = { key: '', generation: 0, promise: null, resolved: false };
 
   const NO_DATA = 'No Current Data Exists';
 
@@ -306,11 +307,26 @@
     if (!status || !image || !empty || !title || !summary || !facts || !open) return;
     status.textContent = hasPlume ? 'PLOTTED' : plumeNeedsRecalculation ? 'PLUME REQUIRES RECALCULATION' : 'NOT PLOTTED';
     status.dataset.state = hasPlume ? 'plotted' : plumeNeedsRecalculation ? 'recalculate' : 'missing';
-    image.hidden = !state?.plume?.mapImage;
-    image.src = state?.plume?.mapImage || '';
-    empty.hidden = Boolean(state?.plume?.mapImage);
+    const incidentId = state?.incidentId || '';
+    const imageRef = state?.raw?.plumeMapImageRef || '';
+    const hydrationKey = `${incidentId}:${imageRef}`;
+    const imageData = state?.plume?.mapImage || '';
+    const sameSnapshot = image.dataset.snapshotKey === hydrationKey && image.dataset.incidentId === incidentId;
+    if (imageData) {
+      if (image.src !== imageData) image.src = imageData;
+      image.dataset.snapshotKey = hydrationKey;
+      image.dataset.incidentId = incidentId;
+      image.hidden = false;
+    } else if (!sameSnapshot) {
+      image.removeAttribute('src');
+      image.removeAttribute('data-snapshot-key');
+      image.removeAttribute('data-incident-id');
+      image.hidden = true;
+    }
+    const imageVisible = !image.hidden && Boolean(image.src);
+    empty.hidden = imageVisible;
     empty.textContent = hasSavedImageRef && !state?.plume?.mapImage
-      ? 'Loading saved plume snapshot…'
+      ? imageVisible ? '' : 'Loading saved plume snapshot…'
       : 'No plume snapshot is saved for this incident.';
     title.textContent = hasPlume
       ? (state.plume.summary?.title || 'Saved plume assessment')
@@ -345,13 +361,22 @@
     const imageRef = state?.raw?.plumeMapImageRef;
     const reader = legacyApi()?.readIncidentMapSnapshot;
     if (!imageRef || typeof reader !== 'function') return;
-    Promise.resolve(reader(imageRef)).then((imageData) => {
+    const key = `${state?.incidentId || ''}:${imageRef}`;
+    if (plumePreviewHydration.key === key && (plumePreviewHydration.promise || plumePreviewHydration.resolved)) return;
+    const generation = plumePreviewHydration.generation + 1;
+    plumePreviewHydration = { key, generation, promise: null, resolved: false };
+    const request = Promise.resolve(reader(imageRef));
+    plumePreviewHydration.promise = request;
+    request.then((imageData) => {
       const current = getActiveIncidentState();
-      if (!imageData || current?.incidentId !== state?.incidentId) return;
+      if (!imageData || generation !== plumePreviewHydration.generation || current?.incidentId !== state?.incidentId || current?.raw?.plumeMapImageRef !== imageRef) return;
+      plumePreviewHydration.resolved = true;
       renderPlumeSummary({
         ...state,
         plume: { ...state.plume, mapImage: imageData },
       });
+    }).catch(() => {
+      if (generation === plumePreviewHydration.generation) plumePreviewHydration.resolved = true;
     });
   }
 

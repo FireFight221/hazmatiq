@@ -867,6 +867,38 @@
   padding: 0;
   background: transparent;
 }
+#incident .incident-command-main-grid > .incident-command-panel { min-height: 0; }
+#incident .incident-command-plume-summary-inline {
+  margin: 12px 0 0;
+  padding: 10px;
+  border-color: #356b94;
+  background: rgba(6, 31, 52, .72);
+}
+#incident .incident-command-plume-summary-inline .incident-command-section-heading { margin-bottom: 7px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-preview { grid-template-columns: minmax(110px, .42fr) minmax(0, 1.58fr); gap: 10px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap,
+#incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap img,
+#incident .incident-command-plume-summary-inline .incident-command-plume-empty { min-height: 104px; }
+#incident .incident-command-assignment-editor { margin: 14px 0; }
+#incident .incident-command-assignment-editor .incident-command-section-heading { align-items: start; }
+#incident .incident-command-assignment-editor .incident-command-section-heading p { margin: 4px 0 0; color: #d7e6ef; font-size: .78rem; line-height: 1.35; }
+#incident .incident-assignment-summary { display: grid; gap: 3px; min-width: 150px; text-align: right; }
+#incident .incident-assignment-summary strong { color: #f6c343; font-size: .82rem; }
+#incident .incident-assignment-summary span { color: #d7e6ef; font-size: .72rem; }
+#incident .incident-assignment-toolbar { display: flex; justify-content: flex-end; margin: 8px 0; }
+#incident .incident-assignment-list { display: grid; gap: 8px; }
+#incident .incident-assignment-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 9px 10px; border: 1px solid rgba(93, 142, 180, .52); border-radius: 7px; background: rgba(8, 37, 64, .72); }
+#incident .incident-assignment-item-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#incident .incident-assignment-item-heading strong { color: #fff; overflow-wrap: anywhere; }
+#incident .incident-assignment-state { color: #9af0b3; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+#incident .incident-assignment-item > p { grid-column: 1 / -1; margin: 0; color: #c5dbe7; font-size: .76rem; line-height: 1.35; overflow-wrap: anywhere; }
+#incident .incident-assignment-item-actions { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+#incident .incident-assignment-empty { margin: 0; padding: 10px; color: #c5dbe7; border: 1px dashed #5d8db3; border-radius: 7px; }
+#incident .incident-assignment-form { display: grid; gap: 9px; margin-top: 10px; padding: 10px; border: 1px solid #ffd400; border-radius: 7px; background: rgba(23, 77, 104, .58); }
+#incident .incident-assignment-form .guided-assignment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#incident .incident-assignment-form .guided-assignment-grid label { display: grid; gap: 4px; min-width: 0; color: #f4fbff; font-size: .76rem; font-weight: 800; line-height: 1.3; }
+#incident .incident-assignment-form input,
+#incident .incident-assignment-form select { box-sizing: border-box; width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid #8db4ca; border-radius: 5px; color: #071f36; background: #fff; font: inherit; font-size: .82rem; }
 #incident .incident-info-card {
   align-self: stretch;
   min-width: 0;
@@ -953,6 +985,9 @@
   #incident .incident-command-info-grid { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 8px; }
   #incident .incident-info-card { height: auto; }
   #incident .guided-assignment-grid { grid-template-columns: 1fr; }
+  #incident .incident-command-plume-summary-inline .incident-command-plume-preview { grid-template-columns: 1fr; }
+  #incident .incident-assignment-summary { text-align: left; }
+  #incident .incident-assignment-form .guided-assignment-grid { grid-template-columns: 1fr; }
   .incident-involved-chemicals-dialog-header { padding-inline: 12px; }
   .incident-involved-chemicals-dialog-status { margin-inline: 12px; }
   .incident-involved-chemicals-dialog-list { padding-inline: 12px; }

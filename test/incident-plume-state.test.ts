@@ -64,6 +64,10 @@ describe('Incident Command plume ownership', () => {
   it('restores only the current incident snapshot and protects async switching', () => {
     expect(command).toContain('readIncidentMapSnapshot');
     expect(command).toContain('current?.incidentId !== state?.incidentId');
+    expect(command).toContain('current?.raw?.plumeMapImageRef !== imageRef');
+    expect(command).toContain('generation !== plumePreviewHydration.generation');
+    expect(command).toContain('if (image.src !== imageData) image.src = imageData;');
+    expect(command).toContain('imageVisible ? \'\' : \'Loading saved plume snapshot…\'');
     expect(command).toContain("state?.plume?.status === 'PLOTTED'");
     expect(command).toContain('PLUME REQUIRES RECALCULATION');
     expect(script).toContain('paintedFrames >= 2 && cameraSettled');

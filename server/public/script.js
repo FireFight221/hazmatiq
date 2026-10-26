@@ -3838,6 +3838,11 @@ async function openErgReviewOverlay() {
 }
 
 incidentCommandDashboard?.addEventListener('click', (event) => {
+  if (event.target.closest('#ic-add-assignment-btn, #ic-manage-assignments-btn')) {
+    const incident = getActiveIncident();
+    if (incident) renderIncidentAssignmentEditor({ ...incident, __editingAssignment: { status: 'Suggested', phaseId: guidedPhaseDefinitions[0]?.id || '' } });
+    return;
+  }
   const reportButton = event.target.closest('[data-incident-report-id]');
   if (reportButton) {
     showView('report');
@@ -3866,8 +3871,6 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
   if (!control) return;
   const action = control.dataset.incidentCommandAction;
   if (action === 'manage-assignments') {
-    const details = document.querySelector('.incident-command-operational-details');
-    if (details) details.open = true;
     renderIncidentAssignmentEditor(getActiveIncident());
     document.getElementById('ic-assignment-editor-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
@@ -6985,6 +6988,49 @@ function persistGuidedPhaseAssignment(phaseId, assignment) {
   return { ok: true, action, assignment: nextAssignment };
 }
 
+function persistIncidentAssignment(assignment, previousPhaseId = '') {
+  const incident = getActiveIncident();
+  if (!incident) return { ok: false, error: 'No active incident is selected.' };
+  const required = [assignment.personnel, assignment.unit, assignment.responsibility].map((value) => String(value || '').trim());
+  if (required.some((value) => !value)) return { ok: false, error: 'Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.' };
+  const targetPhaseId = assignment.phaseId || previousPhaseId || guidedPhaseDefinitions[0]?.id;
+  if (!targetPhaseId) return { ok: false, error: 'Select a response phase for this assignment.' };
+  const assignmentId = assignment.assignmentId || `guided-incident-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const current = readGuidedResponsePhaseState(incident, getIncidentChemicalContext(incident)?.chemical || activeChemical);
+  const priorPhaseId = previousPhaseId || Object.entries(current).find(([, record]) => (record?.assignments || []).some((item) => item?.assignmentId === assignmentId))?.[0] || '';
+  const now = new Date().toISOString();
+  const nextAssignment = {
+    ...assignment,
+    assignmentId,
+    phaseId: targetPhaseId,
+    locationStatus: assignment.locationStatus || 'Location not set',
+    locationSource: assignment.locationSource || 'Not placed',
+    updatedAt: now,
+    changedBy: incidentResponderIdentity(),
+  };
+  if (priorPhaseId && priorPhaseId !== targetPhaseId) {
+    const priorAssignments = Array.isArray(current[priorPhaseId]?.assignments) ? current[priorPhaseId].assignments : [];
+    persistGuidedResponsePhaseState(priorPhaseId, { assignments: priorAssignments.filter((item) => item?.assignmentId !== assignmentId) });
+  }
+  const latest = readGuidedResponsePhaseState(incident, getIncidentChemicalContext(incident)?.chemical || activeChemical);
+  const targetAssignments = Array.isArray(latest[targetPhaseId]?.assignments) ? latest[targetPhaseId].assignments : [];
+  const existingIndex = targetAssignments.findIndex((item) => item?.assignmentId === assignmentId);
+  const action = existingIndex >= 0 || Boolean(priorPhaseId) ? 'updated' : 'assigned';
+  const nextAssignments = targetAssignments.map((item) => item?.assignmentId === assignmentId ? nextAssignment : item);
+  if (existingIndex < 0) nextAssignments.push(nextAssignment);
+  persistGuidedResponsePhaseState(targetPhaseId, { assignments: nextAssignments }, {
+    assignmentHistoryEntry: {
+      assignmentId,
+      action,
+      changedAt: now,
+      changedBy: nextAssignment.changedBy,
+      phaseId: targetPhaseId,
+      assignment: nextAssignment,
+    },
+  });
+  return { ok: true, action, assignment: nextAssignment };
+}
+
 function createGuidedRoleAssignment(phase, incident, record) {
   const panel = document.createElement('div');
   panel.className = 'guided-role-assignment';
@@ -7083,22 +7129,73 @@ function renderIncidentAssignmentEditor(incident) {
   const editor = document.getElementById('ic-assignment-editor');
   if (!editor) return;
   const incidentId = incident?.incidentId || '';
-  if (editor.dataset.incidentId === incidentId && editor.childElementCount) return;
   editor.replaceChildren();
   editor.dataset.incidentId = incidentId;
   if (!incident) return;
-  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
-  const phaseState = readGuidedResponsePhaseState(incident, chemical);
-  guidedPhaseDefinitions.forEach((phase) => {
-    const wrapper = document.createElement('section');
-    wrapper.className = 'incident-assignment-phase';
-    const heading = document.createElement('h4');
-    heading.textContent = `${phase.number}. ${phase.title}`;
-    const roleSummary = document.createElement('p');
-    roleSummary.textContent = `Suggested coverage: ${phase.roles}. Save only confirmed or planned assignments.`;
-    wrapper.append(heading, roleSummary, createGuidedRoleAssignment(phase, incident, phaseState[phase.id] || {}));
-    editor.append(wrapper);
+  const assignments = guidedIncidentAssignments(incident);
+  const phaseLabel = (phaseId) => guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.title || phaseId || 'Unassigned phase';
+  const list = document.createElement('div');
+  list.className = 'incident-assignment-list';
+  if (!assignments.length) {
+    const empty = document.createElement('p');
+    empty.className = 'incident-assignment-empty';
+    empty.textContent = editor.dataset.emptyMessage || 'No assignments recorded.';
+    list.append(empty);
+  } else assignments.forEach((assignment) => {
+    const item = document.createElement('article');
+    item.className = 'incident-assignment-item';
+    item.dataset.assignmentId = assignment.assignmentId || '';
+    const heading = document.createElement('div');
+    heading.className = 'incident-assignment-item-heading';
+    const title = document.createElement('strong');
+    title.textContent = assignment.personnel || assignment.unit || 'Unnamed assignment';
+    const state = document.createElement('span');
+    state.textContent = assignment.status || 'Suggested';
+    state.className = 'incident-assignment-state';
+    heading.append(title, state);
+    const details = document.createElement('p');
+    details.textContent = [phaseLabel(assignment.phaseId), assignment.role, assignment.unit, assignment.responsibility, assignment.supervisor].filter(Boolean).join(' · ');
+    const actions = document.createElement('div');
+    actions.className = 'incident-assignment-item-actions';
+    const edit = document.createElement('button');
+    edit.type = 'button'; edit.className = 'ghost-btn'; edit.textContent = 'Edit';
+    edit.addEventListener('click', () => renderIncidentAssignmentEditor({ ...incident, __editingAssignment: assignment }));
+    actions.append(edit);
+    item.append(heading, details, actions);
+    list.append(item);
   });
+  editor.append(list);
+  if (incident.__editingAssignment) {
+    const assignment = incident.__editingAssignment;
+    const form = document.createElement('form');
+    form.className = 'incident-assignment-form';
+    form.addEventListener('submit', (event) => event.preventDefault());
+    const grid = document.createElement('div'); grid.className = 'guided-assignment-grid';
+    const controls = {};
+    const fields = [['Personnel / team', 'personnel', 'Assigned person or team'], ['Unit / resource', 'unit', 'Unit, apparatus, or resource'], ['Supervisor', 'supervisor', 'Supervisor or group leader'], ['Responsibility', 'responsibility', 'Confirmed responsibility for this incident']];
+    fields.forEach(([label, key, placeholder]) => {
+      const field = document.createElement('label'); field.textContent = label;
+      const input = document.createElement('input'); input.type = 'text'; input.value = assignment[key] || ''; input.placeholder = placeholder; controls[key] = input; field.append(input); grid.append(field);
+    });
+    const phaseField = document.createElement('label'); phaseField.textContent = 'Response phase';
+    const phaseSelect = document.createElement('select');
+    guidedPhaseDefinitions.forEach((phase) => { const option = document.createElement('option'); option.value = phase.id; option.textContent = `${phase.number}. ${phase.title}`; phaseSelect.append(option); });
+    phaseSelect.value = assignment.phaseId || guidedPhaseDefinitions[0]?.id || ''; phaseField.append(phaseSelect); grid.append(phaseField);
+    const statusField = document.createElement('label'); statusField.textContent = 'Assignment state';
+    const statusSelect = document.createElement('select');
+    [['Suggested', 'Suggested — not assigned'], ['Planned', 'Planned — awaiting confirmation'], ['Confirmed', 'Confirmed — actual assignment']].forEach(([value, label]) => { const option = document.createElement('option'); option.value = value; option.textContent = label; statusSelect.append(option); });
+    statusSelect.value = assignment.status || 'Suggested'; statusField.append(statusSelect); grid.append(statusField);
+    const actions = document.createElement('div'); actions.className = 'guided-assignment-actions';
+    const saveButton = document.createElement('button'); saveButton.type = 'button'; saveButton.className = 'ghost-btn guided-assignment-action'; saveButton.textContent = assignment.assignmentId ? 'Update' : 'Assign';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ghost-btn'; cancel.textContent = 'Cancel'; cancel.addEventListener('click', () => renderIncidentAssignmentEditor(incident));
+    const feedback = document.createElement('p'); feedback.className = 'guided-assignment-feedback'; feedback.setAttribute('role', 'status');
+    saveButton.addEventListener('click', () => {
+      const result = persistIncidentAssignment({ ...assignment, ...Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, input.value.trim()])), phaseId: phaseSelect.value, status: statusSelect.value }, assignment.phaseId);
+      if (!result.ok) { feedback.dataset.state = 'error'; feedback.textContent = result.error; return; }
+      renderIncidentAssignmentEditor(getActiveIncident());
+    });
+    actions.append(saveButton, cancel); form.append(grid, actions, feedback); editor.append(form);
+  }
 }
 
 function createGuidedScbaManagement(record) {

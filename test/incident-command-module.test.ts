@@ -49,10 +49,11 @@ describe('Incident Command operational hub', () => {
   });
 
   it('uses two command cards and keeps the active-incident decision actions in Guided Response', () => {
-    const activeCommand = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('<section class="incident-command-panel incident-command-plume-summary"'));
-    expect(activeCommand.match(/class="incident-command-panel /g)).toHaveLength(2);
+    const activeCommand = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('<section class="incident-command-panel incident-command-assignment-editor"'));
+    expect(activeCommand.match(/class="incident-command-panel /g)).toHaveLength(3);
     expect(activeCommand).toContain('incident-command-brief-panel');
     expect(activeCommand).toContain('incident-command-guided-panel');
+    expect(activeCommand).toContain('incident-command-plume-summary-inline');
     expect(activeCommand).not.toContain('Operational Status');
     expect(activeCommand).toContain('<span aria-hidden="true">🛡️</span><span class="incident-command-panel-title">Guided Response</span>');
     for (const [view, label] of [['lookup', 'Chemical / PPE'], ['plume', 'Plume Model'], ['map', 'Live Map'], ['report', 'Incident Reports']]) {
@@ -62,6 +63,15 @@ describe('Incident Command operational hub', () => {
     expect(styles).toContain('grid-template-columns: minmax(0, .95fr) minmax(0, 1.35fr);');
     expect(incidentOverrides).toContain('border-top: 3px solid #f6c343');
     expect(incidentOverrides).toContain('border-top: 3px solid #54c77b');
+  });
+
+  it('keeps the plume summary inside Incident Brief and uses one incident-level assignment editor', () => {
+    const brief = html.slice(html.indexOf('incident-command-brief-panel'), html.indexOf('incident-command-guided-panel'));
+    expect(brief).toContain('incident-command-plume-summary-inline');
+    expect(html).toContain('id="ic-assignment-editor-section"');
+    expect(html).toContain('id="ic-manage-assignments-btn"');
+    expect(html).not.toContain('class="incident-assignment-phase"');
+    expect(script).toContain("function persistIncidentAssignment(assignment, previousPhaseId = '')");
   });
 
   it('binds commander status controls to canonical checklist IDs and requires visible completion evidence', () => {

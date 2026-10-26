@@ -323,11 +323,6 @@
                     <div class="incident-info-compact-summary"><span id="ic-facility-verification-state">Not selected</span><strong id="ic-header-facility-address">Not specified</strong></div>
                   </article>
 
-                  <article class="incident-info-card incident-info-card-roles">
-                    <div class="incident-info-card-heading"><h2><span aria-hidden="true">👥</span> Roles &amp; Responsibilities</h2></div>
-                    <div class="incident-info-roles-summary"><strong id="ic-assignment-count">0 assignments</strong><span id="ic-assignment-summary">No confirmed or planned assignments.</span></div>
-                    <button class="ghost-btn incident-manage-assignments-btn" id="ic-manage-assignments-btn" type="button" data-incident-command-action="manage-assignments">Manage Assignments</button>
-                  </article>
                 </section>
 
 
@@ -365,6 +360,13 @@
                     <h2><span aria-hidden="true">📋</span><span class="incident-command-panel-title">Incident Brief</span><small class="incident-command-panel-subtitle">Identity, scene context, and commander record</small><span class="incident-command-panel-actions"><button class="incident-command-panel-action" type="button" data-incident-command-action="export-package" aria-label="Print or export incident brief" title="Print or export incident brief"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5h-2M7 14h10v7H7z" /></svg></button></span></h2>
                     <dl id="ic-brief-list" class="incident-command-brief-list"></dl>
                     <div id="ic-chemical-summary" class="incident-command-chemical-summary" aria-live="polite"></div>
+                    <section class="incident-command-panel incident-command-plume-summary incident-command-plume-summary-inline" aria-labelledby="ic-plume-summary-title">
+                      <div class="incident-command-section-heading"><div><h2 id="ic-plume-summary-title">Plume Summary</h2></div><strong id="ic-plume-status" class="incident-command-plume-status">NOT PLOTTED</strong></div>
+                      <div class="incident-command-plume-preview">
+                        <div class="incident-command-plume-image-wrap"><img id="ic-plume-preview-image" alt="Saved plume and threat-zone preview" hidden /><div id="ic-plume-preview-empty" class="incident-command-plume-empty">No plume snapshot is saved for this incident.</div></div>
+                        <div class="incident-command-plume-copy"><strong id="ic-plume-preview-title">Plot a plume from Incident Command</strong><p id="ic-plume-preview-summary">Use the canonical Plume Model after confirming chemical identity, release inputs, and current weather.</p><dl id="ic-plume-preview-facts"></dl><button type="button" data-command-view="plume" id="ic-plume-open-btn">PLOT PLUME</button></div>
+                      </div>
+                    </section>
                   </article>
 
                   <article class="incident-command-panel incident-command-guided-panel">
@@ -395,18 +397,15 @@
                   </article>
                 </div>
 
-                <section class="incident-command-panel incident-command-plume-summary" aria-labelledby="ic-plume-summary-title">
-                  <div class="incident-command-section-heading"><div><h2 id="ic-plume-summary-title">Plume Summary</h2></div><strong id="ic-plume-status" class="incident-command-plume-status">NOT PLOTTED</strong></div>
-                  <div class="incident-command-plume-preview">
-                    <div class="incident-command-plume-image-wrap"><img id="ic-plume-preview-image" alt="Saved plume and threat-zone preview" hidden /><div id="ic-plume-preview-empty" class="incident-command-plume-empty">No plume snapshot is saved for this incident.</div></div>
-                    <div class="incident-command-plume-copy"><strong id="ic-plume-preview-title">Plot a plume from Incident Command</strong><p id="ic-plume-preview-summary">Use the canonical Plume Model after confirming chemical identity, release inputs, and current weather.</p><dl id="ic-plume-preview-facts"></dl><button type="button" data-command-view="plume" id="ic-plume-open-btn">PLOT PLUME</button></div>
-                  </div>
+                <section class="incident-command-panel incident-command-assignment-editor" id="ic-assignment-editor-section" aria-labelledby="ic-assignment-title">
+                  <div class="incident-command-section-heading"><div><h2 id="ic-assignment-title">Roles &amp; Responsibilities</h2><p>Incident-level assignments retain their phase association for Live Map and ICS/report output.</p></div><div class="incident-assignment-summary"><strong id="ic-assignment-count">0 assignments</strong><span id="ic-assignment-summary">No confirmed or planned assignments.</span></div></div>
+                  <div class="incident-assignment-toolbar"><button class="ghost-btn" id="ic-manage-assignments-btn" type="button">Add Crew / Assignment</button></div>
+                  <div id="ic-assignment-editor" data-empty-message="No assignments recorded."></div>
                 </section>
 
                 <details class="incident-command-panel incident-command-operational-details">
                   <summary><strong>Operational Details</strong><span>Detailed information, full guidance, and supporting resources.</span></summary>
                   <div class="incident-command-detail-grid">
-                    <section class="incident-command-assignment-editor" id="ic-assignment-editor-section"><h3>Roles &amp; Responsibilities</h3><p>Assign only the personnel, units, supervisors, responsibilities, and states that materially affect this incident. Updates retain stable IDs and phase associations for Live Map and ICS/report output.</p><div id="ic-assignment-editor" data-empty-message="No assignments recorded."></div></section>
                     <section><h3>Incident Notes</h3><div id="ic-detail-notes">No Current Data Exists</div></section>
                     <section><h3>Weather Details</h3><div id="ic-detail-weather">No Current Data Exists</div></section>
                     <section><h3>Plume Details</h3><div id="ic-detail-plume">No Current Data Exists</div></section>
