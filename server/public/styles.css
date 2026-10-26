@@ -8464,12 +8464,13 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-scba-grid input:focus-visible,
 #guided-response .guided-phase-evidence:focus-visible { outline: 3px solid #f6c343; outline-offset: 2px; }
 #guided-response .guided-phase-body > section:nth-of-type(4) { border-color: #d89a96; background: #fff8f7; }
-#guided-response .guided-phase-decision-grid { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr); gap: 10px; }
-#guided-response .guided-goal-status,
+#guided-response .guided-phase-decision-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+#guided-response .guided-goal-status { min-width: 0; padding: 10px 12px; border: 1px solid #d89a96; border-left: 5px solid #b42318; border-radius: 7px; background: #fff3f2; color: #5f1b1b; }
+#guided-response .guided-goal-status h3 { margin: 0 0 4px; color: #8f1d1d; font-size: 1.08rem; font-weight: 900; }
+#guided-response .guided-goal-status-note { display: block; margin: 0 0 7px; color: #6e2a2a; font-size: .82rem; line-height: 1.35; }
+#guided-response .guided-goal-status select { min-height: 40px; width: 100%; padding: 7px 9px; border: 1px solid #b85e59; border-radius: 5px; background: #fff; color: #4e1717; font: inherit; font-size: 1rem; font-weight: 800; }
 #guided-response .guided-next-decision { min-width: 0; padding: 11px 12px; border: 1px solid #b8cfbd; border-left: 5px solid #258a4a; border-radius: 7px; background: #f1faf4; color: #164c32; }
-#guided-response .guided-goal-status h3,
 #guided-response .guided-next-decision h3 { margin: 0 0 7px; color: #164c32; font-size: 1.08rem; font-weight: 850; }
-#guided-response .guided-goal-status select { min-height: 40px; width: 100%; padding: 7px 9px; border: 1px solid #6c9b78; border-radius: 5px; background: #fff; color: #163c28; font: inherit; font-size: 1rem; font-weight: 750; }
 #guided-response .guided-next-decision p { margin: 0; color: #1f5133; font-size: 1.05rem; line-height: 1.45; }
 #guided-response .guided-phase-scenario,
 #guided-response .guided-readiness-detail,
@@ -8496,10 +8497,12 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-reference-card dd { min-width: 0; margin: 0; color: #1d3b4e; overflow-wrap: anywhere; }
 #guided-response .guided-reference-link { display: inline-block; margin-top: 8px; color: #075d8d; font-size: .86rem; font-weight: 850; overflow-wrap: anywhere; }
 #guided-response .guided-reference-gap { margin: 8px 0 0; color: #7b4a14; font-size: .84rem; line-height: 1.4; }
-#guided-response .guided-phase-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: end; padding: 11px 12px 0; border-top: 1px solid #d9e3e8; background: #f7fafc; }
+#guided-response .guided-phase-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; padding: 11px 12px 0; border-top: 1px solid #d9e3e8; background: #f7fafc; }
 #guided-response .guided-phase-footer h3 { grid-column: 1 / -1; margin: 0; color: #173e57; font-size: 1.08rem; font-weight: 850; }
 #guided-response .guided-phase-footer span { color: #4a6878; font-size: .95rem; line-height: 1.4; }
 #guided-response .guided-phase-evidence { grid-column: 1 / -1; resize: vertical; }
+#guided-response .guided-phase-footer .guided-goal-status,
+#guided-response .guided-phase-footer .primary-btn { grid-column: 1 / -1; }
 #guided-response .guided-scba-management { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c1d3df; }
 #guided-response .guided-scba-management h5 { margin: 0 0 7px; color: #173e57; font-size: 1.15rem; font-weight: 850; line-height: 1.3; }
 #guided-response .guided-scba-status { margin: 10px 0 0; color: #7a4d00; font-size: 1rem; font-weight: 750; line-height: 1.5; }

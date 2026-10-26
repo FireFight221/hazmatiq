@@ -329,8 +329,10 @@
 
   function sourceDetails(profile, sources, basis = '') {
     const records = Array.isArray(profile?.safetyCritical?.records) ? profile.safetyCritical.records : [];
+    const links = Array.isArray(profile?.sourceLinks) ? profile.sourceLinks : [];
     return unique(sources).map((source) => {
       const record = records.find((item) => canonicalSource(item?.sourceName) === source && text(item?.value));
+      const link = links.find((item) => canonicalSource(item?.sourceName) === source);
       const label = source === 'ERG' ? 'ERG 2024' : source;
       const title = source === 'Chemical Companion'
         ? 'Chemical Companion master record'
@@ -346,6 +348,12 @@
         title,
         basis: basis || (record?.field ? `Approved ${record.field} record` : 'Source listed in the linked chemical record'),
         reference: record?.sourceLocator || record?.sourceRecordId || (source === 'ERG' && text(profile?.isolationErg?.ergGuide) ? `ERG Guide ${profile.isolationErg.ergGuide}` : ''),
+        sourceName: source,
+        sourceRecordId: link?.sourceRecordId || record?.sourceRecordId || '',
+        sourceLocator: record?.sourceLocator || link?.sourceLocator || '',
+        sourceUrl: link?.sourceUrl || (source === 'CAMEO' ? profile?.sourceUrl || '' : ''),
+        sourceVersion: link?.sourceVersion || record?.sourceVersion || '',
+        reviewStatus: link?.reviewStatus || (record ? 'verified record' : ''),
         available: Boolean(record || source === 'ERG' || source === 'Chemical Companion'),
       };
     });

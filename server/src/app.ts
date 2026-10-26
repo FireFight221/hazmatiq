@@ -534,6 +534,21 @@ app.get("/api/chemicals/:id/profile", async (c) => {
     ...reviewedLinks,
     ...(nioshLink ? [nioshLink] : []),
   ];
+  const canonicalCameoUrl = typeof profile.sourceUrl === "string" && /^https:\/\/cameochemicals\.noaa\.gov\/chemical\/[^/]+$/i.test(profile.sourceUrl)
+    ? profile.sourceUrl
+    : "";
+  if (canonicalCameoUrl && !sourceLinks.some((link) => link.sourceName === "CAMEO Chemicals")) {
+    sourceLinks.push({
+      sourceName: "CAMEO Chemicals",
+      sourceRecordId: canonicalCameoUrl.match(/\/chemical\/([^/]+)$/i)?.[1] || "canonical-profile-link",
+      sourceIdentifierType: "CAMEO chemical ID",
+      sourceIdentifierValue: canonicalCameoUrl.match(/\/chemical\/([^/]+)$/i)?.[1] || null,
+      matchBasis: "Canonical CAMEO URL retained by the selected Chemical Companion profile",
+      reviewStatus: "verified",
+      sourceVersion: "Canonical linked CAMEO profile; edition/date not retained",
+      sourceUrl: canonicalCameoUrl,
+    });
+  }
   if (!sourceLinks.some((link) => link.sourceName === "ERG")) {
     sourceLinks.push({
       sourceName: "ERG",

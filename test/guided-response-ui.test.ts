@@ -314,8 +314,16 @@ describe("Guided Response workflow", () => {
 
   it("renders source records directly with objective coverage and explicit gaps", () => {
     expect(script).toContain("guidedReferenceSourceLink(sourceName, profile)");
+    expect(builder).toContain("sourceUrl: link?.sourceUrl || (source === 'CAMEO' ? profile?.sourceUrl || '' : '')");
+    expect(builder).toContain("sourceRecordId: link?.sourceRecordId || record?.sourceRecordId || ''");
+    expect(readFileSync(new URL("../server/src/app.ts", import.meta.url), "utf8")).toContain('sourceName: "CAMEO Chemicals"');
+    expect(script).toContain("const guidedReferenceAssociations = Object.freeze({");
+    expect(script).toContain("supportsRecommendations: supportedObjectives.map");
     expect(script).toContain("Open direct supporting source");
     expect(script).toContain("Supports objective IDs");
+    expect(script).toContain("Supports recommendation IDs");
+    expect(script).toContain("const coveredObjectiveIds = new Set(references.flatMap((reference) => reference.supports));");
+    expect(script).toContain("No published source record is associated with these displayed objectives:");
     expect(script).toContain("Source gap:");
     expect(styles).toContain('.guided-reference-list { display: grid; gap: 8px; }');
     expect(styles).toContain('#guided-response.guided-response-page .guided-phase-grid .guided-phase-body .guided-reference-card');
@@ -330,6 +338,30 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain('.guided-mobile-sticky');
     expect(styles).toContain('grid-template-columns: 1fr;');
     expect(styles).toContain('.guided-command-flow-grid { grid-template-columns: 1fr; }');
+  });
+
+  it("puts Goal Status after notes and keeps it out of the green Next Decision block", () => {
+    const card = script.slice(script.indexOf("function createGuidedPhaseCard"), script.indexOf("// Legacy source-contract markers"));
+    expect(card).toContain("decisionGrid.append(nextDecision);");
+    expect(card).not.toContain("decisionGrid.append(goalStatus, nextDecision)");
+    expect(card).toContain("goalStatusNote.textContent = 'Commander-selected phase state; this styling does not assign incident severity.'");
+    expect(card).toContain("footer.append(notesHeading, activity, progress, goalStatus, action)");
+    expect(styles).toContain("background: #fff3f2;");
+    expect(styles).toContain("border-left: 5px solid #b42318;");
+    expect(styles).toContain(".guided-phase-footer .guided-goal-status,");
+    expect(styles).toContain(".guided-phase-footer .primary-btn { grid-column: 1 / -1; }");
+  });
+
+  it("consolidates decontamination and medical source notes into one phase reference section", () => {
+    const card = script.slice(script.indexOf("function createGuidedPhaseCard"), script.indexOf("// Legacy source-contract markers"));
+    expect(card).not.toContain("Source-backed decon and medical direction");
+    expect(card).toContain("DECONTAMINATION & MEDICAL / REHAB GUIDANCE");
+    expect(script).toContain("function guidedCompactPhaseFact(fact)");
+    expect(card).toContain("const deconFacts = (model.decon?.criticalFacts || []).filter");
+    expect(card).toContain("const medicalFacts = (model.medical?.criticalFacts || []).filter");
+    expect(card).toContain("model.decon?.sources || []), ...(model.medical?.sources || [])");
+    expect(card).toContain("createGuidedReferenceSection(phase, phaseSources");
+    expect(script).toContain("gapKeys: referenceContext.gapKeys || (referenceContext.gapKeys = new Set())");
   });
 
   it("prioritizes a source-backed SCBA decision and omits manufacturer lists", () => {
