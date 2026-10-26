@@ -4,6 +4,24 @@ import { getCompanionDiagnostics, groupChemicalSearchResults, NIOSH_IDENTITY_STA
 import { CHEMICALS } from '../src/data/chemicals.js';
 
 describe('normalizeChemicalProfile', () => {
+  it('does not map environmental persistence durations into runoff guidance', () => {
+    const persistenceOnly = normalizeChemicalProfile({
+      ChemicalID: 9001,
+      ChemicalName: 'Persistence-only record',
+      ChemicalEnvironmentalPersistence: 'Minutes',
+    });
+    expect(persistenceOnly.properties.environmentalPersistence).toContain('Minutes');
+    expect(persistenceOnly.fire.runoffConcerns).toEqual(['No Current Data Exists']);
+
+    const explicitGuidance = normalizeChemicalProfile({
+      ChemicalID: 9002,
+      ChemicalName: 'Runoff guidance record',
+    }, {
+      cameo: { isolation: { protective: 'Stay clear of runoff; isolate water sources.' } },
+    });
+    expect(explicitGuidance.fire.runoffConcerns).toEqual(['Stay clear of runoff; isolate water sources.']);
+  });
+
   it('preserves every structured reactivity record without comma-fragmenting it', () => {
     const fields = ['reactivity', 'incompatibilities'] as const;
     for (const chemical of CHEMICALS) {

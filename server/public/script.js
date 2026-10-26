@@ -5350,7 +5350,8 @@ function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = 
         { label: 'Firefighting precautions', value: profileArray(profile?.fire?.firefightingPrecautions).join(' · ') || 'Not available' },
         { label: 'Vapor behavior', value: profileArray(profile?.fire?.vaporBehavior).join(' · ') || 'Not available' },
         { label: 'Explosion hazards', value: profileArray(profile?.fire?.explosionHazards).join(' · ') || 'Not available' },
-        { label: 'Runoff concerns', value: profileArray(profile?.fire?.runoffConcerns).join(' · ') || 'Not available' },
+        { label: 'Runoff concerns', value: profileArray(profile?.fire?.runoffConcerns)
+          .filter(hasMeaningfulChemicalProfileData).join(' · ') || 'Runoff guidance unavailable from current sources.' },
       ]),
     ] },
     { key: 'decon', title: 'DECON', render: () => [

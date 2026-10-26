@@ -276,6 +276,11 @@ describe("Chemical Profile UI system", () => {
     expect(medical).not.toContain("{ label: 'EMS considerations'");
   });
 
+  it("uses the explicit unavailable message when runoff guidance is absent", () => {
+    expect(script).toContain("Runoff guidance unavailable from current sources.");
+    expect(script).toContain("filter(hasMeaningfulChemicalProfileData).join(' · ')");
+  });
+
   it("removes the duplicate ERG number from Response isolation while emphasizing the distance values", () => {
     const response = script.slice(script.indexOf("key: 'response'"), script.indexOf("const tabsList"));
     expect(response).toContain("renderSectionGroups('isolationErg', 'reactivity', 'fire')");

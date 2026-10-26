@@ -135,6 +135,12 @@ function relatedStrings(value: unknown): string[] {
   });
 }
 
+function explicitRunoffGuidance(...values: unknown[]): string[] {
+  return available(values
+    .flatMap((value) => asList(value))
+    .filter((value) => /runoff|waterway|water source|sewer|drain|dike|dyke|contain(?:ment)?/i.test(value)));
+}
+
 function available(values: string[]): string[] {
   const unique = [...new Set(values
     .map((value) => value.trim())
@@ -602,7 +608,15 @@ export function normalizeChemicalProfile(chemical: Record<string, unknown>, rela
       ...asList(chemical.ChemicalMixtureReactivity),
       normalizeMinimumExplosiveConcentration(chemical.MinimumExplosiveConcentration),
     ]),
-    runoffConcerns: available(persistence),
+    // Environmental persistence is a separate property. Do not present a
+    // duration such as “Minutes” as tactical runoff guidance. Only retain
+    // source text that explicitly addresses runoff or containment.
+    runoffConcerns: explicitRunoffGuidance(
+      asObject(cameo.isolation).protective,
+      ergEmergencyResponse.spillOrLeak,
+      relatedData.runoffConcerns,
+      relatedData.deconRunoffContainment,
+    ),
   };
 
   const response = {
