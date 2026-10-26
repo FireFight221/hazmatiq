@@ -875,10 +875,14 @@
   background: rgba(6, 31, 52, .72);
 }
 #incident .incident-command-plume-summary-inline .incident-command-section-heading { margin-bottom: 7px; }
-#incident .incident-command-plume-summary-inline .incident-command-plume-preview { grid-template-columns: minmax(110px, .42fr) minmax(0, 1.58fr); gap: 10px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-preview { grid-template-columns: minmax(0, .48fr) minmax(0, .52fr); gap: 14px; align-items: center; }
 #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap,
 #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap img,
-#incident .incident-command-plume-summary-inline .incident-command-plume-empty { min-height: 104px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-empty { min-height: 184px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap { aspect-ratio: 16 / 9; padding: 6px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap img { height: 100%; min-height: 0; object-fit: contain; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-empty { min-height: 0; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-copy { align-content: center; }
 #incident .incident-command-assignment-editor { margin: 14px 0; }
 #incident .incident-command-assignment-editor .incident-command-section-heading { align-items: start; }
 #incident .incident-command-assignment-editor .incident-command-section-heading p { margin: 4px 0 0; color: #d7e6ef; font-size: .78rem; line-height: 1.35; }
@@ -986,6 +990,7 @@
   #incident .incident-info-card { height: auto; }
   #incident .guided-assignment-grid { grid-template-columns: 1fr; }
   #incident .incident-command-plume-summary-inline .incident-command-plume-preview { grid-template-columns: 1fr; }
+  #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap { min-height: 170px; }
   #incident .incident-assignment-summary { text-align: left; }
   #incident .incident-assignment-form .guided-assignment-grid { grid-template-columns: 1fr; }
   .incident-involved-chemicals-dialog-header { padding-inline: 12px; }

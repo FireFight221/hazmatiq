@@ -72,6 +72,10 @@ describe('Incident Command operational hub', () => {
     expect(html).toContain('id="ic-manage-assignments-btn"');
     expect(html).not.toContain('class="incident-assignment-phase"');
     expect(script).toContain("function persistIncidentAssignment(assignment, previousPhaseId = '')");
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, .48fr) minmax(0, .52fr);');
+    expect(incidentOverrides).toContain('object-fit: contain;');
+    expect(incidentOverrides).toContain('grid-template-columns: 1fr;');
+    expect(script).toContain("canvas.width >= 900 ? canvas.toDataURL('image/jpeg', 0.86)");
   });
 
   it('binds commander status controls to canonical checklist IDs and requires visible completion evidence', () => {

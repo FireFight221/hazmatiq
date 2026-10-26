@@ -13897,7 +13897,13 @@ async function capturePlumeMapImage() {
     window.requestAnimationFrame(waitForPaint);
   });
   try {
-    return plumeMap.getCanvas().toDataURL('image/jpeg', 0.82);
+    // Export the map's native backing resolution. The Command preview uses
+    // contain rather than upscaling/cropping, so a prior narrow snapshot can
+    // remain intact while newly saved snapshots retain the full release point
+    // and calculated footprint at the map's available pixel density.
+    plumeMap.resize?.();
+    const canvas = plumeMap.getCanvas();
+    return canvas.width >= 900 ? canvas.toDataURL('image/jpeg', 0.86) : canvas.toDataURL('image/jpeg', 0.82);
   } catch {
     return '';
   }
