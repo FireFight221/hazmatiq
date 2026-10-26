@@ -1,0 +1,38 @@
+name: EMERGENZ verification
+on:
+  push:
+    branches: ["development", "current-hazscope-migration"]
+  pull_request:
+    branches: ["development", "current-hazscope-migration"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix server ci
+      - name: Syntax and TypeScript
+        run: |
+          node --check server/public/script.js
+          node --check server/public/monitoring-console.js
+          npm run typecheck
+          npm --prefix server run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Regression suites
+        run: |
+          npm test
+          npm --prefix server test

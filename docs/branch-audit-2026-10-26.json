@@ -1,0 +1,323 @@
+{
+  "checkpoint": "b3be0ffff064cd823f1f41328333c2b7596e87d4",
+  "branches": [
+    {
+      "sourceRef": "refs/heads/audit/render-readiness-20261022",
+      "sha": "b3be0ffff064cd823f1f41328333c2b7596e87d4",
+      "archiveTag": "archive/2026-10-26/local/audit/render-readiness-20261022",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/codespaces-interruption-2026-10-05",
+      "sha": "1adcff084ea39896de4015598cd6790a7f43ae6b",
+      "archiveTag": "archive/2026-10-26/local/backup/codespaces-interruption-2026-10-05",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/command-dashboard-checkpoint-2026-10-08",
+      "sha": "bf55086bd47c659d9e02baf870de0dea037f14a9",
+      "archiveTag": "archive/2026-10-26/local/backup/command-dashboard-checkpoint-2026-10-08",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/incident-command-checkpoint-2026-10-08",
+      "sha": "240c876abae504774fcbde812ca50a066297eae1",
+      "archiveTag": "archive/2026-10-26/local/backup/incident-command-checkpoint-2026-10-08",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/local-updates-2eeeb65",
+      "sha": "2eeeb656dc170ab59bf126de8004a1866024f521",
+      "archiveTag": "archive/2026-10-26/local/backup/local-updates-2eeeb65",
+      "uniqueCommitsBeforeConsolidation": 1
+    },
+    {
+      "sourceRef": "refs/heads/backup/monitoring-before-consolidation-2026-10-14",
+      "sha": "82c7547b339beaa2e9c80a1867a6c2d6aaf7673a",
+      "archiveTag": "archive/2026-10-26/local/backup/monitoring-before-consolidation-2026-10-14",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/navigation-weather-checkpoint-2026-10-08",
+      "sha": "45fd72a834357346111c3fcbef607e5c98502332",
+      "archiveTag": "archive/2026-10-26/local/backup/navigation-weather-checkpoint-2026-10-08",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/pre-render-audit-20261022",
+      "sha": "0fe65e76fb4193ffd1f64c35df3b209e7180a313",
+      "archiveTag": "archive/2026-10-26/local/backup/pre-render-audit-20261022",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/render-before-consolidation-2026-10-14",
+      "sha": "0225a70a2f9466187a4a11c135a71024d4f52dd7",
+      "archiveTag": "archive/2026-10-26/local/backup/render-before-consolidation-2026-10-14",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/verified-render-20261022",
+      "sha": "9fb63bf3bab685b8c67d96b55f489c3f54beef4b",
+      "archiveTag": "archive/2026-10-26/local/backup/verified-render-20261022",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/backup/weather-live-map-precleanup-2026-10-09",
+      "sha": "0225a70a2f9466187a4a11c135a71024d4f52dd7",
+      "archiveTag": "archive/2026-10-26/local/backup/weather-live-map-precleanup-2026-10-09",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/broken-state-before-restore",
+      "sha": "1aa489a64186ddad3fda5ff992997f1d68408426",
+      "archiveTag": "archive/2026-10-26/local/broken-state-before-restore",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/cbrne-extraction-recovery",
+      "sha": "9cc0fc0274be0a25bfe5a8488c29ab9de881c32d",
+      "archiveTag": "archive/2026-10-26/local/cbrne-extraction-recovery",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/cleanup-emergenz-from-checkpoint-20261015-2256",
+      "sha": "2b7cf21ccd8a9c7db3de6ad553856fb1dba45142",
+      "archiveTag": "archive/2026-10-26/local/cleanup-emergenz-from-checkpoint-20261015-2256",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/core-validation",
+      "sha": "36d5c394f81c62e7a0e73f9a3d72ffbb2d05ca40",
+      "archiveTag": "archive/2026-10-26/local/core-validation",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/emergenz-consolidation",
+      "sha": "fb1fed2a95830f78fd257630412de8b3522b6304",
+      "archiveTag": "archive/2026-10-26/local/emergenz-consolidation",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/feature/monitoring-console-v1",
+      "sha": "82c7547b339beaa2e9c80a1867a6c2d6aaf7673a",
+      "archiveTag": "archive/2026-10-26/local/feature/monitoring-console-v1",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/frontend",
+      "sha": "5abd248b99d236e3d953556d2a202cbfcd677552",
+      "archiveTag": "archive/2026-10-26/local/frontend",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/incident-command-audit-20261021",
+      "sha": "1c3da0e211bddbb03312c9a680c8e4dc59f82482",
+      "archiveTag": "archive/2026-10-26/local/incident-command-audit-20261021",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/integration-emergenz-render-20261016",
+      "sha": "22422e8dc6b624b7bd0dc1f3074d6f688b38b2d1",
+      "archiveTag": "archive/2026-10-26/local/integration-emergenz-render-20261016",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/layout-check",
+      "sha": "bff3be99c507f5c85e6a73db98089f00dc7952cb",
+      "archiveTag": "archive/2026-10-26/local/layout-check",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/main",
+      "sha": "c0413c8d1d1390ac4287bfba968c905923293bbf",
+      "archiveTag": "archive/2026-10-26/local/main",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/map-consolidation-cleanup",
+      "sha": "f2aeb76fdd3d1f88a1b084218ec0e4b07437686f",
+      "archiveTag": "archive/2026-10-26/local/map-consolidation-cleanup",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/plume-map-2.0",
+      "sha": "1a7f402ef8f419009f850af7b996b5d4adcc1c4c",
+      "archiveTag": "archive/2026-10-26/local/plume-map-2.0",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/plume-model-repair-20261021",
+      "sha": "0fe65e76fb4193ffd1f64c35df3b209e7180a313",
+      "archiveTag": "archive/2026-10-26/local/plume-model-repair-20261021",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/recovery-emergenz-render-checkpoint-20261016",
+      "sha": "7a6d7bd36212494bcab69620a091a2390d6b66d8",
+      "archiveTag": "archive/2026-10-26/local/recovery-emergenz-render-checkpoint-20261016",
+      "uniqueCommitsBeforeConsolidation": 1
+    },
+    {
+      "sourceRef": "refs/heads/recovery-emergenz-wip-20261015-2256",
+      "sha": "0f54c6cb1b3e786adc7642d195fb1e13ba97b46e",
+      "archiveTag": "archive/2026-10-26/local/recovery-emergenz-wip-20261015-2256",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/recovery-incident-command-audit-20261021",
+      "sha": "bd921faaf9cda72ce4fd6bfe07b165a19de5ccfc",
+      "archiveTag": "archive/2026-10-26/local/recovery-incident-command-audit-20261021",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/recovery-plume-model-audit-20261021",
+      "sha": "2761db5775f9e32b2c261192565a8f4f7249cab3",
+      "archiveTag": "archive/2026-10-26/local/recovery-plume-model-audit-20261021",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/ui-consolidation",
+      "sha": "55cd20157fabb4e199ac349c4e793d8740edc8e6",
+      "archiveTag": "archive/2026-10-26/local/ui-consolidation",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/heads/ui-consolidation-v2",
+      "sha": "919d1dcffb0192bbdaba80bb610629552652815d",
+      "archiveTag": "archive/2026-10-26/local/ui-consolidation-v2",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/backend",
+      "sha": "dbfbadb32567e582b9f499334416641ca67b751f",
+      "archiveTag": "archive/2026-10-26/origin/backend",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/backup/command-dashboard-checkpoint-2026-10-08",
+      "sha": "bf55086bd47c659d9e02baf870de0dea037f14a9",
+      "archiveTag": "archive/2026-10-26/origin/backup/command-dashboard-checkpoint-2026-10-08",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/backup/monitoring-before-consolidation-2026-10-14",
+      "sha": "82c7547b339beaa2e9c80a1867a6c2d6aaf7673a",
+      "archiveTag": "archive/2026-10-26/origin/backup/monitoring-before-consolidation-2026-10-14",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/backup/weather-live-map-precleanup-2026-10-09",
+      "sha": "0225a70a2f9466187a4a11c135a71024d4f52dd7",
+      "archiveTag": "archive/2026-10-26/origin/backup/weather-live-map-precleanup-2026-10-09",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/broken-state-before-restore",
+      "sha": "1aa489a64186ddad3fda5ff992997f1d68408426",
+      "archiveTag": "archive/2026-10-26/origin/broken-state-before-restore",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/cbrne-extraction-recovery",
+      "sha": "9cc0fc0274be0a25bfe5a8488c29ab9de881c32d",
+      "archiveTag": "archive/2026-10-26/origin/cbrne-extraction-recovery",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/core-validation",
+      "sha": "36d5c394f81c62e7a0e73f9a3d72ffbb2d05ca40",
+      "archiveTag": "archive/2026-10-26/origin/core-validation",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/emergenz-consolidation",
+      "sha": "dd7d99198eafb0eb3ea2a90545a61d58c3997ef4",
+      "archiveTag": "archive/2026-10-26/origin/emergenz-consolidation",
+      "uniqueCommitsBeforeConsolidation": 2
+    },
+    {
+      "sourceRef": "refs/remotes/origin/feature/monitoring-console-v1",
+      "sha": "82c7547b339beaa2e9c80a1867a6c2d6aaf7673a",
+      "archiveTag": "archive/2026-10-26/origin/feature/monitoring-console-v1",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/fix/hazard-id-mobile-search-width",
+      "sha": "dd7d99198eafb0eb3ea2a90545a61d58c3997ef4",
+      "archiveTag": "archive/2026-10-26/origin/fix/hazard-id-mobile-search-width",
+      "uniqueCommitsBeforeConsolidation": 2
+    },
+    {
+      "sourceRef": "refs/remotes/origin/fix/mobile-nine-tile-navigation",
+      "sha": "31d147f1fc65907a30dbdc4ad52b8a7a30b15014",
+      "archiveTag": "archive/2026-10-26/origin/fix/mobile-nine-tile-navigation",
+      "uniqueCommitsBeforeConsolidation": 3
+    },
+    {
+      "sourceRef": "refs/remotes/origin/frontend",
+      "sha": "5abd248b99d236e3d953556d2a202cbfcd677552",
+      "archiveTag": "archive/2026-10-26/origin/frontend",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/main",
+      "sha": "c0413c8d1d1390ac4287bfba968c905923293bbf",
+      "archiveTag": "archive/2026-10-26/origin/main",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/map-consolidation-cleanup",
+      "sha": "f2aeb76fdd3d1f88a1b084218ec0e4b07437686f",
+      "archiveTag": "archive/2026-10-26/origin/map-consolidation-cleanup",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/plume-map-2.0",
+      "sha": "88702139ee58909eb9bb8edea72e8ee5b7a5f424",
+      "archiveTag": "archive/2026-10-26/origin/plume-map-2.0",
+      "uniqueCommitsBeforeConsolidation": 2
+    },
+    {
+      "sourceRef": "refs/remotes/origin/ui-consolidation",
+      "sha": "55cd20157fabb4e199ac349c4e793d8740edc8e6",
+      "archiveTag": "archive/2026-10-26/origin/ui-consolidation",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/origin/ui-consolidation-v2",
+      "sha": "919d1dcffb0192bbdaba80bb610629552652815d",
+      "archiveTag": "archive/2026-10-26/origin/ui-consolidation-v2",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/personal/backup/pre-render-audit-20261022",
+      "sha": "0fe65e76fb4193ffd1f64c35df3b209e7180a313",
+      "archiveTag": "archive/2026-10-26/personal/backup/pre-render-audit-20261022",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/personal/backup/render-before-consolidation-2026-10-14",
+      "sha": "0225a70a2f9466187a4a11c135a71024d4f52dd7",
+      "archiveTag": "archive/2026-10-26/personal/backup/render-before-consolidation-2026-10-14",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/personal/backup/verified-render-20261022",
+      "sha": "9fb63bf3bab685b8c67d96b55f489c3f54beef4b",
+      "archiveTag": "archive/2026-10-26/personal/backup/verified-render-20261022",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/personal/current-hazscope-migration",
+      "sha": "eb3077accd05f9452883ace8891d3e33c3b04cac",
+      "archiveTag": "archive/2026-10-26/personal/current-hazscope-migration",
+      "uniqueCommitsBeforeConsolidation": 0
+    },
+    {
+      "sourceRef": "refs/remotes/personal/main",
+      "sha": "72100b0d8aff34708e9252f921dece84c3facd6e",
+      "archiveTag": "archive/2026-10-26/personal/main",
+      "uniqueCommitsBeforeConsolidation": 10
+    }
+  ]
+}

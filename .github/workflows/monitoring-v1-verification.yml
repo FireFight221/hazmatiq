@@ -1,9 +1,9 @@
 name: Monitoring V1 verification
 on:
   push:
-    branches: ["feature/monitoring-console-v1"]
+    branches: ["development", "current-hazscope-migration"]
   pull_request:
-    branches: ["map-consolidation-cleanup"]
+    branches: ["development", "current-hazscope-migration"]
     paths:
       - "server/public/monitoring-console*"
       - "server/public/index.html"

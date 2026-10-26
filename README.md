@@ -1,5 +1,7 @@
 # Hazmat Response Support
 
+**Canonical repo:** FireFight221/hazmatiq. Work on development; promote tested changes to current-hazscope-migration, the existing Render preview branch. See CONTRIBUTING.md and docs/branch-consolidation-2026-10-26.md.
+
 An offline-capable hazmat response tool for fire departments: fast chemical lookup (ERG +
 CAMEO + NIOSH Pocket Guide), on-scene plume modeling, Tier II facility awareness, and a
 tap-driven UI built for use on scene under pressure.

@@ -1,133 +1,43 @@
-# Working guide — who edits what
+# EMERGENZ working guide
 
-This repo has two parts that can be worked on independently, and they live on two branches:
+## One repository, two active branches
 
-| Branch | Who | Folder | What's there |
-|--------|-----|--------|--------------|
-| `frontend` | your coworker | `server/public/` | The UI — plain HTML/CSS/JS, no build step. `index.html`, `script.js`, `styles.css`, `assets/` |
-| `backend` | you | `server/src/`, `src/data/`, `src/lib/`, `scripts/` | The API, the database, the chemical/plume data |
+Canonical repository: FireFight221/hazmatiq.
 
-`main` is the shared, working version of the app. Both branches merge into `main` through a Pull Request (see workflow below).
+| Branch | Purpose |
+| --- | --- |
+| development | Implementation, CSS work, fixes and saved checkpoints. |
+| current-hazscope-migration | Stable preview used by the existing Render app. |
 
-## Frontend (UI) — your coworker
+Keep the preview branch name to preserve the Render connection. Use development for all routine work; do not create frontend/backend, feature or recovery branches. Historical tips are preserved under archive/2026-10-26/ tags. The cmc2765 repository is a legacy source, not another development location.
 
-Everything lives in `server/public/`:
+## Daily work
 
-| File | What's there |
-|------|-------------|
-| `index.html` | All the views/screens (home, lookup, plume, facilities, etc.) |
-| `script.js` | All the behavior — view switching, calling the API, rendering data |
-| `styles.css` | All the styling |
-| `assets/` | Images (department logo, etc.) |
+    git switch development
+    git pull --ff-only origin development
 
-The UI is served directly by the backend—there is no separate frontend server.
+Edit, checkpoint and push development. Stage reviewed paths, avoiding runtime databases, credentials and temporary screenshots.
 
-### Preview your changes in Codespaces (one button)
+## Preview promotion
 
-1. Click the **Run and Debug** icon in the left sidebar. It looks like a triangle with a small bug.
-2. At the top of that panel, select **Preview HazMatIQ**.
-3. Click the green **play button**.
-4. Wait a moment. Your preview opens automatically in a new browser tab.
+Open a pull request from development into current-hazscope-migration. Run checks and review affected screens on desktop and phone before merging. Leave failed or visually unverified changes on development. Do not edit preview directly or force push. Deploy the reviewed preview commit through the existing Render service. Code pushes do not migrate its persistent facility database.
 
-The first launch prepares the app and its demo data automatically. Keep the preview running while you edit. Save a file, return to the preview tab, and refresh the page to see the update.
+## Implementation and validation
 
-If the preview does not open automatically, click the **Ports** tab at the bottom of Codespaces. Find port **3000**, then click its globe icon (**Open in Browser**).
+UI belongs in server/public; API/database in server/src; shared data/models in src/data and src/lib. Fix the owning CSS file rather than adding another override layer. Preserve API contracts and offline field workflows.
 
-To stop the preview, return to Codespaces and click the red square **Stop** button.
+    npm ci
+    npm --prefix server ci
+    npm run typecheck
+    npm --prefix server run typecheck
+    npm run lint
+    npm test
+    npm --prefix server test
 
-If you prefer using the terminal, these commands do the same thing:
+The EMERGENZ verification workflow runs these checks for the two active branches and pull requests. Browser QA remains part of promotion.
 
-```bash
-## Start in the main project folder
-npm install      # first time only
-cd server
-npm install      # first time only
-npm run db:init-sqlite
-npm run db:seed
-npm run dev
-```
+## Local app and recovery
 
-**Don't touch:** anything outside `server/public/`. If the UI needs data the API doesn't provide yet, don't add it yourself — tell the backend person what you need (see API contract below) and they'll add it.
+Run npm --prefix server run dev and open its forwarded port. Initialize and seed only a new development database; preserve existing incident and imported facility data.
 
-## Backend — you
-
-| Directory | What's there |
-|-----------|-------------|
-| `server/src/app.ts` | All API routes |
-| `server/src/schema.ts` | Database table definitions (Drizzle) |
-| `server/src/seed.ts` | Loads data into the database |
-| `src/data/` | Chemical, NPG, ERG, threshold, facility data |
-| `src/lib/model/` | The plume dispersion math |
-| `src/lib/schema/` | Zod type definitions (the shared contract) |
-| `scripts/` | Data pipelines (ERG, CAMEO, NIOSH, Tier II) |
-
-### Running it
-
-```bash
-cd server
-npm install                 # first time only
-npm run db:init-sqlite      # first time only: creates the database
-npm run db:seed             # first time only: loads data into it
-npm run dev                 # starts everything (UI + API) at http://localhost:3000
-```
-
-### The API contract
-
-The frontend talks to the backend through these endpoints (defined in `server/src/app.ts`):
-
-```
-GET  /api/manifest          → data version + source metadata
-GET  /api/chemicals?q=      → search chemicals
-GET  /api/chemicals/:id     → single chemical
-GET  /api/npg               → NIOSH records
-GET  /api/npg/:id           → single NIOSH record
-GET  /api/erg/:un           → ERG distances by UN number
-GET  /api/thresholds        → AEGL/ERPG/TEEL values (optional ?chemicalId=)
-POST /api/plume/run         → runs the real plume model, returns isopleths/distances
-GET  /api/facilities?q=     → Tier II facilities
-GET  /api/facilities/:id    → single facility with its chemical inventory
-GET  /api/sync/:clientId    → full data sync
-```
-
-If you change what an endpoint returns or add a new one, tell your coworker so they can update the UI to match.
-
-## Day-to-day workflow (using the Codespaces UI — no terminal commands needed)
-
-Both of you follow the same steps every time — just swap `frontend` for `backend` depending on which one is yours.
-
-### 1. Starting work for the day
-
-1. Open your Codespace.
-2. Bottom-left corner of the window shows the current branch name. Click it.
-3. Pick your branch (`frontend` or `backend`) from the list.
-4. Click the **sync icon** (circular arrows) next to the branch name in the bottom-left — this pulls down anything that was merged into `main` since you last worked, so you're starting from the latest version.
-
-### 2. While you work
-
-Just edit files normally. Nothing to commit yet — that happens when you're ready to save a checkpoint.
-
-### 3. Saving your work (commit)
-
-1. Click the **Source Control icon** in the left sidebar (it shows a number badge for how many files changed).
-2. You'll see a list of changed files. Type a short message describing what you changed in the box at the top (e.g. "Fixed plume distance display").
-3. Click the **checkmark (✓ Commit)** button above the message box.
-
-### 4. Sharing your work (push)
-
-1. Right after committing, the bottom-left sync icon will show you're "ahead" of the remote.
-2. Click that sync icon again — this pushes your commit up to GitHub.
-
-### 5. Getting your work into `main`
-
-1. Go to the repo on **github.com** in a browser tab.
-2. GitHub usually shows a yellow banner: "`frontend` had recent pushes — Compare & pull request." Click it. (If you don't see it, go to the **Pull requests** tab → **New pull request** → set base: `main`, compare: `frontend` or `backend`.)
-3. Click **Create pull request**.
-4. The other person takes a quick look, then clicks the green **Merge pull request** button → **Confirm merge**.
-
-That's it — no merge commands, no conflict resolution tools needed for the normal case, since you're working in separate folders.
-
-### If GitHub says there's a merge conflict
-
-This only happens if you both changed the same file. Since you're working in separate folders (`server/public/` vs. everything else), this should be rare. If it happens, stop and message each other — don't guess which version to keep.
-
-**Rule of thumb:** if you stay in your own directories (frontend vs backend), you will almost never have conflicts.
+The branch audit and recovery map are in docs/branch-consolidation-2026-10-26.md and docs/branch-audit-2026-10-26.json. Restore an archived tip by its recorded tag for historical investigation. Keep routine work on the two active branches.
