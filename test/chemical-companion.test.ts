@@ -1,8 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import app from '../server/src/app.js';
 import { getCompanionDiagnostics, groupChemicalSearchResults, NIOSH_IDENTITY_STATUS, normalizeChemicalProfile, normalizeTransportationIdentifier, queryChemicalProfile, searchCompanionChemicals } from '../server/src/chemical-companion.js';
+import { CHEMICALS } from '../src/data/chemicals.js';
 
 describe('normalizeChemicalProfile', () => {
+  it('preserves every structured reactivity record without comma-fragmenting it', () => {
+    const fields = ['reactivity', 'incompatibilities'] as const;
+    for (const chemical of CHEMICALS) {
+      for (const field of fields) {
+        for (const sourceItem of chemical[field] ?? []) {
+          expect(typeof sourceItem).toBe('string');
+          expect(sourceItem.trim()).not.toBe('');
+          expect(sourceItem).not.toMatch(/^\[object Object\]$/);
+        }
+      }
+    }
+
+    const profile = normalizeChemicalProfile({
+      ChemicalID: 9999,
+      ChemicalName: 'Test chemical, stabilized (aqueous solution)',
+      ChemicalClassIncompatibilities: 'Sodium hypochlorite, 5% solution (acidified); strong acids',
+    });
+    expect(profile.reactivity.incompatibilities).toEqual([
+      'Sodium hypochlorite, 5% solution (acidified); strong acids',
+    ]);
+  });
+
   it.each(['2312', 'UN2312', 'UN 2312', 'UN-2312', 'NA2312', 'NA 2312'])(
     'keeps unresolved transportation identifier %s separate from master identity', (query) => {
       expect(normalizeTransportationIdentifier(query)).toBe('2312');

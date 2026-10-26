@@ -4190,6 +4190,21 @@ function profileArray(value) {
   return value === null || value === undefined || value === '' ? [] : [value];
 }
 
+function profileListItems(value) {
+  const parts = profileArray(value)
+    .flatMap((item) => {
+      const text = normalizeDataSourceOutput(item);
+      if (!text) return [];
+      // Newlines and explicit bullet separators are structural source data.
+      // Commas, semicolons, and sentence punctuation are not safe boundaries:
+      // they occur in chemical names, warnings, and parenthetical lists.
+      return text.split(/\s*(?:•|\n)\s*/).map((part) => part.trim()).filter(Boolean);
+    })
+    .filter(hasAvailableProfileData);
+  return chemicalProfileText.normalizeGuidanceItems(parts)
+    .filter(hasMeaningfulChemicalProfileData);
+}
+
 function profileFacts(value) {
   return profileArray(value)
     .filter((fact) => fact && typeof fact === 'object')
@@ -5133,6 +5148,57 @@ function formatHazardClassLines(value) {
   })).values()];
 }
 
+function createReactivityProfileSection(profile) {
+  const section = document.createElement('section');
+  section.className = 'chemical-profile-section chemical-profile-reactivity-panel';
+  section.dataset.section = 'reactivity-profile';
+
+  const heading = document.createElement('h4');
+  const headingText = document.createElement('span');
+  headingText.textContent = 'Reactivity profile';
+  heading.append(createChemicalProfileIcon('reactivity'), headingText);
+  section.append(heading);
+
+  const addBlock = (parent, label, values, className = '') => {
+    const items = profileListItems(values);
+    const block = document.createElement('div');
+    block.className = `chemical-profile-reactivity-block${className ? ` ${className}` : ''}`;
+    block.dataset.field = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const title = document.createElement('h5');
+    title.textContent = label;
+    block.append(title);
+    if (items.length) {
+      const list = document.createElement('ul');
+      list.className = 'chemical-profile-reactivity-list';
+      items.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = normalizeDataSourceOutput(item);
+        list.append(li);
+      });
+      block.append(list);
+    } else {
+      const empty = document.createElement('p');
+      empty.className = 'chemical-profile-reactivity-empty';
+      empty.textContent = 'Not available';
+      block.append(empty);
+    }
+    parent.append(block);
+  };
+
+  const main = document.createElement('div');
+  main.className = 'chemical-profile-reactivity-main';
+  addBlock(main, 'Incompatibilities', profile?.reactivity?.incompatibilities, 'chemical-profile-reactivity-primary');
+  section.append(main);
+
+  const secondary = document.createElement('div');
+  secondary.className = 'chemical-profile-reactivity-secondary';
+  addBlock(secondary, 'Polymerization risk', profile?.reactivity?.polymerizationRisk);
+  addBlock(secondary, 'Water reactivity', profile?.reactivity?.waterReactivity);
+  addBlock(secondary, 'Oxidizer / reducer concerns', profile?.reactivity?.oxidizerReducerConcerns);
+  section.append(secondary);
+  return section;
+}
+
 function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = false } = {}) {
   profile = normalizeChemicalProfileForUi(profile);
   const content = document.getElementById('chemical-profile-content');
@@ -5239,7 +5305,7 @@ function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = 
       createProfileSection('Stability and decomposition', [
         { label: 'Overall stability', value: profile?.reactivity?.stabilityNotes || 'Not available' },
         { label: 'Mixing risk', value: profile?.reactivity?.chemicalMixtureReactivity || 'Not available' },
-        { label: 'Decomposition products', value: profileArray(profile?.reactivity?.decompositionProducts).join(' · ') || 'Not available' },
+        { label: 'Decomposition products', value: profileListItems(profile?.reactivity?.decompositionProducts).join(' · ') || 'Not available' },
       ]),
     ] },
     { key: 'isolationErg', title: 'Isolation Distance', render: () => {

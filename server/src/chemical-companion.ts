@@ -70,7 +70,10 @@ function asList(value: unknown): string[] {
   if (typeof value === 'string') {
     const text = value.trim();
     if (!text) return [];
-    return text.split(/\s*[,;]\s*|\s*\n\s*/).map((item) => item.trim()).filter(meaningful);
+    // Scalar source fields are often complete names, sentences, or parenthetical
+    // lists. Keep them atomic; structured source arrays already provide the
+    // intended list boundaries and the UI must not invent fragments by commas.
+    return text.split(/\s*\n\s*/).map((item) => item.trim()).filter(meaningful);
   }
   return [];
 }

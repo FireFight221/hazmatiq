@@ -8,6 +8,7 @@ import { starterHazardProfile } from "../src/lib/hazard-id/hazardProfileAdapter.
 
 const script = readFileSync(new URL("../server/public/script.js", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../server/public/hazard-profile-page.css", import.meta.url), "utf8");
+const sharedStyles = readFileSync(new URL("../server/public/styles.css", import.meta.url), "utf8");
 const program = parse(script, { ecmaVersion: "latest" });
 
 function declaration(name: string) {
@@ -110,6 +111,16 @@ describe("Hazard ID profile contract and routing", () => {
     expect(styles).toContain("data-active-tab=\"properties\"] {");
     expect(styles).toContain("grid-template-columns: repeat(2, minmax(0, 1fr)) !important;");
     expect(styles).toContain("data-section=\"reactivity\"] {");
+  });
+
+  it("uses the shared responsive reactivity renderer without comma splitting", () => {
+    expect(script).toContain("function createReactivityProfileSection(profile)");
+    expect(script).toContain("function profileListItems(value)");
+    expect(script).toContain("createReactivityProfileSection(profile)");
+    expect(sharedStyles).toContain("grid-template-columns: repeat(4, minmax(0, 1fr));");
+    expect(sharedStyles).toContain("@media (max-width: 900px)");
+    expect(sharedStyles).toContain("@media (max-width: 600px)");
+    expect(sharedStyles).toContain("chemical-profile-reactivity-secondary");
   });
 
   it.each([[54, "Hydrazine"], [102, "Sulfur dioxide"], [22, "Chlorine"]])(

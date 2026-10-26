@@ -3560,6 +3560,101 @@ h1 { font-weight: 800; }
   color: #111;
 }
 
+/* Reactivity is intentionally a full-width reading surface. Incompatibilities
+   are the primary scan target; secondary concerns stay compact below it. */
+.chemical-profile-content[data-active-tab="reactivity"] {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.chemical-profile-content[data-active-tab="reactivity"] > .chemical-profile-section {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.chemical-profile-reactivity-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.chemical-profile-reactivity-main,
+.chemical-profile-reactivity-secondary {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chemical-profile-reactivity-main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.chemical-profile-reactivity-secondary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.chemical-profile-reactivity-block {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(203, 213, 225, 0.32);
+  border-radius: 9px;
+  background: #102f4d;
+}
+
+.chemical-profile-reactivity-block h5 {
+  margin: 0 0 7px;
+  color: #b8c7d9;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chemical-profile-reactivity-primary {
+  background: #0b2741;
+}
+
+.chemical-profile-reactivity-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chemical-profile-reactivity-list li {
+  min-width: 0;
+  padding: 9px 10px;
+  border-left: 3px solid #4c92c7;
+  border-radius: 6px;
+  color: #f8fafc;
+  background: #16466f;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.chemical-profile-reactivity-empty {
+  margin: 0;
+  color: #b8c7d9;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 900px) {
+  .chemical-profile-reactivity-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chemical-profile-reactivity-secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .chemical-profile-reactivity-list,
+  .chemical-profile-reactivity-secondary {
+    grid-template-columns: 1fr;
+  }
+}
+
 .chemical-profile-content[data-active-tab="ppeRespiratory"] .chemical-profile-section[data-section="recommended-ppe"] .chemical-profile-row {
   border-color: var(--dark-red);
   background: var(--red);
