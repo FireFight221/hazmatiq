@@ -2095,7 +2095,6 @@ function renderIncidentCommandHeader(model) {
   setText('ic-header-incident-name', model.incidentName);
   setText('ic-header-location', model.sceneLocation);
   setText('ic-header-started', `Since ${model.startTime ? new Date(model.startTime).toLocaleString() : noCurrentDataText}`);
-  setText('ic-header-chemical-name', model.chemical.name);
   setText('ic-header-un', model.chemical.unNumber);
   setText('ic-header-erg', model.chemical.ergGuide);
   setText('ic-header-hazard-class', model.chemical.hazardClass);
@@ -15300,7 +15299,6 @@ function clearCommandFacilitySuggestions() {
 }
 
 function renderIncidentInvolvedChemicals(incident = getActiveIncident()) {
-  const list = document.getElementById('incident-involved-chemical-list');
   const chemicals = Array.isArray(incident?.involvedChemicals) ? incident.involvedChemicals : [];
   const count = document.getElementById('incident-involved-chemical-count');
   const viewAllButton = document.getElementById('incident-view-all-involved-chemicals-btn');
@@ -15308,7 +15306,10 @@ function renderIncidentInvolvedChemicals(incident = getActiveIncident()) {
   const dialogStatus = document.getElementById('incident-involved-chemicals-dialog-status');
   const chemicalCountLabel = `${chemicals.length} involved chemical${chemicals.length === 1 ? '' : 's'}`;
   if (count) count.textContent = chemicalCountLabel;
-  if (viewAllButton) viewAllButton.disabled = chemicals.length === 0;
+  if (viewAllButton) {
+    viewAllButton.disabled = chemicals.length === 0;
+    viewAllButton.textContent = 'View Involved Chemicals (' + chemicals.length + ')';
+  }
   if (dialogStatus) dialogStatus.textContent = chemicals.length ? `${chemicalCountLabel} recorded for this incident.` : 'No chemicals have been identified as involved.';
 
   const createRow = (chemical, className = '') => {
@@ -15339,28 +15340,6 @@ function renderIncidentInvolvedChemicals(incident = getActiveIncident()) {
       dialogList.replaceChildren(...chemicals.map((chemical) => createRow(chemical)));
     }
   }
-  if (!list) return;
-  if (!chemicals.length) {
-    const empty = document.createElement('li');
-    empty.className = 'incident-involved-chemical-empty';
-    empty.textContent = 'No chemicals have been identified as involved.';
-    list.replaceChildren(empty);
-    return;
-  }
-  const previewLimit = 4;
-  const previewRows = chemicals.slice(0, previewLimit).map((chemical) => createRow(chemical));
-  if (chemicals.length > previewLimit) {
-    const more = document.createElement('li');
-    more.className = 'incident-involved-chemical-more';
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'incident-involved-chemical-more-button';
-    button.textContent = `+ ${chemicals.length - previewLimit} more — View all involved chemicals`;
-    button.addEventListener('click', openIncidentInvolvedChemicalsDialog);
-    more.append(button);
-    previewRows.push(more);
-  }
-  list.replaceChildren(...previewRows);
 }
 
 function openIncidentInvolvedChemicalsDialog() {

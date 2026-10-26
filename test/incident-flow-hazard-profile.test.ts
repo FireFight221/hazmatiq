@@ -15,14 +15,13 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
       html.indexOf('<div id="incident-command-active">'),
       html.indexOf('<div id="incident-command-main-grid">'),
     );
-    const summary = active.slice(
-      active.indexOf('<section class="incident-command-info-grid"'),
-      active.indexOf('<section class="incident-involved-chemicals incident-involved-chemicals-panel"'),
-    );
+    const summaryStart = active.indexOf('<section class="incident-command-info-grid"');
+    const summary = active.slice(summaryStart, active.indexOf('</section>', summaryStart));
     expect(summary.match(/<article class="incident-info-card/g)).toHaveLength(4);
-    expect(summary).not.toContain('incident-involved-chemicals');
-    expect(active.indexOf('incident-involved-chemicals incident-involved-chemicals-panel')).toBeGreaterThan(active.indexOf('incident-command-info-grid'));
-    expect(active.indexOf('incident-involved-chemicals incident-involved-chemicals-panel')).toBeLessThan(active.indexOf('incident-command-flow'));
+    expect(summary).toContain('incident-involved-chemicals-compact');
+    expect(active).not.toContain('incident-involved-chemicals-panel');
+    expect(active.indexOf('class="incident-command-flow"')).toBeLessThan(summaryStart);
+    expect(active.indexOf('class="incident-command-flow"')).toBeLessThan(active.indexOf('id="incident-command-weather-bar"'));
     expect(active).toContain('id="incident-involved-chemical-count"');
     expect(active).toContain('id="incident-view-all-involved-chemicals-btn"');
     expect(html).toContain('id="incident-involved-chemicals-dialog"');
@@ -30,12 +29,11 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     expect(incidentStyles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
     expect(incidentStyles).toContain('#incident .incident-info-card {');
     expect(incidentStyles).toContain('height: auto;');
-    expect(incidentStyles).toContain('#incident .incident-involved-chemicals-panel');
+    expect(incidentStyles).toContain('#incident .incident-involved-chemicals-compact');
     expect(incidentStyles).toContain('@media (max-width: 720px)');
   });
 
-  it("renders a compact inventory preview and keeps the plume selection separate", () => {
-    expect(script).toContain("const previewLimit = 4;");
+  it("keeps full inventory in a dialog and the plume selection separate", () => {
     expect(script).toContain("incident-involved-chemical-count");
     expect(script).toContain("openIncidentInvolvedChemicalsDialog");
     expect(html).toContain("Facility inventory additions do not change it.");

@@ -282,6 +282,16 @@
               </div>
 
               <div id="incident-command-active">
+                <section class="incident-command-flow" aria-labelledby="incident-command-flow-title">
+                  <div class="incident-command-flow-heading"><h2 id="incident-command-flow-title">Command Decision Flow</h2><span>Next operational decision</span></div>
+                  <div class="incident-command-flow-steps">
+                    <article><strong>1. Scene Size-Up</strong><span class="incident-flow-status">Confirm scene and hazard identity</span><p>Evaluate conditions, identify the chemical or hazard, and verify source-backed information.</p><button class="command-flow-hazard" type="button" data-incident-command-action="chemical-profile" data-allow-empty-fallback="true">Open Hazard Profile</button></article>
+                    <article><strong>2. Public Protection</strong><span class="incident-flow-status">Isolation and protective actions</span><p>Review ERG isolation and protective-action distances without leaving Incident Command.</p><button class="command-flow-erg" type="button" data-incident-command-action="erg-review">Review ERG Distances</button></article>
+                    <article><strong>3. Plume Model</strong><span class="incident-flow-status">Threat-zone assessment</span><p>Model the release and validate the projected threat zone with field conditions.</p><button type="button" data-command-view="plume">Open Plume Model</button></article>
+                    <article><strong>4. Tactical Decision</strong><span class="incident-flow-status">Decision support available</span><p>Review PPE, entry, decon, and source-backed tactical decision support.</p><button type="button" data-command-view="guided-response">Open Guided Response</button></article>
+                    <article><strong>5. Document / Report</strong><span class="incident-flow-status">Preserve the incident record</span><p>Record decisions, actions, and supporting information in the incident report.</p><button type="button" data-command-view="report">Open Reports</button></article>
+                  </div>
+                </section>
                 <section class="incident-command-info-grid" aria-label="Active incident summary">
                   <article class="incident-info-card incident-info-card-identity">
                     <div class="incident-info-card-heading"><h2><span aria-hidden="true">📋</span> Incident Name</h2></div>
@@ -293,8 +303,12 @@
                   <article class="incident-info-card incident-info-card-chemical">
                     <div class="incident-info-card-heading"><h2><span aria-hidden="true">⚗</span> Chemical / Hazard ID</h2><span class="incident-info-badge" id="ic-header-hazard-badge" hidden>HAZARDOUS</span></div>
                     <div class="incident-info-field"><label class="sr-only" for="incident-product">Chemical, UN, or CAS</label><div class="chemical-search-input-wrap"><input class="incident-info-primary-field" id="incident-product" type="text" role="combobox" placeholder="Type chemical, UN, or CAS" autocomplete="off" aria-autocomplete="list" aria-controls="incident-product-suggestions" aria-expanded="false" /><div id="incident-product-suggestions" class="chemical-search-suggestions" role="listbox" hidden></div></div></div>
-                    <p class="incident-plume-chemical-note">This explicit selection is the single chemical used for plume calculations. Facility inventory additions do not change it.</p>
-                    <p id="ic-header-chemical-name" class="incident-info-compact-value">No Current Data Exists</p>
+                    <p class="incident-plume-chemical-note">Plume chemical selection. Facility inventory additions do not change it.</p>
+
+                  <div class="incident-involved-chemicals-compact" aria-label="Incident chemical inventory">
+                      <span class="sr-only" id="incident-involved-chemical-count" role="status" aria-live="polite">0 involved chemicals</span>
+                      <button class="ghost-btn" id="incident-view-all-involved-chemicals-btn" type="button" aria-haspopup="dialog" aria-controls="incident-involved-chemicals-dialog" disabled>View Involved Chemicals</button>
+                    </div>
                   </article>
 
                   <article class="incident-info-card incident-info-card-facility">
@@ -317,20 +331,7 @@
                   </article>
                 </section>
 
-                <section class="incident-involved-chemicals incident-involved-chemicals-panel" aria-labelledby="incident-involved-chemicals-title">
-                  <header class="incident-involved-chemicals-heading">
-                    <div>
-                      <p class="eyebrow">Incident inventory</p>
-                      <h2 id="incident-involved-chemicals-title">Chemicals identified as involved</h2>
-                      <p>Inventory additions are tracked separately from the selected plume chemical.</p>
-                    </div>
-                    <div class="incident-involved-chemicals-actions">
-                      <span id="incident-involved-chemical-count" role="status" aria-live="polite">0 involved chemicals</span>
-                      <button class="ghost-btn" id="incident-view-all-involved-chemicals-btn" type="button" aria-haspopup="dialog" aria-controls="incident-involved-chemicals-dialog" disabled>View all involved chemicals</button>
-                    </div>
-                  </header>
-                  <ul id="incident-involved-chemical-list" aria-live="polite"></ul>
-                </section>
+
 
                 <section class="incident-command-weather-bar" id="incident-command-weather-bar" aria-label="Current weather intelligence">
                   <div class="incident-weather-lead"><span class="incident-weather-icon" aria-hidden="true">☀️</span><div><strong>Current Weather</strong><span id="ic-weather-condition">From best available source</span></div></div>
@@ -342,16 +343,7 @@
                   <div class="incident-weather-metric"><span class="incident-weather-icon" aria-hidden="true">☁</span><div><span>Cloud Cover</span><strong id="ic-weather-cloud-cover">No Current Data Exists</strong></div></div>
                   <div class="incident-weather-metric incident-weather-source"><span class="incident-weather-icon" aria-hidden="true">♜</span><div><span>Source</span><strong id="ic-weather-source">No Current Data Exists</strong><small id="ic-weather-updated">Updated No Current Data Exists</small></div></div>
                 </section>
-                <section class="incident-command-flow" aria-labelledby="incident-command-flow-title">
-                  <div class="incident-command-flow-heading"><h2 id="incident-command-flow-title">Command Decision Flow</h2><span>Next operational decision</span></div>
-                  <div class="incident-command-flow-steps">
-                    <article><strong>1. Scene Size-Up</strong><span class="incident-flow-status">Confirm scene and hazard identity</span><p>Evaluate conditions, identify the chemical or hazard, and verify source-backed information.</p><button class="command-flow-hazard" type="button" data-incident-command-action="chemical-profile" data-allow-empty-fallback="true">Open Hazard Profile</button></article>
-                    <article><strong>2. Public Protection</strong><span class="incident-flow-status">Isolation and protective actions</span><p>Review ERG isolation and protective-action distances without leaving Incident Command.</p><button class="command-flow-erg" type="button" data-incident-command-action="erg-review">Review ERG Distances</button></article>
-                    <article><strong>3. Plume Model</strong><span class="incident-flow-status">Threat-zone assessment</span><p>Model the release and validate the projected threat zone with field conditions.</p><button type="button" data-command-view="plume">Open Plume Model</button></article>
-                    <article><strong>4. Tactical Decision</strong><span class="incident-flow-status">Decision support available</span><p>Review PPE, entry, decon, and source-backed tactical decision support.</p><button type="button" data-command-view="guided-response">Open Guided Response</button></article>
-                    <article><strong>5. Document / Report</strong><span class="incident-flow-status">Preserve the incident record</span><p>Record decisions, actions, and supporting information in the incident report.</p><button type="button" data-command-view="report">Open Reports</button></article>
-                  </div>
-                </section>
+
 
                 <dialog id="erg-review-dialog" class="erg-review-dialog" aria-labelledby="erg-review-title">
                   <form method="dialog" class="erg-review-shell">

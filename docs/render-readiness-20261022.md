@@ -37,3 +37,9 @@ Render deployment is left to the owner. Its existing persistent database is not 
 ## Owner-requested screen-space correction
 
 Removed the unrequested Open Incident Responses horizontal strip from Command, including its markup, renderer/export and unused styles. Existing incident records and Reports incident navigation remain. Verified no strip in the browser and top cards directly below the header. Affected Incident Command/navigation tests and root TypeScript passed.
+
+## Command layout continuation — October 26
+
+Promoted Command Decision Flow to the first content section below the page header. Moved weather below the four incident cards. Removed the full-width involved-chemicals band and its redundant preview renderer/styles. Kept the complete list and identifiers in the existing dialog, opened by a counted View Involved Chemicals button in the Chemical / Hazard card. Removed the repeated selected chemical name from that card to preserve space. No incident or facility inventory records were deleted.
+
+Focused Command/facility/navigation tests: 23 passed. Root TypeScript and JavaScript syntax checks passed. Browser visual verification of the resumed final edit was blocked by the browser URL policy; the earlier layout preview was verified on October 22.
