@@ -68,7 +68,7 @@ describe("HazMatIQ Command Bar", () => {
     for (const label of [
       "Real-Time Operational Overview",
       "Incident Brief",
-      "Tactical Status",
+      "Commander Status &amp; Confirmation",
       "Incident Reports",
       "Command Tools",
       "Operational Details",
@@ -104,7 +104,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(styles).toContain('@media (max-width: 520px)');
   });
 
-  it("keeps Incident Command compact and fills Tactical Status from live incident state", () => {
+  it("keeps Incident Command compact and fills commander status from live incident state", () => {
     const tacticalModel = script.slice(
       script.indexOf("function buildIncidentCommandViewModel()"),
       script.indexOf("function incidentCommandStatusClass"),

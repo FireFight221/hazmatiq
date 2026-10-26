@@ -286,7 +286,7 @@
     const root = document.getElementById('incident');
     if (!root) return;
     root.dataset.operationalStatus = state?.incidentId ? 'active' : 'empty';
-    root.querySelectorAll('#ic-tactical-list .incident-command-tactical-row').forEach((row) => {
+    root.querySelectorAll('#ic-guided-status-list .incident-command-status-row').forEach((row) => {
       row.dataset.incidentState = state?.incidentId ? 'active' : 'empty';
     });
   }

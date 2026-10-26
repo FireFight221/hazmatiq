@@ -621,6 +621,7 @@ document.addEventListener('keydown', (event) => {
 window.HazMatIQ = window.HazMatIQ || {};
 window.HazMatIQ.updateNotifications = updateNotificationCenter;
 window.HazMatIQ.receiveWeatherBrief = receiveWeatherBrief;
+window.HazMatIQ.updateOperationalTaskStatus = updateOperationalTaskStatus;
 
 document.addEventListener('hazmatiq:telemetry', (event) => {
   updateNotificationCenter(event.detail || {});
@@ -1067,7 +1068,7 @@ const guidedResponsePhaseStorageKey = 'hazmatiq_guided_response_phases';
 const guidedNavigationStateStorageKey = 'hazmatiq_guided_navigation_state';
 const guidedTacticalModeStorageKey = 'hazmatiq_guided_tactical_mode';
 const guidedTacticalModeOptions = Object.freeze(['Defensive', 'Offensive', 'Non-Intervention']);
-const operationalStatusOptions = Object.freeze(['Not started', 'In progress', 'Complete', 'Not applicable']);
+const operationalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Complete', 'Not Applicable']);
 const operationalStatusTaskDefinitions = Object.freeze([
   { id: 'facility-identification', label: 'Facility identification', summary: 'Verify a linked facility record or document a manual scene location.', target: 'details' },
   { id: 'hazard-verification', label: 'Hazard identity', summary: 'Confirm the product or hazard identity from an approved source.', target: 'lookup' },
@@ -1731,20 +1732,25 @@ function normalizeOperationalChecklist(incident) {
   const savedTasks = Array.isArray(saved?.tasks) ? saved.tasks : [];
   const tasks = operationalStatusTaskDefinitions.map((definition) => {
     const current = savedTasks.find((task) => task?.id === definition.id) || {};
-    const status = operationalStatusOptions.includes(current.status) ? current.status : 'Not started';
+    const status = normalizeOperationalStatus(current.status);
     const hasConfirmation = Boolean(current.confirmedAt && current.evidence);
     return {
       ...definition,
       ...current,
       id: definition.id,
       label: definition.label,
-      status: status === 'Complete' && !hasConfirmation ? 'In progress' : status,
+      status: status === 'Complete' && !hasConfirmation ? 'In Progress' : status,
     };
   });
   return {
     tasks,
     history: Array.isArray(saved?.history) ? saved.history : [],
   };
+}
+
+function normalizeOperationalStatus(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return operationalStatusOptions.find((option) => option.toLowerCase() === normalized) || 'Not Started';
 }
 
 function operationalTaskEvidence(taskId, model) {
@@ -1779,6 +1785,8 @@ function operationalTaskEvidence(taskId, model) {
 
 function updateOperationalTaskStatus(taskId, status, evidence = '') {
   if (!operationalStatusOptions.includes(status)) return null;
+  const confirmation = String(evidence ?? '').trim();
+  if (status === 'Complete' && !confirmation) return null;
   const incident = getActiveIncident();
   if (!incident) return null;
   const incidents = readIncidents();
@@ -1789,7 +1797,7 @@ function updateOperationalTaskStatus(taskId, status, evidence = '') {
   if (!task || task.status === status && (!evidence || task.evidence === evidence)) return incidents[index];
   const now = new Date().toISOString();
   const changedBy = incidentResponderIdentity();
-  const confirmation = status === 'Complete' ? (evidence.trim() || `Commander marked ${task.label} complete.`) : '';
+  const recordedEvidence = status === 'Complete' ? confirmation : '';
   const historyEntry = {
     taskId,
     label: task.label,
@@ -1798,7 +1806,7 @@ function updateOperationalTaskStatus(taskId, status, evidence = '') {
     changedAt: now,
     changedBy,
     source: 'commander',
-    evidence: confirmation,
+    evidence: recordedEvidence,
   };
   checklist.tasks = checklist.tasks.map((item) => item.id === taskId ? {
     ...item,
@@ -1806,7 +1814,7 @@ function updateOperationalTaskStatus(taskId, status, evidence = '') {
     changedAt: now,
     changedBy,
     source: 'commander',
-    evidence: confirmation,
+    evidence: recordedEvidence,
     confirmedAt: status === 'Complete' ? now : null,
   } : item);
   checklist.history = [...checklist.history, historyEntry];
@@ -2013,23 +2021,16 @@ function incidentCommandStatusClass(status) {
 
 function renderIncidentGuidedResponse(model) {
   const priorities = document.getElementById('ic-guided-priorities');
-  const recommendations = document.getElementById('ic-guided-recommendations');
   const progress = document.getElementById('ic-guided-progress');
-  if (!priorities || !recommendations || !progress) return;
+  if (!priorities || !progress) return;
 
-  const checklist = model.operationalChecklist || normalizeOperationalChecklist(model.incident);
   const phaseDefinitions = typeof guidedPhaseDefinitions !== 'undefined' ? guidedPhaseDefinitions : [];
   const phaseState = model.incident?.guidedResponsePhaseState || {};
   const currentPhase = phaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id;
-  const priorityItems = phaseDefinitions.length
-    ? phaseDefinitions.slice(0, 5).map((phase) => [
-      { ...phase, label: phase.title, target: 'guided-response' },
-      { status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) },
-    ])
-    : operationalStatusTaskDefinitions.slice(0, 5).map((definition) => [
-      definition,
-      checklist.tasks.find((task) => task.id === definition.id),
-    ]);
+  const priorityItems = phaseDefinitions.slice(0, 5).map((phase) => [
+    { ...phase, label: phase.title, target: 'guided-response' },
+    { status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) },
+  ]);
   priorities.replaceChildren();
   priorityItems.forEach(([definition, task]) => {
     const item = document.createElement('li');
@@ -2045,43 +2046,20 @@ function renderIncidentGuidedResponse(model) {
     priorities.append(item);
   });
 
-  const recommendationsList = [
-    ['Protective actions', model.protectiveActionsSummary, model.tacticalStatus[0]?.status],
-    ['PPE and entry', model.entryTeamPpe, model.tacticalStatus[1]?.status],
-    ['Threat zone', model.plumeStatus, model.tacticalStatus[5]?.status],
-    ['Medical review', model.medicalConcerns, model.tacticalStatus[3]?.status],
-  ];
-  recommendations.replaceChildren();
-  recommendationsList.forEach(([label, summary, status]) => {
-    const row = document.createElement('div');
-    row.className = 'incident-command-guided-recommendation';
-    const title = document.createElement('strong');
-    title.className = 'incident-command-guided-recommendation-label';
-    const detail = document.createElement('span');
-    detail.className = 'incident-command-guided-recommendation-detail';
-    const state = document.createElement('small');
-    state.className = 'incident-command-guided-recommendation-status';
-    title.textContent = label;
-    detail.textContent = summary;
-    state.textContent = status;
-    row.append(title, detail, state);
-    recommendations.append(row);
-  });
-
-  const progressItems = phaseDefinitions.length
-    ? phaseDefinitions.map((phase) => ({ label: phase.title, status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) }))
-    : checklist.tasks;
+  const activePhase = phaseDefinitions.find((phase) => phase.id === currentPhase)
+    || phaseDefinitions.at(-1);
   progress.replaceChildren();
-  progressItems.forEach((task) => {
+  if (activePhase) {
     const row = document.createElement('div');
     const state = document.createElement('span');
     const title = document.createElement('strong');
-    row.className = ['Complete', 'Accomplished'].includes(task.status) ? 'is-complete' : 'is-pending';
-    state.textContent = task.status;
-    title.textContent = task.label;
+    const status = guidedGoalStatus(phaseState[activePhase.id], activePhase.id, currentPhase);
+    row.className = status === 'Accomplished' ? 'is-complete' : 'is-pending';
+    state.textContent = status;
+    title.textContent = activePhase.nextTask || activePhase.title;
     row.append(state, title);
     progress.append(row);
-  });
+  }
 }
 
 function renderIncidentCommandHeader(model) {
@@ -2206,10 +2184,7 @@ function renderIncidentCommandDashboard() {
     ['Elapsed Time', model.elapsedTime], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)], ['Hazard Class', model.hazardClass],
     ['Primary Hazard', model.primaryHazard], ['IDLH', model.idlh, true, 'idlh'],
     ['IDLH Source', model.nioshSourceId ? `NIOSH · ${model.nioshSourceId}` : noCurrentDataText], ['Operational Mode', model.operationalMode],
-    ['Protective Actions Summary', model.protectiveActionsSummary], ['Entry Team PPE', model.entryTeamPpe],
-    ['DECON Team PPE', model.deconTeamPpe], ['Medical Concerns', model.medicalConcerns],
-    ['Plume / Threat Zone Status', model.plumeStatus], ['Weather Snapshot', model.weatherSnapshot],
-    ['Monitoring Status', model.monitoringStatus], ['Key Tactical Notes', model.keyTacticalNotes], ['Last Updated', model.lastUpdated],
+    ['Key Tactical Notes', model.keyTacticalNotes], ['Last Updated', model.lastUpdated],
   ].forEach(([labelText, value, lifeSafety, field]) => {
     const row = document.createElement('div');
     if (lifeSafety && field === 'idlh') row.classList.add('is-idlh');
@@ -2222,56 +2197,62 @@ function renderIncidentCommandDashboard() {
     brief?.append(row);
   });
 
-  const tactical = document.getElementById('ic-tactical-list');
-  tactical?.replaceChildren();
-  model.tacticalStatus.forEach((item) => {
+  const statusList = document.getElementById('ic-guided-status-list');
+  statusList?.replaceChildren();
+  model.operationalChecklist.tasks.forEach((task) => {
     const row = document.createElement('div');
-    row.className = 'incident-command-tactical-row';
-    row.dataset.tacticalId = item.id;
+    row.className = 'incident-command-status-row';
+    row.dataset.taskId = task.id;
     const identity = document.createElement('strong');
-    identity.textContent = item.label;
+    identity.textContent = task.label;
     const badge = document.createElement('span');
-    badge.className = `incident-command-badge ${incidentCommandStatusClass(item.status)}`;
-    badge.textContent = item.status;
+    badge.className = `incident-command-badge ${incidentCommandStatusClass(task.status)}`;
+    badge.textContent = task.status;
     const summary = document.createElement('p');
-    summary.textContent = item.summary;
-    const task = model.operationalChecklist.tasks.find((candidate) => candidate.id === item.id)
-      || model.operationalChecklist.tasks.find((candidate) => candidate.id === ({ eplan: 'facility-identification', plume: 'plume-assessment', monitoring: 'field-monitoring', ppe: 'ppe-entry', decon: 'decontamination', protective: 'protective-actions', medical: 'medical-rehab' }[item.id] || ''));
-    if (task) {
-      const control = document.createElement('label');
-      control.className = 'incident-command-status-control';
-      const select = document.createElement('select');
-      select.className = 'incident-command-status-select';
-      select.setAttribute('aria-label', `${task.label} status`);
-      operationalStatusOptions.forEach((status) => {
-        const option = document.createElement('option');
-        option.value = status;
-        option.textContent = status;
-        option.selected = status === task.status;
-        select.append(option);
-      });
-      select.addEventListener('change', () => {
-        const evidence = select.value === 'Complete'
-          ? window.prompt(`Evidence or confirmation for “${task.label}”`, task.evidence || '') || ''
-          : '';
-        if (select.value === 'Complete' && !evidence.trim()) {
-          select.value = task.status;
-          return;
-        }
-        updateOperationalTaskStatus(task.id, select.value, evidence);
-      });
-      control.append(select);
-      const evidence = document.createElement('small');
-      evidence.className = 'incident-command-status-evidence';
-      evidence.textContent = task.status === 'Complete' && task.evidence
-        ? `Confirmed by ${task.changedBy || 'Local responder'} · ${task.evidence}`
-        : 'Awaiting commander confirmation.';
-      control.append(evidence);
-      row.append(identity, badge, summary, control);
-    } else {
-      row.append(identity, badge, summary);
-    }
-    tactical?.append(row);
+    summary.textContent = operationalTaskEvidence(task.id, model);
+    const control = document.createElement('label');
+    control.className = 'incident-command-status-control';
+    control.dataset.taskId = task.id;
+    const select = document.createElement('select');
+    select.className = 'incident-command-status-select';
+    select.dataset.taskId = task.id;
+    select.setAttribute('aria-label', `${task.label} status`);
+    operationalStatusOptions.forEach((status) => {
+      const option = document.createElement('option');
+      option.value = status;
+      option.textContent = status;
+      option.selected = status === task.status;
+      select.append(option);
+    });
+    const evidence = document.createElement('small');
+    evidence.className = 'incident-command-status-evidence';
+    evidence.setAttribute('role', 'status');
+    evidence.setAttribute('aria-live', 'polite');
+    const renderEvidence = (message = '') => {
+      evidence.textContent = message || (task.status === 'Complete' && task.evidence
+        ? `Commander confirmed · ${task.evidence}`
+        : 'System signal only; commander confirmation is required.');
+    };
+    renderEvidence();
+    select.addEventListener('change', () => {
+      const priorStatus = task.status;
+      const nextStatus = select.value;
+      const confirmation = nextStatus === 'Complete'
+        ? window.prompt(`Evidence or confirmation for “${task.label}”`, task.evidence || '') || ''
+        : '';
+      if (nextStatus === 'Complete' && !confirmation.trim()) {
+        select.value = priorStatus;
+        renderEvidence('Complete requires commander evidence. The status was not changed.');
+        return;
+      }
+      if (!updateOperationalTaskStatus(task.id, nextStatus, confirmation)) {
+        select.value = priorStatus;
+        renderEvidence('The status could not be saved for this incident.');
+      }
+    });
+    control.append(select, evidence);
+    row.append(identity, badge, summary, control);
+    statusList?.append(row);
   });
   renderIncidentGuidedResponse(model);
 
@@ -2501,7 +2482,7 @@ function createIncidentRecord() {
     status: 'Active',
     operationalMode: initialMode,
     operationalModeHistory: [{ mode: initialMode, changedAt: now.toISOString(), changedBy, source: 'commander', reason: 'Incident created' }],
-    operationalChecklist: { tasks: operationalStatusTaskDefinitions.map((task) => ({ id: task.id, status: 'Not started' })), history: [] },
+    operationalChecklist: { tasks: operationalStatusTaskDefinitions.map((task) => ({ id: task.id, status: 'Not Started' })), history: [] },
     incidentTimeline: [{ type: 'incident-created', changedAt: now.toISOString(), changedBy, source: 'system' }],
     icsForms: Object.fromEntries(icsFormCatalog.map(([id]) => [id, { fields: {}, createdAt: now.toISOString() }])),
   };
@@ -3829,16 +3810,18 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
   const tacticalButton = event.target.closest('[data-command-view]');
   if (tacticalButton) {
     const target = tacticalButton.dataset.commandView;
-    if (target === 'details') {
+    const activeIncident = getActiveIncident();
+    if (target === 'lookup' && tacticalButton.dataset.commandAction === 'chemical-ppe') {
+      window.HazMatIQ?.incidentCommand?.openChemicalProfile?.();
+    } else if (target === 'details') {
       const details = document.querySelector('.incident-command-operational-details');
       if (details) details.open = true;
       details?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (target === 'plume') openPlumeWorkspace({ sourcePage: 'incident', incident: getActiveIncident() });
-    else if (target === 'guided-response') void openGuidedResponseWorkspace({ sourcePage: 'incident', incident: getActiveIncident() });
-    else if (target === 'map') showView('map', { sourcePage: 'incident', incident: getActiveIncident() });
+    } else if (target === 'plume') openPlumeWorkspace({ sourcePage: 'incident', incident: activeIncident });
+    else if (target === 'guided-response') void openGuidedResponseWorkspace({ sourcePage: 'incident', incident: activeIncident });
+    else if (target === 'map') showView('map', { sourcePage: 'incident', incident: activeIncident });
     else if (target === 'report') {
-      const active = getActiveIncident();
-      showView('report', { sourcePage: 'incident', incidentId: active?.incidentId });
+      showView('report', { sourcePage: 'incident', incidentId: activeIncident?.incidentId });
     } else if (target) showView(target);
     return;
   }

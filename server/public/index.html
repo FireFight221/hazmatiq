@@ -363,38 +363,33 @@
 
                 <div class="incident-command-main-grid">
                   <article class="incident-command-panel incident-command-brief-panel">
-                    <h2><span aria-hidden="true">📋</span><span class="incident-command-panel-title">Incident Brief</span><small class="incident-command-panel-subtitle">Current incident identity, status, and tactical context</small><span class="incident-command-panel-actions"><button class="incident-command-panel-action" type="button" data-incident-command-action="export-package" aria-label="Print or export incident brief" title="Print or export incident brief"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5h-2M7 14h10v7H7z" /></svg></button></span></h2>
+                    <h2><span aria-hidden="true">📋</span><span class="incident-command-panel-title">Incident Brief</span><small class="incident-command-panel-subtitle">Identity, scene context, and commander record</small><span class="incident-command-panel-actions"><button class="incident-command-panel-action" type="button" data-incident-command-action="export-package" aria-label="Print or export incident brief" title="Print or export incident brief"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5h-2M7 14h10v7H7z" /></svg></button></span></h2>
                     <dl id="ic-brief-list" class="incident-command-brief-list"></dl>
                     <div id="ic-chemical-summary" class="incident-command-chemical-summary" aria-live="polite"></div>
                   </article>
 
-                  <article class="incident-command-panel incident-command-tactical-panel">
-                    <h2><span aria-hidden="true">🛡️</span><span class="incident-command-panel-title">Operational Status</span><span class="sr-only">Tactical Status</span><small class="incident-command-panel-subtitle">Explicit commander task states; system signals are evidence, not completion</small></h2>
-                    <div id="ic-tactical-list" class="incident-command-tactical-list"></div>
-                  </article>
-
                   <article class="incident-command-panel incident-command-guided-panel">
-                    <h2><span aria-hidden="true">✦</span><span class="incident-command-panel-title">Guided Response</span><small class="incident-command-panel-subtitle">Current tactical priorities and recommended decisions</small></h2>
+                    <h2><span aria-hidden="true">🛡️</span><span class="incident-command-panel-title">Guided Response</span><small class="incident-command-panel-subtitle">Source-backed priorities with commander-confirmed status</small></h2>
                     <div class="incident-command-guided-content">
                       <section>
-                        <h3>Immediate Priorities</h3>
+                        <h3>Response Phase</h3>
                         <ul id="ic-guided-priorities" class="incident-command-guided-list"></ul>
                       </section>
                       <section>
-                        <h3>Recommended Actions</h3>
-                        <div id="ic-guided-recommendations" class="incident-command-guided-actions"></div>
+                        <h3>Commander Status &amp; Confirmation</h3>
+                        <div id="ic-guided-status-list" class="incident-command-status-list"></div>
                       </section>
                       <section>
                         <h3>Decision Support</h3>
                         <div class="incident-command-guided-links">
-                          <button type="button" data-command-view="lookup">Review Chemical / PPE</button>
-                          <button type="button" data-command-view="plume">Open Plume Model</button>
-                          <button type="button" data-command-view="map">View Live Map</button>
-                          <button type="button" data-command-view="details">Open Incident Details</button>
+                          <button type="button" data-command-view="lookup" data-command-action="chemical-ppe">Chemical / PPE</button>
+                          <button type="button" data-command-view="plume">Plume Model</button>
+                          <button type="button" data-command-view="map">Live Map</button>
+                          <button type="button" data-command-view="report">Incident Reports</button>
                         </div>
                       </section>
                       <section>
-                        <h3>Current Response Progress</h3>
+                        <h3>Current Phase</h3>
                         <div id="ic-guided-progress" class="incident-command-guided-progress"></div>
                       </section>
                     </div>

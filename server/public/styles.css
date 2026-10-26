@@ -11336,7 +11336,7 @@ body,
 
 .incident-command-main-grid {
   display: grid;
-  grid-template-columns: minmax(290px, 1.03fr) minmax(370px, 1.2fr) minmax(290px, 0.95fr);
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.35fr);
   gap: 7px;
   padding: 8px;
 }
@@ -11400,6 +11400,51 @@ body,
   padding: 9px 10px 11px;
 }
 
+.incident-command-status-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+}
+
+.incident-command-status-row {
+  display: grid;
+  grid-template-columns: minmax(150px, .7fr) minmax(0, 1.3fr);
+  gap: 5px 10px;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(120, 160, 190, .28);
+}
+
+.incident-command-status-row > strong {
+  color: #f8fbff;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.incident-command-status-row > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #d5e6f2;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.incident-command-status-control {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  gap: 7px 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.incident-command-status-evidence {
+  color: #b9d2df;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .incident-command-guided-content section { min-width: 0; }
 .incident-command-guided-content h3 {
   margin: 0 0 6px;
@@ -11410,7 +11455,6 @@ body,
 }
 
 .incident-command-guided-list,
-.incident-command-guided-actions,
 .incident-command-guided-progress {
   display: grid;
   gap: 4px;
@@ -11420,7 +11464,6 @@ body,
 }
 
 .incident-command-guided-list li,
-.incident-command-guided-actions > div,
 .incident-command-guided-progress > div {
   display: grid;
   grid-template-columns: minmax(100px, auto) minmax(0, 1fr);
@@ -11448,10 +11491,6 @@ body,
 
 .incident-command-guided-list .is-complete button,
 .incident-command-guided-progress .is-complete span { color: #a8f0bd; border-color: #3a9d5d; }
-.incident-command-guided-actions > div { grid-template-columns: minmax(80px, 0.7fr) minmax(0, 1.5fr); }
-.incident-command-guided-actions strong { color: #d9effd; text-transform: uppercase; }
-.incident-command-guided-actions span { color: #fff; overflow-wrap: anywhere; }
-.incident-command-guided-actions small,
 .incident-command-guided-progress span { color: #f6c343; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
 .incident-command-guided-links { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .incident-command-guided-links button {
@@ -11717,7 +11756,6 @@ button[data-command-view="guided-response"]:disabled,
   .incident-command-summary-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .incident-command-summary-strip > div:nth-child(4) { border-right: 0; }
   .incident-command-main-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .incident-command-guided-panel { grid-column: 1 / -1; }
 }
 
 @media (max-width: 760px) {
@@ -11727,7 +11765,6 @@ button[data-command-view="guided-response"]:disabled,
   .incident-command-detail-grid,
   #chemical-id-results .chemical-profile-content[data-active-tab="medical"] { grid-template-columns: 1fr !important; }
   .incident-command-summary-strip > div { border-right: 0; border-bottom: 1px solid rgba(93, 142, 180, 0.28); }
-  .incident-command-guided-panel,
   #chemical-id-results .chemical-profile-content[data-active-tab="medical"] > .chemical-profile-section { grid-column: 1 !important; }
   #chemical-id-results .chemical-profile-content[data-active-tab="decon"] { grid-template-columns: 1fr !important; }
   #chemical-id-results .chemical-profile-content[data-active-tab="decon"] > .chemical-profile-section { grid-column: 1 !important; }

@@ -6,6 +6,7 @@ const html = readFileSync(new URL('../server/public/index.html', import.meta.url
 const script = readFileSync(new URL('../server/public/script.js', import.meta.url), 'utf8');
 const module = readFileSync(new URL('../server/public/incident-command.js', import.meta.url), 'utf8');
 const incidentOverrides = readFileSync(new URL('../server/public/incident-overrides.css', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../server/public/styles.css', import.meta.url), 'utf8');
 const reports = readFileSync(new URL('../server/public/reports.js', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../server/src/app.ts', import.meta.url), 'utf8');
 
@@ -45,6 +46,33 @@ describe('Incident Command operational hub', () => {
     expect(script).not.toContain('renderIncidentResponseTabs');
     expect(html).toContain('id="current-incident-list"');
     expect(script).toContain('function switchActiveIncident');
+  });
+
+  it('uses two command cards and keeps the active-incident decision actions in Guided Response', () => {
+    const activeCommand = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('<section class="incident-command-panel incident-command-plume-summary"'));
+    expect(activeCommand.match(/class="incident-command-panel /g)).toHaveLength(2);
+    expect(activeCommand).toContain('incident-command-brief-panel');
+    expect(activeCommand).toContain('incident-command-guided-panel');
+    expect(activeCommand).not.toContain('Operational Status');
+    expect(activeCommand).toContain('<span aria-hidden="true">🛡️</span><span class="incident-command-panel-title">Guided Response</span>');
+    for (const [view, label] of [['lookup', 'Chemical / PPE'], ['plume', 'Plume Model'], ['map', 'Live Map'], ['report', 'Incident Reports']]) {
+      expect(activeCommand).toContain(`data-command-view="${view}"`);
+      expect(activeCommand).toContain(`>${label}</button>`);
+    }
+    expect(styles).toContain('grid-template-columns: minmax(0, .95fr) minmax(0, 1.35fr);');
+    expect(incidentOverrides).toContain('border-top: 3px solid #f6c343');
+    expect(incidentOverrides).toContain('border-top: 3px solid #54c77b');
+  });
+
+  it('binds commander status controls to canonical checklist IDs and requires visible completion evidence', () => {
+    expect(script).toContain("const operationalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Complete', 'Not Applicable']);");
+    expect(script).toContain('model.operationalChecklist.tasks.forEach((task) =>');
+    expect(script).toContain("select.dataset.taskId = task.id;");
+    expect(script).toContain("if (status === 'Complete' && !confirmation) return null;");
+    expect(script).toContain('Complete requires commander evidence. The status was not changed.');
+    expect(script).toContain("{ id: 'medical-rehab', label: 'Medical and rehab'");
+    expect(script).not.toContain("medical: 'documentation'");
+    expect(script).not.toContain("model.operationalChecklist.tasks.find((candidate) => candidate.id === item.id)");
   });
 
   it('normalizes one incident state for chemical, plume, command, and report consumers', () => {

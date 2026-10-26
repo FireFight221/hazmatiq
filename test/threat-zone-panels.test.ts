@@ -95,7 +95,7 @@ describe('Command phase progress', () => {
     context.model.incident.guidedResponsePhaseState = { first: { status: 'Accomplished' } };
     runInNewContext(`${code}\nrenderIncidentGuidedResponse(model)`, context);
     expect(priorities.children.map((item) => item.className)).toEqual(['is-complete', 'is-pending']);
-    expect(script).toContain("medical: 'medical-rehab'");
+    expect(script).toContain("{ id: 'medical-rehab', label: 'Medical and rehab'");
     expect(script).not.toContain("medical: 'documentation'");
   });
 });

@@ -42,7 +42,7 @@ describe('canonical Plume Model entry points', () => {
     expect(script).toContain("showView('plume', { skipPlumeInitialization: true });");
     expect(script).toContain('window.HazMatIQ.plumeNavigationContext = normalized;');
     expect(script).not.toMatch(/showView\(['"]plume['"]\);/);
-    expect(script).toContain("openPlumeWorkspace({ sourcePage: 'incident', incident: getActiveIncident() })");
+    expect(script).toContain("openPlumeWorkspace({ sourcePage: 'incident', incident: activeIncident })");
     expect(script).toContain("openPlumeWorkspace({ sourcePage: activeViewId() })");
     expect(script).toContain("document.querySelectorAll('.preplan-actions [data-view]')");
     expect(html).toContain('data-command-view="plume">Plot / Edit Plume</button>');
