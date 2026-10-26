@@ -348,6 +348,14 @@ describe("API routes", () => {
     ]));
   });
 
+  it("exposes the canonical CAMEO link for the Chlorine master profile", async () => {
+    const res = await app.request("/api/chemicals/22/profile");
+    expect(res.status).toBe(200);
+    const body = await res.json() as { sourceUrl?: string; header: { name: string; cas: string } };
+    expect(body.header).toMatchObject({ name: "Chlorine", cas: "7782-50-5" });
+    expect(body.sourceUrl).toBe("https://cameochemicals.noaa.gov/chemical/2237");
+  });
+
   it("GET /api/erg/:un returns the Table 1 row matching the requested guide", async () => {
     const res = await app.request("/api/erg/1005?guide=125");
     expect(res.status).toBe(200);

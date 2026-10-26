@@ -124,9 +124,15 @@ describe("Guided Response workflow", () => {
     expect(script).toContain("const strategyControl = createGuidedOperationalStrategyControl(activeIncident, selectedOperationalStrategy);");
     expect(script).toContain("const operationalStrategyOptions = Object.freeze(['Offensive', 'Defensive', 'Non-Intervention']);");
     expect(script).toContain("strategyPhaseDefinition(phase, context.strategy, context)");
-    expect(script).toContain("createGuidedPhaseList(phase.steps, noCurrentDataText, true)");
+    expect(script).toContain("Confirm the hazard, protect the public, and define the defensive perimeter.");
+    expect(script).toContain("persistOperationalModeChange(select.value)");
+    expect(script).toContain("createGuidedPhaseList(guidedObjectiveEntries(phase), noCurrentDataText, true)");
+    expect(script).toContain("const guidedObjectiveIds = Object.freeze({");
+    expect(script).toContain("function createGuidedReferenceSection(phase, sources, { profile, strategy, gapKeys = new Set() } = {})");
+    expect(script).toContain("heading.textContent = 'References & Sources'");
     expect(script).not.toContain("rolesHeading.textContent = 'ROLES & RESPONSIBILITIES'");
-    expect(styles).toContain('#guided-response .guided-operational-strategy { display: grid; gap: 10px; min-height: 0; margin-bottom: 0;');
+    expect(styles).toContain('#guided-response .guided-operational-strategy { display: grid; gap: 8px; height: auto; min-height: 0;');
+    expect(styles).toContain('#guided-response .guided-operational-strategy-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);');
     expect(guidedHtml).toContain('class="guided-response-disclaimers"');
   });
 
@@ -198,7 +204,7 @@ describe("Guided Response workflow", () => {
   it("does not render the redundant Source / Technical Detail box", () => {
     expect(script).not.toContain("createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL'");
     expect(script).toContain("flow.append(heading, notice, grid);");
-    expect(script).toContain("createGuidedSourceTrace(phaseSources)");
+    expect(script).toContain("gapKeys: referenceContext.gapKeys || (referenceContext.gapKeys = new Set())");
   });
 
   it("keeps goal status, commander notes, and actionable next tasks explicit", () => {
@@ -293,9 +299,28 @@ describe("Guided Response workflow", () => {
   it("places the critical action bar before the responsive command-flow grid", () => {
     expect(script).toContain("const criticalActionBar = createGuidedCriticalActionBar(guidedResponse)");
     expect(script).toContain("const flow = createGuidedCommandFlow(guidedResponse, {");
-    expect(script).toContain("container.append(chemicalStrip, strategyControl, mobileSticky, criticalActionBar, flow)");
+    expect(script).toContain("container.append(chemicalStrip, criticalActionBar, strategyControl, mobileSticky, flow)");
     expect(script).toContain("flow.className = 'panel-card guided-command-flow'");
     expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+  });
+
+  it("keeps objective numbers semantic, stable, and aligned outside wrapped text", () => {
+    expect(script).toContain("item.dataset.objectiveId = id");
+    expect(script).toContain("id: `${phase.id}-objective-${ids[index] || index + 1}`");
+    expect(styles).toContain('list-style-position: outside;');
+    expect(styles).toContain('font-size: 1.18em; font-weight: 950;');
+    expect(styles).toContain('padding-inline-start: 2.45rem;');
+  });
+
+  it("renders source records directly with objective coverage and explicit gaps", () => {
+    expect(script).toContain("guidedReferenceSourceLink(sourceName, profile)");
+    expect(script).toContain("Open direct supporting source");
+    expect(script).toContain("Supports objective IDs");
+    expect(script).toContain("Source gap:");
+    expect(styles).toContain('.guided-reference-list { display: grid; gap: 8px; }');
+    expect(styles).toContain('#guided-response.guided-response-page .guided-phase-grid .guided-phase-body .guided-reference-card');
+    expect(styles).toContain('background: #fff !important; color: #1d3b4e !important;');
+    expect(styles).toContain('.guided-reference-link { display: inline-block;');
   });
 
   it("keeps source traceability expandable and gives mobile responders a sticky context header", () => {

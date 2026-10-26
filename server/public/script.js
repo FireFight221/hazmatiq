@@ -5771,6 +5771,149 @@ function createGuidedSourceTrace(sources) {
   return wrapper;
 }
 
+function guidedReferenceSourceName(source) {
+  const label = String(source?.label || source || '').replace(/^Linked\s+/i, '').trim();
+  if (/^ERG(?:\s|$)/i.test(label) || /PHMSA/i.test(label)) return 'ERG';
+  if (/^NIOSH(?:\s|$)/i.test(label)) return 'NIOSH';
+  if (/CAMEO/i.test(label)) return 'CAMEO';
+  if (/Chemical Companion/i.test(label)) return 'Chemical Companion';
+  if (/Derived rule/i.test(label)) return 'Derived rule';
+  return label;
+}
+
+function guidedReferenceSourceLink(sourceName, profile) {
+  const links = Array.isArray(profile?.sourceLinks) ? profile.sourceLinks : [];
+  const linked = links.find((link) => guidedReferenceSourceName(link?.sourceName) === sourceName && link?.sourceUrl);
+  if (linked?.sourceUrl) return { url: linked.sourceUrl, exact: true };
+  if (sourceName === 'CAMEO' && profile?.sourceUrl) return { url: profile.sourceUrl, exact: true };
+  if (sourceName === 'ERG') return {
+    url: 'https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg',
+    exact: false,
+  };
+  if (sourceName === 'NIOSH') return {
+    url: 'https://www.cdc.gov/niosh/npg/npgdcas.html',
+    exact: false,
+  };
+  if (sourceName === 'Chemical Companion' && profile?.selectedChemicalId) return {
+    url: `/api/chemicals/${encodeURIComponent(profile.selectedChemicalId)}/profile`,
+    exact: true,
+  };
+  return { url: '', exact: false };
+}
+
+function createGuidedReferenceSection(phase, sources, { profile, strategy, gapKeys = new Set() } = {}) {
+  const section = document.createElement('section');
+  section.className = 'guided-reference-section';
+  section.setAttribute('aria-labelledby', `guided-references-${phase.id}`);
+  const heading = document.createElement('h3');
+  heading.id = `guided-references-${phase.id}`;
+  heading.textContent = 'References & Sources';
+  const intro = document.createElement('p');
+  intro.className = 'guided-reference-intro';
+  intro.textContent = `${phase.title} · ${operationalStrategyLabel(strategy)} posture. References are attached to stable objective IDs; EMERGENZ workflow text remains distinct from published guidance.`;
+  const objectiveEntries = guidedObjectiveEntries(phase);
+  const objectiveById = new Map(objectiveEntries.map((entry) => [entry.id, entry.text]));
+  const references = [];
+  const gaps = [];
+  const addGap = (message) => {
+    if (gapKeys.has(message)) return;
+    gapKeys.add(message);
+    gaps.push(message);
+  };
+  (Array.isArray(sources) ? sources : []).forEach((source) => {
+    const sourceName = guidedReferenceSourceName(source);
+    if (!sourceName || sourceName === 'Derived rule') {
+      if (sourceName === 'Derived rule') addGap('Strategy-specific posture, commander assignments, and agency procedures are EMERGENZ or local workflow content; no universal external citation is attached.');
+      return;
+    }
+    const sourceLink = guidedReferenceSourceLink(sourceName, profile);
+    const sourceRecord = (Array.isArray(profile?.sourceLinks) ? profile.sourceLinks : [])
+      .find((link) => guidedReferenceSourceName(link?.sourceName) === sourceName);
+    const safetyRecord = (Array.isArray(profile?.safetyCritical?.records) ? profile.safetyCritical.records : [])
+      .find((record) => guidedReferenceSourceName(record?.sourceName) === sourceName && record?.sourceRecordId);
+    const id = sourceRecord?.sourceRecordId || safetyRecord?.sourceRecordId || source?.reference || '';
+    const reference = {
+      publisher: sourceName === 'ERG' ? 'U.S. Department of Transportation · PHMSA'
+        : sourceName === 'NIOSH' ? 'CDC · NIOSH'
+          : sourceName === 'CAMEO' ? 'NOAA · CAMEO Chemicals'
+            : 'EMERGENZ',
+      title: sourceName === 'ERG' ? 'Emergency Response Guidebook'
+        : sourceName === 'NIOSH' ? 'Pocket Guide to Chemical Hazards'
+          : sourceName === 'CAMEO' ? 'CAMEO Chemicals chemical datasheet'
+            : 'Chemical Companion master record',
+      record: sourceName === 'ERG'
+        ? `UN/NA ${profile?.header?.un || noCurrentDataText} · ERG Guide ${profile?.isolationErg?.ergGuide || noCurrentDataText} · Table 1 / response sections`
+        : sourceName === 'NIOSH'
+          ? `CAS ${profile?.header?.cas || noCurrentDataText}${id ? ` · NIOSH record ${id}` : ''}`
+          : sourceName === 'CAMEO'
+            ? `CAS ${profile?.header?.cas || noCurrentDataText}${id ? ` · CAMEO record ${id}` : ''}`
+            : `Chemical Companion master ${profile?.selectedChemicalId || noCurrentDataText}${id ? ` · ${id}` : ''}`,
+      edition: sourceName === 'ERG' ? '2024 edition'
+        : source?.sourceVersion || sourceRecord?.sourceVersion || (sourceName === 'NIOSH' ? 'Bundled NIOSH-linked record; current page date not retained' : 'Current linked record; edition/date not retained'),
+      basis: source?.basis || `Supports the displayed ${phase.title.toLowerCase()} objectives.`,
+      url: sourceLink.url,
+      exact: sourceLink.exact,
+      sourceName,
+      supports: objectiveEntries.map((entry) => entry.id),
+    };
+    const key = `${reference.sourceName}|${reference.record}|${reference.url}`;
+    if (!references.some((item) => item.key === key)) references.push({ ...reference, key });
+    if (!sourceLink.url) addGap(`${reference.title} is linked by record identity, but a direct supporting URL is not present in the selected profile.`);
+    else if (!sourceLink.exact && sourceName === 'NIOSH') addGap(`The verified NIOSH record is linked by CAS; the official CAS index is provided because this profile does not retain the chemical-specific NIOSH page URL.`);
+    else if (!sourceLink.exact && sourceName === 'ERG') addGap('The ERG link is the official 2024 guide; the selected UN/NA and guide number above identify the applicable record and table.');
+    if (sourceName === 'Chemical Companion') addGap('Chemical Companion is an EMERGENZ local imported/curated record, not an external agency publication.');
+  });
+  const list = document.createElement('div');
+  list.className = 'guided-reference-list';
+  references.forEach((reference) => {
+    const card = document.createElement('article');
+    card.className = 'guided-reference-card';
+    const title = document.createElement('h4');
+    title.textContent = reference.title;
+    const publisher = document.createElement('p');
+    publisher.className = 'guided-reference-publisher';
+    publisher.textContent = reference.publisher;
+    const details = document.createElement('dl');
+    [['Chemical record / locator', reference.record], ['Edition / date', reference.edition], ['Supports objective IDs', reference.supports.map((id) => `${id} — ${objectiveById.get(id) || 'Objective text unavailable'}`).join(' · ')], ['Basis', reference.basis]].forEach(([label, value]) => {
+      const row = document.createElement('div');
+      const term = document.createElement('dt'); term.textContent = label;
+      const detail = document.createElement('dd'); detail.textContent = value;
+      row.append(term, detail); details.append(row);
+    });
+    if (reference.url) {
+      const link = document.createElement('a');
+      link.className = 'guided-reference-link';
+      link.href = reference.url;
+      link.target = '_blank';
+      link.rel = 'noreferrer noopener';
+      link.textContent = reference.exact ? 'Open direct supporting source' : 'Open official source';
+      card.append(title, publisher, details, link);
+    } else {
+      const unavailable = document.createElement('p');
+      unavailable.className = 'guided-reference-gap';
+      unavailable.textContent = 'Direct supporting link is not present in the selected source record.';
+      card.append(title, publisher, details, unavailable);
+    }
+    list.append(card);
+  });
+  if (!references.length && !gapKeys.has(`no-reference:${phase.id}`)) {
+    gapKeys.add(`no-reference:${phase.id}`);
+    const missing = document.createElement('p');
+    missing.className = 'guided-reference-gap';
+    missing.textContent = 'No published reference is linked to this phase in the selected chemical record.';
+    list.append(missing);
+  }
+  section.append(heading, intro, list);
+  const uniqueGaps = [...new Set(gaps)];
+  if (uniqueGaps.length) {
+    const gap = document.createElement('p');
+    gap.className = 'guided-reference-gap';
+    gap.textContent = `Source gap: ${uniqueGaps.join(' ')}`;
+    section.append(gap);
+  }
+  return section;
+}
+
 function createGuidedChecklist(items) {
   const list = document.createElement('ul');
   list.className = 'guided-command-checklist';
@@ -6436,6 +6579,27 @@ const guidedPhaseDefinitions = Object.freeze([
   },
 ]);
 
+// Objective IDs are stable presentation identifiers. The wording can change
+// with the selected strategy, but source associations remain tied to these
+// IDs rather than to fragile text matches.
+const guidedObjectiveIds = Object.freeze({
+  'identify-isolate-notify': ['confirm-identity-and-release', 'apply-erg-protective-action-values', 'start-condition-based-notifications'],
+  'zones-resources': ['establish-controlled-zones-and-communications', 'verify-protection-and-equipment', 'prepare-decon-and-medical-readiness'],
+  'recon-assessment': ['verify-container-and-release-conditions', 'monitor-and-communicate-readings', 'stay-within-approved-task'],
+  'mitigation-strategy': ['compare-source-backed-control-options', 'record-strategy-basis-and-gaps', 'confirm-execution-safeguards'],
+  'withdraw-decon-rehab': ['withdraw-on-task-or-agency-trigger', 'perform-compatible-decontamination', 'complete-medical-rehab-handoff'],
+  'verify-recovery': ['verify-control-and-residual-hazards', 'compare-erg-and-plume-planning-information', 'identify-qualified-recovery-authority'],
+  'notifications-documentation': ['review-jurisdiction-specific-notifications', 'record-confirmed-and-open-actions', 'review-and-finalize-incident-record'],
+});
+
+function guidedObjectiveEntries(phase) {
+  const ids = guidedObjectiveIds[phase.id] || [];
+  return (Array.isArray(phase.steps) ? phase.steps : []).map((text, index) => ({
+    id: `${phase.id}-objective-${ids[index] || index + 1}`,
+    text,
+  }));
+}
+
 const operationalStrategyOptions = Object.freeze(['Offensive', 'Defensive', 'Non-Intervention']);
 
 function normalizeOperationalStrategy(value) {
@@ -6611,12 +6775,16 @@ function createGuidedPhaseList(items, empty = noCurrentDataText, ordered = false
   const list = document.createElement(ordered ? 'ol' : 'ul');
   list.className = 'guided-phase-list';
   const values = (Array.isArray(items) ? items : []).flat(Infinity).map((item) => {
-    if (item && typeof item === 'object') return item.text || item.value || item.label || '';
-    return item;
-  }).map((item) => String(item || '').trim()).filter(Boolean);
-  (values.length ? values : [empty]).forEach((value) => {
+    if (item && typeof item === 'object') return {
+      id: item.id || item.objectiveId || '',
+      text: item.text || item.value || item.label || '',
+    };
+    return { id: '', text: item };
+  }).map((item) => ({ ...item, text: String(item.text || '').trim() })).filter((item) => item.text);
+  (values.length ? values : [{ id: '', text: empty }]).forEach(({ id, text }) => {
     const item = document.createElement('li');
-    item.textContent = guidedDisplayValue(value);
+    if (ordered && id) item.dataset.objectiveId = id;
+    item.textContent = guidedDisplayValue(text);
     list.append(item);
   });
   return list;
@@ -6885,7 +7053,7 @@ function createGuidedPhaseIcon(phase) {
   return wrapper;
 }
 
-function createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhaseId, scenarioSummary) {
+function createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhaseId, scenarioSummary, referenceContext = {}) {
   const record = phaseState[phase.id] || {};
   const status = guidedGoalStatus(record, phase.id, currentPhaseId);
   const card = document.createElement('details');
@@ -6907,16 +7075,14 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   scenarioSummary.forEach(([label, value]) => { const item = document.createElement('div'); const term = document.createElement('span'); term.textContent = label; const detail = document.createElement('strong'); detail.textContent = guidedDisplayValue(value); item.append(term, detail); scenarioGrid.append(item); });
   scenario.append(scenarioGrid);
   const stage = phase.id === 'identify-isolate-notify' ? model.identification : phase.id === 'zones-resources' ? model.ppe : phase.id === 'recon-assessment' ? model.monitoring : phase.id === 'mitigation-strategy' ? model.controlMitigation : phase.id === 'withdraw-decon-rehab' ? model.decon : phase.id === 'verify-recovery' ? model.protectiveActions : model.termination;
-  const phaseSources = guidedStageSources(stage).filter((source) => !/^(?:needs verification|source not available|no current data exists)$/i.test(String(source || '').trim()));
-  const sourceDetails = document.createElement('details'); sourceDetails.className = 'guided-phase-sources';
-  const sourceSummary = document.createElement('summary'); sourceSummary.textContent = 'References'; sourceDetails.append(sourceSummary, createGuidedSourceTrace(phaseSources));
+  const phaseSources = (Array.isArray(stage?.sources) ? stage.sources : []).filter((source) => !/^(?:needs verification|source not available|no current data exists)$/i.test(String(source?.label || source || '').trim()));
   const productGuidance = document.createElement('p'); productGuidance.className = 'guided-phase-product-guidance';
   if (phase.id === 'mitigation-strategy') productGuidance.textContent = model.operationalRecommendations?.control?.why || model.controlMitigation?.why || 'No product-specific control procedure is available from the current source set.';
   else if (phase.id === 'withdraw-decon-rehab') productGuidance.textContent = model.operationalRecommendations?.decon?.why || model.decon?.why || 'No product-specific decontamination rationale is available from the current source set.';
   else if (phase.id === 'identify-isolate-notify' || phase.id === 'notifications-documentation') productGuidance.textContent = model.operationalRecommendations?.notify?.why || model.isolation?.why || 'Notification and protective-action requirements remain condition-based and jurisdiction-specific.';
   else productGuidance.textContent = stage?.why || 'No additional product-specific guidance is available from the current source set.';
   const objectives = document.createElement('section'); const objectivesHeading = document.createElement('h3'); objectivesHeading.textContent = 'OBJECTIVES';
-  objectives.append(objectivesHeading, createGuidedPhaseList(phase.steps, noCurrentDataText, true));
+  objectives.append(objectivesHeading, createGuidedPhaseList(guidedObjectiveEntries(phase), noCurrentDataText, true));
   const guidance = document.createElement('p'); guidance.className = 'guided-phase-product-guidance'; guidance.textContent = productGuidance.textContent; objectives.append(guidance);
   const conditions = document.createElement('section'); const conditionsHeading = document.createElement('h3'); conditionsHeading.textContent = 'CONDITIONS & CONSIDERATIONS';
   conditions.append(conditionsHeading, createGuidedPhaseList(phase.conditions));
@@ -6965,7 +7131,11 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
     ])); body.append(care);
   }
   if (phase.id === 'mitigation-strategy') body.append(createGuidedEquipmentCompatibility(profile, incident, record));
-  if (phaseSources.length) body.append(sourceDetails);
+  body.append(createGuidedReferenceSection(phase, phaseSources, {
+    profile,
+    strategy: referenceContext.strategy,
+    gapKeys: referenceContext.gapKeys || (referenceContext.gapKeys = new Set()),
+  }));
   const footer = document.createElement('section'); footer.className = 'guided-phase-footer guided-commander-notes';
   const notesHeading = document.createElement('h3'); notesHeading.textContent = 'COMMANDER NOTES / OBSERVATIONS';
   const activity = document.createElement('textarea'); activity.className = 'guided-phase-evidence'; activity.rows = 2; activity.placeholder = 'Optional: record the confirmed action, observation, or evidence.'; activity.value = record.evidence || '';
@@ -7021,6 +7191,7 @@ function createGuidedCommandFlow(model, context = {}) {
   const savedPlume = incident?.plumeModelResults?.plumeResult || incident?.plumeModelResults || readPlanningState().plumeModelResults || null;
   const scenarioSummary = guidedScenarioSummary(incident, profile, savedPlume);
   const currentPhase = guidedPhaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id || guidedPhaseDefinitions.at(-1).id;
+  const referenceContext = { ...context, gapKeys: new Set() };
   const grid = document.createElement('div'); grid.className = 'guided-phase-grid';
   guidedPhaseDefinitions.forEach((phase) => grid.append(createGuidedPhaseCard(
     strategyPhaseDefinition(phase, context.strategy, context),
@@ -7030,6 +7201,7 @@ function createGuidedCommandFlow(model, context = {}) {
     phaseState,
     currentPhase,
     scenarioSummary,
+    referenceContext,
   )));
   flow.append(heading, notice, grid);
   return flow;
@@ -7059,6 +7231,8 @@ function createGuidedOperationalStrategyControl(incident, strategy) {
   const section = document.createElement('section');
   section.className = 'panel-card guided-operational-strategy';
   section.setAttribute('aria-labelledby', 'guided-operational-strategy-title');
+  const top = document.createElement('div');
+  top.className = 'guided-operational-strategy-top';
   const heading = document.createElement('div');
   heading.className = 'guided-operational-strategy-heading';
   const title = document.createElement('h2');
@@ -7066,7 +7240,6 @@ function createGuidedOperationalStrategyControl(incident, strategy) {
   title.textContent = 'Operational Strategy';
   const description = document.createElement('p');
   description.textContent = 'Choose the commander-approved posture. Guidance below changes with this selection; source checks, monitoring, PPE, decon, withdrawal, and agency approval still apply.';
-  heading.append(title, description);
   const controls = document.createElement('div');
   controls.className = 'guided-operational-strategy-controls';
   const label = document.createElement('label');
@@ -7096,10 +7269,10 @@ function createGuidedOperationalStrategyControl(incident, strategy) {
   select.value = normalized || (incident && !normalized && storedMode ? storedMode : '');
   select.disabled = !incident;
   label.append(select);
-  const status = document.createElement('small');
-  status.className = 'guided-operational-strategy-status';
+  const timestamp = document.createElement('small');
+  timestamp.className = 'guided-operational-strategy-status';
   const history = Array.isArray(incident?.operationalModeHistory) ? incident.operationalModeHistory.at(-1) : null;
-  status.textContent = incident
+  timestamp.textContent = incident
     ? history
       ? `Last recorded ${new Date(history.changedAt).toLocaleString()} by ${history.changedBy || 'Local responder'}.`
       : 'No commander strategy change recorded.'
@@ -7108,14 +7281,16 @@ function createGuidedOperationalStrategyControl(incident, strategy) {
     if (!incident) return;
     const result = persistOperationalModeChange(select.value);
     if (!result) {
-      status.textContent = 'The strategy could not be saved for this incident.';
+      timestamp.textContent = 'The strategy could not be saved for this incident.';
       return;
     }
-    status.textContent = `${operationalStrategyLabel(select.value)} recorded. Guidance refreshed for this incident.`;
+    timestamp.textContent = `${operationalStrategyLabel(select.value)} recorded. Guidance refreshed for this incident.`;
     renderGuidedResponse();
   });
-  controls.append(label, status);
-  section.append(heading, controls);
+  controls.append(label);
+  heading.append(title);
+  top.append(heading, controls);
+  section.append(top, description, timestamp);
   return section;
 }
 
@@ -7310,7 +7485,9 @@ function renderGuidedResponse() {
     profile,
     decisions,
   });
-  container.append(chemicalStrip, strategyControl, mobileSticky, criticalActionBar, flow);
+  // Keep the immediate command priority visible before the posture selector in
+  // both DOM order and the single-column visual flow.
+  container.append(chemicalStrip, criticalActionBar, strategyControl, mobileSticky, flow);
 }
 
 const chemicalSearchForm = document.getElementById('chemical-search-form');

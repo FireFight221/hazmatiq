@@ -647,6 +647,9 @@ export function normalizeChemicalProfile(chemical: Record<string, unknown>, rela
 
   return {
     header,
+    // Preserve the canonical CAMEO URL from the local chemical index so the
+    // Guided Response reference panel can link the displayed record directly.
+    sourceUrl: normalizeValue(cameo.sdsUrl),
     properties,
     exposures,
     ppeRespiratory,
