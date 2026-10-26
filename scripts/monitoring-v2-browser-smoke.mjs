@@ -10,9 +10,9 @@ try {
   await page.goto('http://127.0.0.1:4177/',{waitUntil:'domcontentloaded',timeout:30000});
   await page.locator('.app-primary-nav [data-view="monitor"]').click();
   await page.waitForSelector('#monitor .monitor-unit-card',{timeout:15000});
-  await check('Starter inventory 17 units',async()=>{
-    assert.equal(await page.locator('#monitor .monitor-unit-card').count(),17);
-    assert.equal((await page.locator('#monitor-total-count').textContent()).trim(),'17');
+  await check('Starter inventory 19 units',async()=>{
+    assert.equal(await page.locator('#monitor .monitor-unit-card').count(),19);
+    assert.equal((await page.locator('#monitor-total-count').textContent()).trim(),'19');
   });
   await check('Initial map and manual readings empty',async()=>{
     assert.equal((await page.locator('#monitor-mapped-count').textContent()).trim(),'0 LOCATED');

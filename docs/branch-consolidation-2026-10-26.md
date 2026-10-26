@@ -77,3 +77,18 @@ Full SHAs and refs are also in branch-audit-2026-10-26.json.
 | refs/remotes/personal/backup/verified-render-20261022 | 9fb63bf3ba | archive/2026-10-26/personal/backup/verified-render-20261022 | 0 |
 | refs/remotes/personal/current-hazscope-migration | eb3077accd | archive/2026-10-26/personal/current-hazscope-migration | 0 |
 | refs/remotes/personal/main | 72100b0d8a | archive/2026-10-26/personal/main | 10 |
+
+## Verified final arrangement
+
+- Canonical repository has exactly development and current-hazscope-migration; development is the default branch.
+- Codespaces has exactly those same two local branches. Origin now points to FireFight221/hazmatiq; legacy points to cmc2765/hazmat-response-support.
+- Retired 18 redundant remote branch names after SHA, recovery-tag and ancestry checks. The original repository retains only its default main as a historical reference.
+- All 53 archived histories remain ancestors of development and have verified remote recovery tags.
+- Preview remains eb3077a; no Render deployment was triggered. New layout work remains on development.
+- Root suite: 55 files, 588 tests passed. Root/server TypeScript and JavaScript syntax passed. Server suite passed. Lint has no errors and 9 existing warnings.
+- Added full root/server CI checks on the two working branches and retargeted the existing Monitoring browser workflow to those branches.
+- The two-card Command redesign was not implemented in this audit; a separate Codex handoff is provided.
+
+## CI follow-up
+
+Full-platform GitHub verification passed. The existing Monitoring browser smoke exposed an obsolete 17-unit assertion: the starter inventory now has 19 units, including Rigaku Raman and HazMatID FTIR. Its expected count was updated to 19 without changing the application. The next run verifies that correction. The owner delegated the two-card UI change to Codex; its copy-ready task is in docs/codex-command-card-refinement.md.

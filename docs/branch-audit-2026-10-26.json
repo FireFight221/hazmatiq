@@ -319,5 +319,22 @@
       "archiveTag": "archive/2026-10-26/personal/main",
       "uniqueCommitsBeforeConsolidation": 10
     }
-  ]
+  ],
+  "outcome": {
+    "canonicalRepository": "FireFight221/hazmatiq",
+    "defaultBranch": "development",
+    "previewBranch": "current-hazscope-migration",
+    "previewSha": "eb3077accd05f9452883ace8891d3e33c3b04cac",
+    "legacyRepository": "cmc2765/hazmat-response-support",
+    "legacyBranches": [
+      "main"
+    ],
+    "retiredRemoteBranches": 18,
+    "localBranches": [
+      "development",
+      "current-hazscope-migration"
+    ],
+    "allArchivedHistoriesIncluded": true,
+    "renderDeploymentTriggered": false
+  }
 }
