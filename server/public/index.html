@@ -323,11 +323,10 @@
                     <div class="incident-info-compact-summary"><span id="ic-facility-verification-state">Not selected</span><strong id="ic-header-facility-address">Not specified</strong></div>
                   </article>
 
-                  <article class="incident-info-card incident-info-card-mode">
-                    <div class="incident-info-card-heading"><h2><span aria-hidden="true">🛡</span> Operational Mode</h2></div>
-                    <select id="incident-operational-mode" aria-label="Operational mode"><option value="Research &amp; Assessment">Research &amp; Assessment</option><option value="Offensive/Entry">Offensive/Entry</option><option value="Defensive/Control/Contain">Defensive/Control/Contain</option><option value="Non-Intervention">Non-Intervention</option></select>
-                    <p class="incident-info-card-help">Records strategy changes in the timeline and incident report. Guidance is unchanged.</p>
-                    <div class="incident-info-mode-footer"><div><span>Real Time</span><time id="ic-real-time" datetime="">--/--/---- --:--:--</time><small id="ic-mode-history-summary">Commander-selected strategy is recorded with the incident.</small></div></div>
+                  <article class="incident-info-card incident-info-card-roles">
+                    <div class="incident-info-card-heading"><h2><span aria-hidden="true">👥</span> Roles &amp; Responsibilities</h2></div>
+                    <div class="incident-info-roles-summary"><strong id="ic-assignment-count">0 assignments</strong><span id="ic-assignment-summary">No confirmed or planned assignments.</span></div>
+                    <button class="ghost-btn incident-manage-assignments-btn" id="ic-manage-assignments-btn" type="button" data-incident-command-action="manage-assignments">Manage Assignments</button>
                   </article>
                 </section>
 
@@ -407,6 +406,7 @@
                 <details class="incident-command-panel incident-command-operational-details">
                   <summary><strong>Operational Details</strong><span>Detailed information, full guidance, and supporting resources.</span></summary>
                   <div class="incident-command-detail-grid">
+                    <section class="incident-command-assignment-editor" id="ic-assignment-editor-section"><h3>Roles &amp; Responsibilities</h3><p>Assign only the personnel, units, supervisors, responsibilities, and states that materially affect this incident. Updates retain stable IDs and phase associations for Live Map and ICS/report output.</p><div id="ic-assignment-editor" data-empty-message="No assignments recorded."></div></section>
                     <section><h3>Incident Notes</h3><div id="ic-detail-notes">No Current Data Exists</div></section>
                     <section><h3>Weather Details</h3><div id="ic-detail-weather">No Current Data Exists</div></section>
                     <section><h3>Plume Details</h3><div id="ic-detail-plume">No Current Data Exists</div></section>

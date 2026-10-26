@@ -119,8 +119,13 @@ describe("Guided Response workflow", () => {
       "guided-back-btn",
     ]) expect(html).toContain(`id="${id}"`);
     expect(html).toContain("Missing, outdated, unsupported, or unverified values must be treated as No Current Data Exists.");
-    expect(script).toContain("createGuidedCommandFlow(guidedResponse)");
+    expect(script).toContain("createGuidedCommandFlow(guidedResponse, {");
     expect(script).toContain("createGuidedSourceTrace(stage.sources)");
+    expect(script).toContain("const strategyControl = createGuidedOperationalStrategyControl(activeIncident, selectedOperationalStrategy);");
+    expect(script).toContain("const operationalStrategyOptions = Object.freeze(['Offensive', 'Defensive', 'Non-Intervention']);");
+    expect(script).toContain("strategyPhaseDefinition(phase, context.strategy, context)");
+    expect(script).toContain("createGuidedPhaseList(phase.steps, noCurrentDataText, true)");
+    expect(script).not.toContain("rolesHeading.textContent = 'ROLES & RESPONSIBILITIES'");
     expect(guidedHtml).toContain('class="guided-response-disclaimers"');
   });
 
@@ -205,8 +210,10 @@ describe("Guided Response workflow", () => {
   });
 
   it("requires explicit assignment activation and keeps assignment history/location semantics", () => {
-    expect(script).toContain("button.textContent = assignment.personnel || assignment.unit ? 'Update' : 'Assign'");
+    expect(script).toContain("saveButton.textContent = 'Update Assignment';");
     expect(script).toContain("Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.");
+    expect(script).toContain("function renderIncidentAssignmentEditor(incident)");
+    expect(html).toContain('id="ic-manage-assignments-btn"');
     expect(script).toContain("locationStatus: assignment.locationStatus || 'Location not set'");
     expect(script).toContain("type: 'guided-response-assignment'");
     expect(script).toContain('guidedResponseAssignmentHistory');
@@ -284,8 +291,8 @@ describe("Guided Response workflow", () => {
 
   it("places the critical action bar before the responsive command-flow grid", () => {
     expect(script).toContain("const criticalActionBar = createGuidedCriticalActionBar(guidedResponse)");
-    expect(script).toContain("const flow = createGuidedCommandFlow(guidedResponse)");
-    expect(script).toContain("container.append(chemicalStrip, mobileSticky, criticalActionBar, flow)");
+    expect(script).toContain("const flow = createGuidedCommandFlow(guidedResponse, {");
+    expect(script).toContain("container.append(chemicalStrip, strategyControl, mobileSticky, criticalActionBar, flow)");
     expect(script).toContain("flow.className = 'panel-card guided-command-flow'");
     expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
   });

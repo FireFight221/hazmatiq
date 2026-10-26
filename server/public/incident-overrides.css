@@ -489,14 +489,14 @@
 .incident-info-facility-details { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); }
 .incident-info-detail-grid > div { display: grid; align-content: start; gap: 3px; min-width: 0; }
 .incident-info-detail-grid span,
-.incident-info-mode-footer span { color: #86b4cf; font-size: .68rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.incident-info-detail-grid span { color: #86b4cf; font-size: .68rem; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
 .incident-info-detail-grid strong { color: #fff; font-size: .86rem; line-height: 1.2; overflow-wrap: anywhere; }
 .incident-info-detail-grid small { color: #a5bfd1; font-size: .68rem; line-height: 1.25; }
 .incident-info-badge { flex: 0 0 auto; padding: 6px 9px; border-radius: 7px; color: #fff; background: #e42c42; font-size: .68rem; font-weight: 900; letter-spacing: .04em; }
-.incident-info-card-mode select { width: 100%; min-height: 46px; margin-top: 8px; padding: 7px 10px; border: 1px solid #8db4ca; border-radius: 6px; color: #071f36; background: #f3f7fa; font: inherit; font-size: .95rem; font-weight: 850; }
-.incident-info-mode-footer { display: flex; align-items: end; justify-content: space-between; gap: 10px; }
-.incident-info-mode-footer > div { display: grid; gap: 4px; min-width: 0; }
-.incident-info-mode-footer time { color: #fff; font-size: .78rem; font-weight: 800; line-height: 1.2; }
+.incident-info-roles-summary { display: grid; gap: 5px; min-width: 0; margin: 10px 0; }
+.incident-info-roles-summary strong { color: #fff; font-size: 1.05rem; line-height: 1.2; }
+.incident-info-roles-summary span { color: #d2e5ef; font-size: .76rem; line-height: 1.35; overflow-wrap: anywhere; }
+.incident-manage-assignments-btn { width: 100%; min-height: 38px; border-color: #ffd400; color: #fff4b2; background: #123f58; font-weight: 850; }
 .incident-command-weather-bar {
   display: grid;
   grid-template-columns: 1.35fr repeat(7, minmax(0, 1fr));
@@ -640,7 +640,7 @@
 #incident .incident-info-card { border-width: 3px; border-color: #18c7ff; background: linear-gradient(145deg, #0e456b, #061d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(24, 199, 255, .18); }
 #incident .incident-info-card-chemical { border-color: #ff4056; background: linear-gradient(145deg, #3b1d35, #101d35); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 64, 86, .22); }
 #incident .incident-info-card-facility { border-color: #20e0ff; }
-#incident .incident-info-card-mode { border-color: #ffd400; background: linear-gradient(145deg, #164a61, #071e34); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 212, 0, .24); }
+#incident .incident-info-card-roles { border-color: #ffd400; background: linear-gradient(145deg, #164a61, #071e34); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 0 0 1px rgba(255, 212, 0, .24); }
 #incident .incident-info-card-heading h2 { color: #f7fdff; }
 #incident .incident-info-card-chemical .incident-info-card-heading h2 { color: #fff; }
 #incident .incident-info-badge { border: 1px solid #ff8a96; background: #e51d3b; }
@@ -652,8 +652,7 @@
 #incident .incident-info-primary-field::placeholder,
 #incident .incident-info-detail-field::placeholder { color: #647b8c; opacity: 1; }
 #incident .incident-info-primary-field:focus,
-#incident .incident-info-detail-field:focus,
-#incident .incident-info-card-mode select:focus { border-color: #ffd400; box-shadow: 0 0 0 2px rgba(255, 212, 0, .35); }
+#incident .incident-info-detail-field:focus { border-color: #ffd400; box-shadow: 0 0 0 2px rgba(255, 212, 0, .35); }
 #incident .incident-info-card .chemical-search-input-wrap,
 #incident .incident-info-card .incident-address-autocomplete { min-width: 0; }
 #incident .incident-info-card .chemical-search-suggestions { top: calc(100% + 3px); z-index: 40; }
@@ -886,14 +885,30 @@
 #incident .incident-info-chemical-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 #incident .incident-info-chemical-details > div:nth-child(3) { grid-column: 1 / -1; }
 #incident .incident-info-detail-grid strong { font-size: .8rem; }
-#incident .incident-info-card-mode select { min-height: 38px; margin-top: 2px; padding: 5px 8px; font-size: .86rem; }
 #incident .incident-info-compact-value,
 #incident .incident-info-compact-summary { display: grid; gap: 3px; margin: 8px 0 0; color: #d9edf7; font-size: .75rem; line-height: 1.25; }
 #incident .incident-info-compact-summary strong { color: #fff; font-size: .76rem; overflow-wrap: anywhere; }
 #incident .incident-info-compact-summary span { color: #8fe5a6; font-size: .67rem; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; }
-#incident .incident-info-card-help { margin: 7px 0 0; color: #d2e5ef; font-size: .68rem; line-height: 1.25; }
-#incident .incident-info-mode-footer small { display: block; margin-top: 3px; color: #c4dce8; font-size: .62rem; line-height: 1.25; }
 #incident .incident-facility-manual-btn { min-height: 26px; margin-top: 5px; padding: 3px 7px; font-size: .66rem; }
+#incident .incident-info-card-roles { align-content: start; }
+#incident .incident-info-roles-summary span { color: #d9edf7; }
+#incident .incident-command-assignment-editor { grid-column: 1 / -1; }
+#incident .incident-command-assignment-editor > p { margin: 0 0 10px; color: #d7e6ef; line-height: 1.45; }
+#incident #ic-assignment-editor { display: grid; gap: 12px; }
+#incident .incident-assignment-phase { min-width: 0; padding: 10px; border: 1px solid rgba(93, 142, 180, .52); border-radius: 7px; background: rgba(8, 37, 64, .72); }
+#incident .incident-assignment-phase h4 { margin: 0 0 4px; color: #fff; font-size: .82rem; line-height: 1.25; }
+#incident .incident-assignment-phase > p { margin: 0 0 8px; color: #c5dbe7; font-size: .74rem; line-height: 1.35; }
+#incident .guided-role-assignment { display: grid; gap: 8px; }
+#incident .guided-role-assignment > .guided-role-suggestion { display: none; }
+#incident .guided-assignment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#incident .guided-assignment-grid label { display: grid; gap: 4px; min-width: 0; color: #f4fbff; font-size: .76rem; font-weight: 800; line-height: 1.3; }
+#incident .guided-assignment-grid input,
+#incident .guided-assignment-grid select { box-sizing: border-box; width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid #8db4ca; border-radius: 5px; color: #071f36; background: #fff; font: inherit; font-size: .82rem; }
+#incident .guided-assignment-actions { display: flex; justify-content: flex-start; }
+#incident .guided-assignment-action { min-height: 36px; padding: 6px 12px; border-color: #ffd400; color: #fff; background: #174d68; font-size: .78rem; font-weight: 850; }
+#incident .guided-assignment-feedback { margin: 0; color: #9af0b3; font-size: .75rem; line-height: 1.35; }
+#incident .guided-assignment-feedback[data-state="error"] { color: #ffb3ad; }
+#incident .guided-assignment-note { margin: 0; color: #c5dbe7; font-size: .72rem; line-height: 1.35; }
 #incident .incident-command-status-control { display: grid; grid-column: 1 / -1; gap: 6px; margin-top: 2px; min-width: 0; }
 #incident .incident-command-status-select { width: min(100%, 180px); min-height: 30px; padding: 3px 6px; border: 1px solid #5d8db3; border-radius: 5px; color: #071f36; background: #f3f7fa; font: inherit; font-size: .875rem; font-weight: 800; }
 #incident .incident-command-status-evidence { color: #d9edf7; font-size: .875rem; line-height: 1.4; overflow-wrap: anywhere; }
@@ -937,6 +952,7 @@
 @media (max-width: 720px) {
   #incident .incident-command-info-grid { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 8px; }
   #incident .incident-info-card { height: auto; }
+  #incident .guided-assignment-grid { grid-template-columns: 1fr; }
   .incident-involved-chemicals-dialog-header { padding-inline: 12px; }
   .incident-involved-chemicals-dialog-status { margin-inline: 12px; }
   .incident-involved-chemicals-dialog-list { padding-inline: 12px; }

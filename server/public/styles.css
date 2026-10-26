@@ -8423,43 +8423,42 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-command-flow-heading p,
 #guided-response .guided-command-flow-notice { color: #fff; font-size: 1rem; line-height: 1.5; }
 #guided-response .guided-command-flow-notice { margin: 0; padding: 10px 12px; border: 1px solid #5c8bb2; border-left: 5px solid #f6c343; border-radius: 6px; background: #0b2944; }
+#guided-response .guided-operational-strategy { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid #4f8c69; border-left: 5px solid #54c77b; border-radius: 8px; background: #0c3327; color: #f4fff7; }
+#guided-response .guided-operational-strategy-heading { min-width: 0; }
+#guided-response .guided-operational-strategy h2 { margin: 0; color: #d7ffe2; font-size: 1.15rem; line-height: 1.25; }
+#guided-response .guided-operational-strategy p { margin: 4px 0 0; color: #d4eee0; font-size: .95rem; line-height: 1.45; }
+#guided-response .guided-operational-strategy-controls { display: grid; grid-template-columns: minmax(180px, 280px) minmax(0, 1fr); gap: 10px 14px; align-items: end; }
+#guided-response .guided-operational-strategy-controls label { display: grid; gap: 5px; color: #effff3; font-size: .9rem; font-weight: 850; }
+#guided-response .guided-operational-strategy-controls select { min-height: 42px; padding: 7px 9px; border: 1px solid #9bd7ad; border-radius: 5px; color: #123c27; background: #fff; font: inherit; font-size: 1rem; font-weight: 800; }
+#guided-response .guided-operational-strategy-status { color: #c9ead5; font-size: .85rem; line-height: 1.4; }
 #guided-response .guided-phase-grid { display: grid; gap: 11px; }
 #guided-response .guided-phase-card { overflow: hidden; border: 1px solid #c4d2dc; border-left: 6px solid #7794a7; border-radius: 9px; background: #fff; box-shadow: 0 2px 7px rgba(19, 50, 69, .07); }
 #guided-response .guided-phase-card.is-current { border-color: #e3a029; border-left-color: #e3a029; box-shadow: 0 0 0 3px rgba(227, 160, 41, .18); }
 #guided-response .guided-phase-card.is-complete { border-left-color: #258a4a; }
-#guided-response .guided-phase-summary { display: grid; grid-template-columns: 32px 30px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 10px 13px; cursor: pointer; list-style: none; }
+#guided-response .guided-phase-summary { display: grid; grid-template-columns: 32px 30px minmax(0, 1fr) auto; gap: 9px; align-items: center; min-width: 0; padding: 10px 13px; cursor: pointer; list-style: none; }
 #guided-response .guided-phase-card > .guided-phase-summary { background: #e7f5e9; color: #173b2a; }
 #guided-response .guided-phase-summary::-webkit-details-marker { display: none; }
 #guided-response .guided-phase-number { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #123d5a; color: #fff; font-size: 1rem; font-weight: 850; }
 #guided-response .guided-phase-card.is-current .guided-phase-number { background: #c47d08; }
 #guided-response .guided-phase-card.is-complete .guided-phase-number { background: #258a4a; }
-#guided-response .guided-phase-title { color: #173b2a; font-size: 1.12rem; font-weight: 900; line-height: 1.3; }
+#guided-response .guided-phase-title { min-width: 0; color: #173b2a; font-size: 1.12rem; font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; }
 #guided-response .guided-phase-state { color: #28563a; font-size: .9rem; font-weight: 850; letter-spacing: .04em; }
 #guided-response .guided-phase-card.is-current .guided-phase-state,
 #guided-response .guided-phase-card.is-complete .guided-phase-state { color: #28563a; }
 #guided-response .guided-phase-body { display: grid; gap: 10px; padding: 0 13px 13px; }
-#guided-response .guided-phase-goal { padding: 10px 12px; border: 2px solid #2d6388; border-radius: 7px; background: #eaf4fa; color: #102f46; font-size: 1.1rem; font-weight: 850; line-height: 1.45; }
+#guided-response .guided-phase-goal { box-sizing: border-box; width: 100%; margin: 0; padding: 12px 14px; border: 2px solid #2d6388; border-radius: 7px; background: #eaf4fa; color: #102f46; font-size: 1.1rem; font-weight: 850; line-height: 1.45; overflow-wrap: anywhere; }
 #guided-response .guided-phase-body > section { min-width: 0; padding: 11px 12px; border: 1px solid #d1dee6; border-radius: 7px; background: #fbfdfe; }
 #guided-response .guided-phase-body > section h3 { margin: 0 0 7px; color: #173e57; font-size: 1.08rem; font-weight: 850; line-height: 1.25; }
-#guided-response .guided-phase-list { display: grid; gap: 5px; margin: 0; padding-left: 21px; color: #1e3c50; font-size: 1.1rem; line-height: 1.45; }
+#guided-response .guided-phase-list { display: grid; gap: 5px; margin: 0; padding-left: 25px; color: #1e3c50; font-size: 1.1rem; line-height: 1.45; }
 #guided-response .guided-phase-list li::marker { color: #258a4a; }
-#guided-response .guided-role-suggestion,
 #guided-response .guided-phase-product-guidance,
-#guided-response .guided-assignment-note,
 #guided-response .guided-scba-management > p { margin: 0 0 10px; color: #294a5e; font-size: 1.05rem; line-height: 1.5; }
-#guided-response .guided-role-assignment { display: grid; gap: 10px; }
-#guided-response .guided-assignment-grid,
 #guided-response .guided-scba-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-#guided-response .guided-assignment-grid label,
 #guided-response .guided-scba-grid label { display: grid; gap: 5px; min-width: 0; color: #173e57; font-size: 1rem; font-weight: 750; line-height: 1.35; }
-#guided-response .guided-assignment-grid input,
-#guided-response .guided-assignment-grid select,
 #guided-response .guided-scba-grid input,
 #guided-response .guided-phase-evidence,
 #guided-response .guided-equipment-grid select,
 #guided-response .guided-equipment-grid input { min-height: 42px; width: 100%; max-width: 100%; padding: 8px 10px; border: 1px solid #7794a7; border-radius: 5px; background: #fff; color: #102f46; font: inherit; font-size: 1rem; line-height: 1.35; }
-#guided-response .guided-assignment-grid input:focus-visible,
-#guided-response .guided-assignment-grid select:focus-visible,
 #guided-response .guided-scba-grid input:focus-visible,
 #guided-response .guided-phase-evidence:focus-visible { outline: 3px solid #f6c343; outline-offset: 2px; }
 #guided-response .guided-phase-body > section:nth-of-type(4) { border-color: #d89a96; background: #fff8f7; }
@@ -8486,10 +8485,6 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-phase-footer h3 { grid-column: 1 / -1; margin: 0; color: #173e57; font-size: 1.08rem; font-weight: 850; }
 #guided-response .guided-phase-footer span { color: #4a6878; font-size: .95rem; line-height: 1.4; }
 #guided-response .guided-phase-evidence { grid-column: 1 / -1; resize: vertical; }
-#guided-response .guided-assignment-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: stretch; }
-#guided-response .guided-assignment-action { min-height: 42px; padding: 7px 9px; border-color: #54748a; background: #edf4f8; color: #123d5a; font-size: .8rem; font-weight: 850; }
-#guided-response .guided-assignment-feedback { margin: 0; color: #176b3d; font-size: .95rem; font-weight: 750; line-height: 1.4; }
-#guided-response .guided-assignment-feedback[data-state="error"] { color: #a32623; }
 #guided-response .guided-scba-management { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c1d3df; }
 #guided-response .guided-scba-management h5 { margin: 0 0 7px; color: #173e57; font-size: 1.15rem; font-weight: 850; line-height: 1.3; }
 #guided-response .guided-scba-status { margin: 10px 0 0; color: #7a4d00; font-size: 1rem; font-weight: 750; line-height: 1.5; }
@@ -8504,7 +8499,7 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-phase-card.is-complete .guided-phase-icon { color: #28563a; }
 
 @media (max-width: 700px) {
-  #guided-response .guided-assignment-grid,
+  #guided-response .guided-operational-strategy-controls,
   #guided-response .guided-scba-grid,
   #guided-response .guided-scenario-grid { grid-template-columns: 1fr; }
   #guided-response .guided-phase-summary { grid-template-columns: 30px 26px minmax(0, 1fr); gap: 7px; padding: 9px 10px; }
