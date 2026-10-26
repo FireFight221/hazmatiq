@@ -126,6 +126,7 @@ describe("Guided Response workflow", () => {
     expect(script).toContain("strategyPhaseDefinition(phase, context.strategy, context)");
     expect(script).toContain("createGuidedPhaseList(phase.steps, noCurrentDataText, true)");
     expect(script).not.toContain("rolesHeading.textContent = 'ROLES & RESPONSIBILITIES'");
+    expect(styles).toContain('#guided-response .guided-operational-strategy { display: grid; gap: 10px; min-height: 0; margin-bottom: 0;');
     expect(guidedHtml).toContain('class="guided-response-disclaimers"');
   });
 

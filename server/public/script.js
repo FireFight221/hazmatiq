@@ -10152,6 +10152,10 @@ async function setPlumeMapStyle(style, mode) {
     }
   });
   if (!loaded) return false;
+  // A provider error can trigger the satellite fallback while this style
+  // request is still waiting on its one-shot style.load listener. Do not let
+  // the superseded Street/3D request write its old mode back after fallback.
+  if (activePlumeMapView !== mode) return false;
   plumeFallbackStyleApplied = false;
   plumeMapStyleMode = mode;
   setPlumeMapAvailability('', 'ready');
@@ -10188,6 +10192,16 @@ function syncPlumeBasemapLayer() {
 
 function applyPlumeFallbackMapStyle(message = 'Street basemap unavailable — using satellite imagery.') {
   if (!plumeMap || plumeFallbackStyleApplied) return;
+  // The remote style may emit an error before setPlumeMapStyle's timeout. In
+  // that window the map can already be displaying the fallback raster style
+  // while the selected mode still says Street/3D. Reconcile through the
+  // canonical fallback path so controls, terrain state, and basemap-layer
+  // visibility agree with the displayed style and custom overlays are
+  // restored by the shared style.load handler.
+  if (activePlumeMapView !== 'satellite') {
+    fallbackPlumeMapToSatellite(message);
+    return;
+  }
   plumeFallbackStyleApplied = true;
   // The fallback contract is intentionally kept explicit for offline map
   // recovery: plumeMap.setStyle(plumeFallbackMapStyle);

@@ -90,4 +90,75 @@ describe('Plume workspace initialization', () => {
     expect(context.fetchWeatherSources).toHaveBeenCalledWith(33.52, -86.8);
     expect(context.setText).toHaveBeenCalledWith('plume-overlay-status', 'WebGL unavailable');
   });
+
+  it('reconciles a failed Street style with the visible satellite fallback', () => {
+    const style = {
+      version: 8,
+      sources: {},
+      layers: [],
+    };
+    const setStyle = vi.fn((nextStyle) => {
+      style.sources = nextStyle.sources;
+      style.layers = nextStyle.layers;
+    });
+    const context = {
+      Error,
+      plumeMap: {
+        getStyle: () => style,
+        getLayer: () => null,
+        setStyle,
+        getCenter: () => ({ lng: -96, lat: 39 }),
+        getZoom: () => 5,
+        easeTo: vi.fn(),
+      },
+      window: { localStorage: { setItem: vi.fn() } },
+      activePlumeMapView: 'street',
+      plumeMapFallbackInProgress: false,
+      plumeMapViewToken: 0,
+      plumeFallbackStyleApplied: false,
+      plumeMapStyleMode: 'street',
+      configuredPlumeBuildingLayers: [],
+      plumeSatelliteSourceId: 'plume-satellite-basemap',
+      plumeSatelliteLayerId: 'plume-satellite-basemap-layer',
+      plumeSatelliteTileUrls: ['https://imagery.example/{z}/{y}/{x}'],
+      plumeSatelliteMapStyle: {
+        version: 8,
+        sources: { 'plume-satellite-basemap': { type: 'raster', tiles: ['https://imagery.example/{z}/{y}/{x}'] } },
+        layers: [{ id: 'plume-satellite-basemap-layer', type: 'raster', source: 'plume-satellite-basemap' }],
+      },
+      clonePlumeMapStyle: (value: unknown) => JSON.parse(JSON.stringify(value)),
+      disablePlumeTerrain: vi.fn(),
+      updatePlumeMapViewButtons: vi.fn(),
+      updatePlumeTerrainStatus: vi.fn(),
+      setPlumeMapAvailability: vi.fn(),
+      setText: vi.fn(),
+      syncPlumeBasemapLayer: vi.fn(),
+    };
+
+    runInNewContext(`${declaration('fallbackPlumeMapToSatellite')}\n${declaration('applyPlumeFallbackMapStyle')}\napplyPlumeFallbackMapStyle('Street request failed.')`, context);
+
+    expect(context.activePlumeMapView).toBe('satellite');
+    expect(context.plumeMapStyleMode).toBe('satellite');
+    expect(setStyle).toHaveBeenCalledOnce();
+    expect(context.updatePlumeMapViewButtons).toHaveBeenCalled();
+    expect(context.setPlumeMapAvailability).toHaveBeenCalledWith('Street request failed.', 'fallback');
+
+    const layerState = new Map<string, string>();
+    const syncContext = {
+      plumeMap: {
+        getStyle: () => ({ sources: {}, layers: [] }),
+        getSource: () => null,
+        addSource: vi.fn(),
+        getLayer: () => null,
+        addLayer: vi.fn(),
+        setLayoutProperty: (_id: string, _property: string, value: string) => layerState.set('satellite', value),
+      },
+      activePlumeMapView: 'satellite',
+      plumeSatelliteSourceId: 'plume-satellite-basemap',
+      plumeSatelliteLayerId: 'plume-satellite-basemap-layer',
+      plumeSatelliteTileUrls: ['https://imagery.example/{z}/{y}/{x}'],
+    };
+    runInNewContext(`${declaration('syncPlumeBasemapLayer')}\nsyncPlumeBasemapLayer()`, syncContext);
+    expect(layerState.get('satellite')).toBe('visible');
+  });
 });
