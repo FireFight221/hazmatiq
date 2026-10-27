@@ -87,7 +87,7 @@
     return legacyApi()?.normalizeProfileForUi?.(profile, fallback) || null;
   }
 
-  async function openHazardProfile(result, { facilityName = '', sourcePage = 'hazard-id' } = {}) {
+  async function openHazardProfile(result, { facilityName = '', sourcePage = 'hazard-id', profileTab = 'overview' } = {}) {
     const normalized = normalizeSearchResult(result);
     if (!normalized.canonicalId) return null;
     setActiveHazardState(normalized, { status: 'loading' });
@@ -98,7 +98,7 @@
     }
     const api = legacyApi();
     if (!api) return null;
-    if (normalized.profileType === 'hazard') return api.openStarterHazard(normalized.raw);
+    if (normalized.profileType === 'hazard') return api.openStarterHazard(normalized.raw, { profileTab });
     const legacyChemical = {
       ...normalized.raw,
       selectedChemicalId: normalized.chemicalCompanionId || normalized.canonicalId,
@@ -106,7 +106,7 @@
       ChemicalName: normalized.raw.ChemicalName || normalized.raw.name || normalized.displayName,
       name: normalized.raw.name || normalized.raw.ChemicalName || normalized.displayName,
     };
-    return api.openChemical(legacyChemical, facilityName);
+    return api.openChemical(legacyChemical, facilityName, { profileTab });
   }
 
   function selectProfileTab(button) {

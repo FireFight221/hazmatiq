@@ -2037,8 +2037,15 @@ function renderIncidentGuidedResponse(model) {
   const phaseDefinitions = typeof guidedPhaseDefinitions !== 'undefined' ? guidedPhaseDefinitions : [];
   const phaseState = model.incident?.guidedResponsePhaseState || {};
   const currentPhase = phaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id;
+  const compactPhaseLabels = {
+    'identify-isolate-notify': 'Identify / Notify',
+    'zones-resources': 'Zone Prep',
+    'recon-assessment': 'Recon',
+    'mitigation-strategy': 'Tactical',
+    'withdraw-decon-rehab': 'Decon / Rehab',
+  };
   const priorityItems = phaseDefinitions.slice(0, 5).map((phase) => [
-    { ...phase, label: phase.title, target: 'guided-response' },
+    { ...phase, label: compactPhaseLabels[phase.id] || phase.title, target: 'guided-response' },
     { status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) },
   ]);
   priorities.replaceChildren();
@@ -2072,6 +2079,20 @@ function renderIncidentGuidedResponse(model) {
   }
 }
 
+function renderIncidentCommandOverview(model) {
+  if (!model?.hasActiveIncident) return;
+  const phaseDefinitions = typeof guidedPhaseDefinitions !== 'undefined' ? guidedPhaseDefinitions : [];
+  const phaseState = model.incident?.guidedResponsePhaseState || {};
+  const currentPhase = phaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))
+    || phaseDefinitions.at(-1);
+  const pendingConfirmations = (model.operationalChecklist?.tasks || [])
+    .filter((task) => !/complete|not applicable/i.test(String(task.status || ''))).length;
+  setText('ic-overview-strategy', model.operationalStrategy || noCurrentDataText);
+  setText('ic-overview-phase', currentPhase?.title || currentPhase?.nextTask || noCurrentDataText);
+  setText('ic-overview-pending', pendingConfirmations ? `${pendingConfirmations} pending` : 'None pending');
+  setText('ic-overview-updated', model.lastUpdated || noCurrentDataText);
+}
+
 function renderIncidentCommandHeader(model) {
   const active = Boolean(model?.hasActiveIncident);
   const heroDot = document.getElementById('ic-hero-status-dot');
@@ -2096,7 +2117,7 @@ function renderIncidentCommandHeader(model) {
   if (hazardBadge) hazardBadge.hidden = model.chemical.name === noCurrentDataText;
 
   const weather = latestPlumeWeather;
-  const unavailable = noCurrentDataText;
+  const unavailable = '—';
   const number = (value, digits = 1, suffix = '') => Number.isFinite(Number(value)) ? `${Number(value).toFixed(digits)}${suffix}` : unavailable;
   const direction = Number.isFinite(Number(weather?.windDirDeg))
     ? `${Math.round(Number(weather.windDirDeg))}° (${degreesToCompass(weather.windDirDeg)})`
@@ -2108,8 +2129,8 @@ function renderIncidentCommandHeader(model) {
     ? new Date(weather.observedAt).toLocaleString()
     : unavailable;
   const stability = document.getElementById('plume-stability-class')?.value.trim();
-  const description = weather?.description || (weather ? weather.conditions?.split(' · ')[1] : '') || unavailable;
-  setText('ic-weather-condition', weather ? description : 'From best available source');
+  const description = weather?.description || (weather ? weather.conditions?.split(' · ')[1] : '') || 'Current observation unavailable';
+  setText('ic-weather-condition', weather ? description : 'Current observation unavailable');
   setText('ic-weather-temperature', number(weather?.temperatureF, 1, ' °F'));
   setText('ic-weather-wind', number(weather?.windSpeedMph, 1, ' mph'));
   setText('ic-weather-wind-direction', weather ? `From ${direction}` : 'Direction unavailable');
@@ -2117,8 +2138,8 @@ function renderIncidentCommandHeader(model) {
   setText('ic-weather-stability', stability ? `Class ${stability}` : unavailable);
   setText('ic-weather-humidity', number(weather?.rh, 0, ' %'));
   setText('ic-weather-cloud-cover', Number.isFinite(Number(weather?.cloudCoverPct)) ? `${Math.round(Number(weather.cloudCoverPct))} %` : unavailable);
-  setText('ic-weather-source', source);
-  setText('ic-weather-updated', `Updated ${updatedAt}`);
+  setText('ic-weather-source', weather ? source : 'Unavailable');
+  setText('ic-weather-updated', weather && updatedAt !== unavailable ? `Updated ${updatedAt}` : 'Updated —');
 }
 
 function renderCommandWeatherBrief(incident = typeof getActiveIncident === 'function' ? getActiveIncident() : null) {
@@ -2146,6 +2167,7 @@ function renderIncidentCommandDashboard() {
   renderIncidentCommandHeader(model);
   renderCommandWeatherBrief(model.incident);
   if (!model.hasActiveIncident) return;
+  renderIncidentCommandOverview(model);
 
   const incidentNameInput = document.getElementById('incidentName');
   if (incidentNameInput && document.activeElement !== incidentNameInput) incidentNameInput.value = model.incidentName === 'Incident not named' ? '' : model.incidentName;
@@ -2180,10 +2202,8 @@ function renderIncidentCommandDashboard() {
   [
     ['Incident Name', model.incidentName], ['Status', model.status], ['Location', model.location],
     ['Date / Time Started', model.startTime ? new Date(model.startTime).toLocaleString() : noCurrentDataText],
-    ['Elapsed Time', model.elapsedTime], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)], ['Hazard Class', model.hazardClass],
-    ['Primary Hazard', model.primaryHazard], ['IDLH', model.idlh, true, 'idlh'],
-    ['IDLH Source', model.nioshSourceId ? `NIOSH · ${model.nioshSourceId}` : noCurrentDataText], ['Operational Strategy', model.operationalStrategy],
-    ['Key Tactical Notes', model.keyTacticalNotes], ['Last Updated', model.lastUpdated],
+    ['Elapsed Time', model.elapsedTime], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)],
+    ['IDLH', model.idlh, true, 'idlh'], ['Operational Strategy', model.operationalStrategy], ['Last Updated', model.lastUpdated],
   ].forEach(([labelText, value, lifeSafety, field]) => {
     const row = document.createElement('div');
     if (lifeSafety && field === 'idlh') row.classList.add('is-idlh');
@@ -2197,62 +2217,56 @@ function renderIncidentCommandDashboard() {
   });
 
   const statusList = document.getElementById('ic-guided-status-list');
-  statusList?.replaceChildren();
-  model.operationalChecklist.tasks.forEach((task) => {
-    const row = document.createElement('div');
-    row.className = 'incident-command-status-row';
-    row.dataset.taskId = task.id;
-    const identity = document.createElement('strong');
-    identity.textContent = task.label;
-    const badge = document.createElement('span');
-    badge.className = `incident-command-badge ${incidentCommandStatusClass(task.status)}`;
-    badge.textContent = task.status;
-    const summary = document.createElement('p');
-    summary.textContent = operationalTaskEvidence(task.id, model);
-    const control = document.createElement('label');
-    control.className = 'incident-command-status-control';
-    control.dataset.taskId = task.id;
-    const select = document.createElement('select');
-    select.className = 'incident-command-status-select';
-    select.dataset.taskId = task.id;
-    select.setAttribute('aria-label', `${task.label} status`);
-    operationalStatusOptions.forEach((status) => {
-      const option = document.createElement('option');
-      option.value = status;
-      option.textContent = status;
-      option.selected = status === task.status;
-      select.append(option);
+  const statusRenderKey = model.operationalChecklist.tasks.map((task) => [task.id, task.status, task.evidence || '', task.changedAt || ''].join(':')).join('|');
+  if (statusList && statusList.dataset.renderKey === statusRenderKey) {
+    // Keep the live select nodes stable during timer-driven dashboard refreshes.
+  } else {
+    statusList?.replaceChildren();
+    if (statusList) statusList.dataset.renderKey = statusRenderKey;
+    model.operationalChecklist.tasks.forEach((task) => {
+      const row = document.createElement('div');
+      row.className = 'incident-command-status-row';
+      row.dataset.taskId = task.id;
+      const identity = document.createElement('strong');
+      identity.textContent = task.label;
+      const control = document.createElement('label');
+      control.className = 'incident-command-status-control';
+      control.dataset.taskId = task.id;
+      const select = document.createElement('select');
+      select.className = 'incident-command-status-select';
+      select.dataset.taskId = task.id;
+      select.setAttribute('aria-label', `${task.label} status`);
+      operationalStatusOptions.forEach((status) => {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        option.selected = status === task.status;
+        select.append(option);
+      });
+      select.addEventListener('change', () => {
+        const priorStatus = task.status;
+        const nextStatus = select.value;
+        const confirmation = nextStatus === 'Complete'
+          ? window.prompt(`Evidence or confirmation for “${task.label}”`, task.evidence || '') || ''
+          : '';
+        if (nextStatus === 'Complete' && !confirmation.trim()) {
+          select.value = priorStatus;
+          select.title = 'Complete requires commander evidence. The status was not changed.';
+          return;
+        }
+        if (!updateOperationalTaskStatus(task.id, nextStatus, confirmation)) {
+          select.value = priorStatus;
+          select.title = 'The status could not be saved for this incident.';
+        } else select.title = '';
+      });
+      const badge = document.createElement('span');
+      badge.className = `incident-command-badge ${incidentCommandStatusClass(task.status)}`;
+      badge.textContent = task.status;
+      control.append(select);
+      row.append(identity, control, badge);
+      statusList?.append(row);
     });
-    const evidence = document.createElement('small');
-    evidence.className = 'incident-command-status-evidence';
-    evidence.setAttribute('role', 'status');
-    evidence.setAttribute('aria-live', 'polite');
-    const renderEvidence = (message = '') => {
-      evidence.textContent = message || (task.status === 'Complete' && task.evidence
-        ? `Commander confirmed · ${task.evidence}`
-        : 'System signal only; commander confirmation is required.');
-    };
-    renderEvidence();
-    select.addEventListener('change', () => {
-      const priorStatus = task.status;
-      const nextStatus = select.value;
-      const confirmation = nextStatus === 'Complete'
-        ? window.prompt(`Evidence or confirmation for “${task.label}”`, task.evidence || '') || ''
-        : '';
-      if (nextStatus === 'Complete' && !confirmation.trim()) {
-        select.value = priorStatus;
-        renderEvidence('Complete requires commander evidence. The status was not changed.');
-        return;
-      }
-      if (!updateOperationalTaskStatus(task.id, nextStatus, confirmation)) {
-        select.value = priorStatus;
-        renderEvidence('The status could not be saved for this incident.');
-      }
-    });
-    control.append(select, evidence);
-    row.append(identity, badge, summary, control);
-    statusList?.append(row);
-  });
+  }
   renderIncidentGuidedResponse(model);
 
   const report = document.getElementById('ic-current-report');
@@ -2281,6 +2295,15 @@ function renderIncidentCommandDashboard() {
   });
 
   setText('ic-detail-notes', model.notes.length ? model.notes.map((note) => `${new Date(note.createdAt).toLocaleString()} — ${note.text}`).join(' · ') : model.keyTacticalNotes);
+  setText('ic-detail-chemical', [
+    model.chemical.name,
+    `CAS ${model.chemical.casNumber}`,
+    `UN ${model.chemical.unNumber}`,
+    `ERG ${model.chemical.ergGuide}`,
+    `Hazard class ${model.chemical.hazardClass}`,
+    `IDLH ${model.chemical.idlh}`,
+    model.nioshSourceId ? `Source NIOSH · ${model.nioshSourceId}` : 'Source / review not available',
+  ].join(' · '));
   setText('ic-detail-weather', model.weatherSnapshot);
   setText('ic-detail-plume', model.plumeStatus);
   setText('ic-detail-monitoring', model.monitoringStatus);
@@ -2288,6 +2311,7 @@ function renderIncidentCommandDashboard() {
   setText('ic-detail-safety', `PPE: ${model.entryTeamPpe} · Decon: ${model.deconTeamPpe} · Medical: ${model.medicalConcerns}`);
   setText('ic-detail-reports', model.completedReports.length ? `${model.completedReports.length} recent completed report${model.completedReports.length === 1 ? '' : 's'}` : 'No completed reports yet');
   window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: model.incident }));
+  resizePlumeMapAfterLayout();
 }
 
 document.getElementById('command-weather-brief-view')?.addEventListener('click', (event) => {
@@ -3858,7 +3882,6 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
     } else if (target === 'details') {
       const details = document.querySelector('.incident-command-operational-details');
       if (details) details.open = true;
-      details?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (target === 'plume') openPlumeWorkspace({ sourcePage: 'incident', incident: activeIncident });
     else if (target === 'guided-response') void openGuidedResponseWorkspace({ sourcePage: 'incident', incident: activeIncident });
     else if (target === 'map') showView('map', { sourcePage: 'incident', incident: activeIncident });
@@ -3910,6 +3933,44 @@ document.getElementById('ic-command-tools-toggle')?.addEventListener('click', (e
   button.setAttribute('aria-expanded', String(open));
   button.textContent = open ? 'Hide tools' : 'Show tools';
 });
+
+const incidentOperationalDetails = document.querySelector('.incident-command-operational-details');
+const incidentOperationalSummary = incidentOperationalDetails?.querySelector(':scope > summary');
+if (incidentOperationalDetails && incidentOperationalSummary) {
+  const syncIncidentOperationalDetailsState = () => incidentOperationalSummary.setAttribute('aria-expanded', String(incidentOperationalDetails.open));
+  let incidentOperationalScrollPosition = null;
+  const restoreIncidentOperationalScroll = () => {
+    if (!incidentOperationalScrollPosition) return;
+    const { left, top } = incidentOperationalScrollPosition;
+    const restore = () => {
+      window.scrollTo(left, top);
+      requestAnimationFrame(() => {
+        if (window.scrollX !== left || window.scrollY !== top) window.scrollTo(left, top);
+      });
+    };
+    requestAnimationFrame(restore);
+    window.setTimeout(restore, 0);
+    window.setTimeout(restore, 80);
+    window.setTimeout(restore, 220);
+  };
+  const preserveIncidentOperationalScroll = () => {
+    incidentOperationalScrollPosition = { left: window.scrollX, top: window.scrollY };
+    restoreIncidentOperationalScroll();
+  };
+  syncIncidentOperationalDetailsState();
+  incidentOperationalSummary.addEventListener('pointerdown', preserveIncidentOperationalScroll, { capture: true });
+  incidentOperationalSummary.addEventListener('click', preserveIncidentOperationalScroll, { capture: true });
+  incidentOperationalSummary.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') preserveIncidentOperationalScroll();
+  }, { capture: true });
+  incidentOperationalSummary.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') restoreIncidentOperationalScroll();
+  }, { capture: true });
+  incidentOperationalDetails.addEventListener('toggle', () => {
+    syncIncidentOperationalDetailsState();
+    restoreIncidentOperationalScroll();
+  });
+}
 
 document.getElementById('cancel-incident-note-btn')?.addEventListener('click', () => incidentNoteDialog?.close());
 document.getElementById('save-incident-note-btn')?.addEventListener('click', () => {
@@ -6817,7 +6878,20 @@ function guidedPhaseContextKey(incident, chemical, scenario = '') {
 }
 
 function readGuidedResponsePhaseState(incident, chemical, scenario = '') {
-  if (incident && incident.guidedResponsePhaseState && typeof incident.guidedResponsePhaseState === 'object') return incident.guidedResponsePhaseState;
+  if (incident && incident.guidedResponsePhaseState && typeof incident.guidedResponsePhaseState === 'object') {
+    const phaseState = incident.guidedResponsePhaseState;
+    const assignments = Array.isArray(incident.guidedResponseAssignments) ? incident.guidedResponseAssignments : [];
+    if (!assignments.length) return phaseState;
+    const next = { ...phaseState };
+    assignments.forEach((assignment) => {
+      const phaseId = assignment?.phaseId || 'unassigned';
+      const phaseAssignments = Array.isArray(next[phaseId]?.assignments) ? next[phaseId].assignments : [];
+      if (!phaseAssignments.some((item) => item?.assignmentId === assignment?.assignmentId)) {
+        next[phaseId] = { ...(next[phaseId] || {}), assignments: [...phaseAssignments, assignment] };
+      }
+    });
+    return next;
+  }
   try {
     const state = JSON.parse(window.localStorage.getItem(guidedResponsePhaseStorageKey) || '{}');
     return state[guidedPhaseContextKey(incident, chemical, scenario)] || {};
@@ -7031,6 +7105,28 @@ function persistIncidentAssignment(assignment, previousPhaseId = '') {
   return { ok: true, action, assignment: nextAssignment };
 }
 
+function removeIncidentAssignment(assignmentId, phaseId = '') {
+  const incident = getActiveIncident();
+  if (!incident || !assignmentId) return { ok: false, error: 'No active assignment is selected.' };
+  const current = readGuidedResponsePhaseState(incident, getIncidentChemicalContext(incident)?.chemical || activeChemical);
+  const sourcePhaseId = phaseId || Object.entries(current).find(([, record]) => (record?.assignments || []).some((item) => item?.assignmentId === assignmentId))?.[0] || '';
+  const assignments = Array.isArray(current[sourcePhaseId]?.assignments) ? current[sourcePhaseId].assignments : [];
+  const removed = assignments.find((item) => item?.assignmentId === assignmentId);
+  if (!sourcePhaseId || !removed) return { ok: false, error: 'The assignment could not be located.' };
+  const now = new Date().toISOString();
+  persistGuidedResponsePhaseState(sourcePhaseId, { assignments: assignments.filter((item) => item?.assignmentId !== assignmentId) }, {
+    assignmentHistoryEntry: {
+      assignmentId,
+      action: 'removed',
+      changedAt: now,
+      changedBy: incidentResponderIdentity(),
+      phaseId: sourcePhaseId,
+      assignment: removed,
+    },
+  });
+  return { ok: true, assignment: removed };
+}
+
 function createGuidedRoleAssignment(phase, incident, record) {
   const panel = document.createElement('div');
   panel.className = 'guided-role-assignment';
@@ -7136,6 +7232,14 @@ function renderIncidentAssignmentEditor(incident) {
   const phaseLabel = (phaseId) => guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.title || phaseId || 'Unassigned phase';
   const list = document.createElement('div');
   list.className = 'incident-assignment-list';
+  const tableHeader = document.createElement('div');
+  tableHeader.className = 'incident-assignment-table-header';
+  ['Team / Role', 'Apparatus', 'Supervisor', 'Task', 'Status', 'Actions'].forEach((label) => {
+    const cell = document.createElement('span');
+    cell.textContent = label;
+    tableHeader.append(cell);
+  });
+  list.append(tableHeader);
   if (!assignments.length) {
     const empty = document.createElement('p');
     empty.className = 'incident-assignment-empty';
@@ -7145,23 +7249,85 @@ function renderIncidentAssignmentEditor(incident) {
     const item = document.createElement('article');
     item.className = 'incident-assignment-item';
     item.dataset.assignmentId = assignment.assignmentId || '';
+    const content = document.createElement('div');
+    content.className = 'incident-assignment-item-content';
     const heading = document.createElement('div');
     heading.className = 'incident-assignment-item-heading';
+    const headingLabel = document.createElement('span');
+    headingLabel.className = 'incident-assignment-field-label';
+    headingLabel.textContent = 'Team / role';
     const title = document.createElement('strong');
-    title.textContent = assignment.personnel || assignment.unit || 'Unnamed assignment';
+    title.className = 'incident-assignment-item-title';
+    title.textContent = assignment.personnel || assignment.role || phaseLabel(assignment.phaseId) || 'Assignment';
+    heading.append(headingLabel, title);
+    const assigned = document.createElement('div');
+    assigned.className = 'incident-assignment-item-assigned';
+    const assignedLabel = document.createElement('span');
+    assignedLabel.className = 'incident-assignment-field-label';
+    assignedLabel.textContent = 'Apparatus';
+    const assignedValue = document.createElement('strong');
+    assignedValue.textContent = assignment.unit || 'Not specified';
+    assigned.append(assignedLabel, assignedValue);
+    const supervisor = document.createElement('div');
+    supervisor.className = 'incident-assignment-item-supervisor';
+    const supervisorLabel = document.createElement('span');
+    supervisorLabel.className = 'incident-assignment-field-label';
+    supervisorLabel.textContent = 'Supervisor';
+    const supervisorValue = document.createElement('strong');
+    supervisorValue.textContent = assignment.supervisor || 'Not specified';
+    supervisor.append(supervisorLabel, supervisorValue);
+    const task = document.createElement('div');
+    task.className = 'incident-assignment-item-task';
+    const taskLabel = document.createElement('span');
+    taskLabel.className = 'incident-assignment-field-label';
+    taskLabel.textContent = 'Task';
+    const taskValue = document.createElement('strong');
+    taskValue.textContent = assignment.responsibility || phaseLabel(assignment.phaseId) || 'Not specified';
+    task.append(taskLabel, taskValue);
+    const detailGrid = document.createElement('dl');
+    detailGrid.className = 'incident-assignment-item-details';
+    const addDetail = (labelText, value) => {
+      if (!value) return;
+      const label = document.createElement('dt');
+      label.textContent = labelText;
+      const detail = document.createElement('dd');
+      detail.textContent = value;
+      detailGrid.append(label, detail);
+    };
+    addDetail('Role', assignment.role || phaseLabel(assignment.phaseId));
+    addDetail('Response phase', phaseLabel(assignment.phaseId));
+    addDetail('Responsibility', assignment.responsibility);
+    addDetail('Supervisor', assignment.supervisor);
+    addDetail('Notes', assignment.notes || assignment.note);
+    addDetail('Location', assignment.locationStatus || 'Location not set');
+    addDetail('Last changed', assignment.updatedAt ? new Date(assignment.updatedAt).toLocaleString() : 'Not available');
+    const more = document.createElement('details');
+    more.className = 'incident-assignment-more';
+    const moreSummary = document.createElement('summary');
+    moreSummary.textContent = 'Details';
+    more.append(moreSummary, detailGrid);
+    content.append(heading, assigned, supervisor, task, more);
     const state = document.createElement('span');
     state.textContent = assignment.status || 'Suggested';
-    state.className = 'incident-assignment-state';
-    heading.append(title, state);
-    const details = document.createElement('p');
-    details.textContent = [phaseLabel(assignment.phaseId), assignment.role, assignment.unit, assignment.responsibility, assignment.supervisor].filter(Boolean).join(' · ');
+    state.className = `incident-assignment-state is-${String(assignment.status || 'Suggested').toLowerCase()}`;
+    state.setAttribute('aria-label', `Assignment status: ${state.textContent}`);
+    const meta = document.createElement('div');
+    meta.className = 'incident-assignment-item-meta';
     const actions = document.createElement('div');
     actions.className = 'incident-assignment-item-actions';
     const edit = document.createElement('button');
     edit.type = 'button'; edit.className = 'ghost-btn'; edit.textContent = 'Edit';
     edit.addEventListener('click', () => renderIncidentAssignmentEditor({ ...incident, __editingAssignment: assignment }));
-    actions.append(edit);
-    item.append(heading, details, actions);
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.className = 'ghost-btn incident-assignment-remove'; remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      if (!window.confirm(`Remove the ${assignment.role || phaseLabel(assignment.phaseId)} assignment?`)) return;
+      const result = removeIncidentAssignment(assignment.assignmentId, assignment.phaseId);
+      if (result.ok) renderIncidentAssignmentEditor(getActiveIncident());
+    });
+    actions.append(edit, remove);
+    meta.append(state, actions);
+    item.append(content, meta);
     list.append(item);
   });
   editor.append(list);
@@ -8178,7 +8344,7 @@ function renderOperationalHazardProfile(profile) {
   }
 }
 
-function renderStarterHazardProfile(profile) {
+function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   profile = normalizeHazardProfileForUi(profile);
   const config = hazardLaneUi[profile?.lane];
   if (!config) return;
@@ -8273,15 +8439,19 @@ function renderStarterHazardProfile(profile) {
     }
   }
   const tabs = document.getElementById('hazard-profile-tabs');
+  const requestedTabIndex = profileTab === 'ppe'
+    ? config.tabs.findIndex(([label]) => /ppe/i.test(label))
+    : 0;
+  const activeTabIndex = requestedTabIndex >= 0 ? requestedTabIndex : 0;
   if (tabs) {
     tabs.replaceChildren();
     config.tabs.forEach(([label, fieldNames], index) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `chemical-profile-tab${index === 0 ? ' active' : ''}`;
+      button.className = `chemical-profile-tab${index === activeTabIndex ? ' active' : ''}`;
       button.dataset.profileFields = JSON.stringify(fieldNames);
       button.textContent = label;
-      button.setAttribute('aria-selected', String(index === 0));
+      button.setAttribute('aria-selected', String(index === activeTabIndex));
       tabs.append(button);
     });
   }
@@ -8294,10 +8464,11 @@ function renderStarterHazardProfile(profile) {
   }
   renderOperationalHazardProfile(profile);
   renderRadiologicalProfile(profile);
-  renderStarterHazardTab(profile, ['overviewFacts', 'hazardFacts']);
+  const activeTabFields = config.tabs[activeTabIndex]?.[1] || ['overviewFacts', 'hazardFacts'];
+  renderStarterHazardTab(profile, activeTabFields);
 }
 
-async function openStarterHazard(result) {
+async function openStarterHazard(result, { profileTab = 'overview' } = {}) {
   const requestId = ++latestStarterHazardRequest;
   const lane = result?.lane || result?.routingLane || activeHazardSearchLane;
   renderStarterHazardLoadState(`Loading ${result?.displayName || 'hazard'} source-backed profile…`, { state: 'loading' });
@@ -8307,7 +8478,7 @@ async function openStarterHazard(result) {
     renderStarterHazardLoadState(`Unable to load ${result?.displayName || 'hazard'} profile. ${profile?.error || 'The source lookup returned no record.'}`, { state: 'error' });
     return;
   }
-  renderStarterHazardProfile(profile);
+  renderStarterHazardProfile(profile, { profileTab });
   window.HazMatIQ?.setActiveHazardState?.(result, { profile, status: 'ready' });
   window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(result, profile);
   hazardProfileResults?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -9032,7 +9203,13 @@ function setChemicalSearchStatus(message, state = '') {
   chemicalSearchStatus.dataset.state = state;
 }
 
-function chemicalProfileRecord(chemical, profile) {
+function showChemicalSelectionPrompt() {
+  setHazardProfileMode('empty');
+  setChemicalSearchStatus('Select a verified chemical from Hazard ID before opening Chemical / PPE.', 'error');
+  chemicalSearchInput?.focus({ preventScroll: true });
+}
+
+function chemicalProfileRecord(chemical, profile, activeTab = 'overview') {
   const selectedId = normalizeChemicalSelectionId(
     chemical?.selectedChemicalId ?? chemical?.ChemicalID ?? chemical?.id,
   );
@@ -9050,7 +9227,7 @@ function chemicalProfileRecord(chemical, profile) {
     nioshSourceId: profile?.niosh?.sourceRecordId || '',
     nioshIdentityStatus: profile?.niosh?.status || '',
     summarySources: chemicalProfileSources(profile),
-    profile: { ...profile, activeTab: 'overview' },
+    profile: { ...profile, activeTab },
   };
 }
 
@@ -9072,7 +9249,7 @@ function clearChemicalSuggestions() {
 
 renderHazardSearchMode('CHEMICAL');
 
-async function openChemical(chemical, facilityName = '') {
+async function openChemical(chemical, facilityName = '', { profileTab = 'overview' } = {}) {
   if (chemical.recordType === 'transportation-identifier' || chemical.guidanceEligible === false) {
     setChemicalSearchStatus(chemical.reviewWarning || 'This transport identifier has not been verified against a Chemical Companion master chemical record. Do not use it for IDLH, PPE, plume, decon, or medical guidance until reviewed.', 'error');
     return;
@@ -9111,7 +9288,7 @@ async function openChemical(chemical, facilityName = '') {
   const renderEnrichmentFallback = (record) => {
     if (!record || !isCurrentProfileRequest()) return;
     try {
-      activeChemicalRecord = record;
+      activeChemicalRecord = { ...record, profile: { ...(record.profile || {}), activeTab: profileTab } };
       window.HazMatIQ?.setActiveHazardState?.(chemical, { profile: record.profile, record, status: 'ready' });
       updateChemicalCard(record);
       setHazardProfileMode('chemical');
@@ -9150,7 +9327,7 @@ async function openChemical(chemical, facilityName = '') {
 
   let profileRecord;
   try {
-    profileRecord = chemicalProfileRecord(chemical, profile);
+    profileRecord = chemicalProfileRecord(chemical, profile, profileTab);
     activeChemicalRecord = profileRecord;
     window.HazMatIQ?.setActiveHazardState?.(chemical, { profile: profileRecord.profile, record: profileRecord, status: 'ready' });
     updateChemicalCard(profileRecord);
@@ -10165,6 +10342,181 @@ let plumeMapStyleMode = 'satellite';
 let plumeMapMaximized = false;
 const threatZoneColors = { 3: '#d71920', 2: '#f28c18', 1: '#ffd323' };
 const threatZoneColorNames = { 3: 'red', 2: 'orange', 1: 'yellow' };
+
+// Keep the Command Dashboard preview live and independent from the primary
+// Plume Model canvas. The preview uses the saved GeoJSON geometry, not a
+// rasterized map snapshot, so it remains pannable, zoomable, and inspectable.
+let commandPlumePreviewMap = null;
+let commandPlumePreviewMapReady = false;
+let commandPlumePreviewResizeObserver = null;
+let commandPlumePreviewIntersectionObserver = null;
+let commandPlumePreviewGeometryKey = '';
+
+function commandPlumePreviewData(state) {
+  const result = state?.plume?.result || {};
+  const nested = result.plumeResult || {};
+  const output = result.output || nested.output || result.plumeOutput || nested.plumeOutput || {};
+  const geometry = output.geometry || result.geometry || nested.geometry;
+  const location = result.location || nested.location || {};
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+  return {
+    geometry: geometry?.type === 'FeatureCollection' ? geometry : null,
+    location: Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? { latitude, longitude }
+      : null,
+  };
+}
+
+function commandPlumePreviewBounds(geometry, location) {
+  const bounds = new window.maplibregl.LngLatBounds();
+  forEachCoordinate(geometry, (coordinate) => bounds.extend(coordinate));
+  if (location) bounds.extend([location.longitude, location.latitude]);
+  return bounds.isEmpty() ? null : bounds;
+}
+
+function commandPlumePreviewFit(data) {
+  if (!commandPlumePreviewMap || !data) return;
+  const bounds = commandPlumePreviewBounds(data.geometry, data.location);
+  if (bounds) {
+    commandPlumePreviewMap.fitBounds(bounds, { padding: 30, maxZoom: 15, duration: 0 });
+  } else if (data.location) {
+    commandPlumePreviewMap.jumpTo({ center: [data.location.longitude, data.location.latitude], zoom: 13 });
+  }
+}
+
+function commandPlumePreviewSetData(state) {
+  if (!commandPlumePreviewMap || !commandPlumePreviewMapReady) return;
+  const data = commandPlumePreviewData(state);
+  const geometry = data.geometry || { type: 'FeatureCollection', features: [] };
+  commandPlumePreviewMap.getSource('command-plume-preview-zones')?.setData(geometry);
+  commandPlumePreviewMap.getSource('command-plume-preview-release')?.setData({
+    type: 'FeatureCollection',
+    features: data.location ? [{
+      type: 'Feature',
+      properties: { label: 'Release point' },
+      geometry: { type: 'Point', coordinates: [data.location.longitude, data.location.latitude] },
+    }] : [],
+  });
+  const signature = JSON.stringify({ geometry, location: data.location });
+  if (signature !== commandPlumePreviewGeometryKey) {
+    commandPlumePreviewGeometryKey = signature;
+    commandPlumePreviewFit(data);
+  }
+}
+
+function commandPlumePreviewAddLayers() {
+  if (!commandPlumePreviewMap || !commandPlumePreviewMapReady) return;
+  if (!commandPlumePreviewMap.getSource('command-plume-preview-zones')) {
+    commandPlumePreviewMap.addSource('command-plume-preview-zones', {
+      type: 'geojson', data: { type: 'FeatureCollection', features: [] },
+    });
+  }
+  if (!commandPlumePreviewMap.getSource('command-plume-preview-release')) {
+    commandPlumePreviewMap.addSource('command-plume-preview-release', {
+      type: 'geojson', data: { type: 'FeatureCollection', features: [] },
+    });
+  }
+  if (!commandPlumePreviewMap.getLayer('command-plume-preview-zone-fill')) {
+    commandPlumePreviewMap.addLayer({
+      id: 'command-plume-preview-zone-fill', type: 'fill', source: 'command-plume-preview-zones',
+      paint: {
+        'fill-color': ['coalesce', ['get', 'color'], '#d71920'],
+        'fill-opacity': ['coalesce', ['get', 'fillOpacity'], 0.28],
+      },
+    });
+  }
+  if (!commandPlumePreviewMap.getLayer('command-plume-preview-zone-outline')) {
+    commandPlumePreviewMap.addLayer({
+      id: 'command-plume-preview-zone-outline', type: 'line', source: 'command-plume-preview-zones',
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#d71920'], 'line-width': 2.5 },
+    });
+  }
+  if (!commandPlumePreviewMap.getLayer('command-plume-preview-zone-label')) {
+    commandPlumePreviewMap.addLayer({
+      id: 'command-plume-preview-zone-label', type: 'symbol', source: 'command-plume-preview-zones',
+      layout: { 'text-field': ['coalesce', ['get', 'label'], 'Threat zone'], 'text-size': 11, 'text-allow-overlap': true },
+      paint: { 'text-color': '#071f36', 'text-halo-color': '#fff', 'text-halo-width': 1.5 },
+    });
+  }
+  if (!commandPlumePreviewMap.getLayer('command-plume-preview-release-point')) {
+    commandPlumePreviewMap.addLayer({
+      id: 'command-plume-preview-release-point', type: 'circle', source: 'command-plume-preview-release',
+      paint: { 'circle-radius': 7, 'circle-color': '#d71920', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 },
+    });
+  }
+  if (!commandPlumePreviewMap.getCanvas().__commandPreviewEventsBound) {
+    commandPlumePreviewMap.getCanvas().__commandPreviewEventsBound = true;
+    commandPlumePreviewMap.on('click', 'command-plume-preview-zone-fill', (event) => {
+      const feature = event.features?.[0];
+      const label = feature?.properties?.label || 'Threat zone';
+      const source = feature?.properties?.source || 'Saved plume geometry';
+      new window.maplibregl.Popup({ closeButton: true, closeOnClick: true })
+        .setLngLat(event.lngLat).setText(`${label} · ${source}`).addTo(commandPlumePreviewMap);
+    });
+    commandPlumePreviewMap.on('mouseenter', 'command-plume-preview-zone-fill', () => {
+      commandPlumePreviewMap.getCanvas().style.cursor = 'pointer';
+    });
+    commandPlumePreviewMap.on('mouseleave', 'command-plume-preview-zone-fill', () => {
+      commandPlumePreviewMap.getCanvas().style.cursor = '';
+    });
+  }
+}
+
+function resizeCommandPlumePreviewMap({ refit = false } = {}) {
+  if (!commandPlumePreviewMap) return;
+  window.requestAnimationFrame(() => {
+    commandPlumePreviewMap.resize();
+    if (refit) commandPlumePreviewFit(commandPlumePreviewData(window.HazMatIQ?.getActiveIncidentState?.()));
+  });
+}
+
+function renderCommandPlumePreviewMap(state) {
+  const container = document.getElementById('ic-plume-preview-map');
+  if (!container || !state?.plume?.result || !window.maplibregl) return false;
+  if (!commandPlumePreviewMap) {
+    const data = commandPlumePreviewData(state);
+    const center = data.location ? [data.location.longitude, data.location.latitude] : [-98.5, 39.5];
+    commandPlumePreviewMap = new window.maplibregl.Map({
+      container, center, zoom: data.location ? 13 : 3,
+      style: clonePlumeMapStyle(plumeSatelliteMapStyle), attributionControl: true,
+    });
+    commandPlumePreviewMap.addControl(new window.maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+    commandPlumePreviewMap.on('load', () => {
+      commandPlumePreviewMapReady = true;
+      commandPlumePreviewAddLayers();
+      commandPlumePreviewSetData(state);
+      resizeCommandPlumePreviewMap({ refit: true });
+    });
+    if (window.ResizeObserver) {
+      commandPlumePreviewResizeObserver = new ResizeObserver(() => resizeCommandPlumePreviewMap());
+      commandPlumePreviewResizeObserver.observe(container);
+    }
+    if (window.IntersectionObserver) {
+      commandPlumePreviewIntersectionObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) resizeCommandPlumePreviewMap({ refit: true });
+      }, { threshold: 0.01 });
+      commandPlumePreviewIntersectionObserver.observe(container);
+    }
+  }
+  if (commandPlumePreviewMapReady) {
+    commandPlumePreviewAddLayers();
+    commandPlumePreviewSetData(state);
+    resizeCommandPlumePreviewMap();
+  }
+  return true;
+}
+
+function destroyCommandPlumePreviewMap() {
+  commandPlumePreviewResizeObserver?.disconnect();
+  commandPlumePreviewIntersectionObserver?.disconnect();
+  commandPlumePreviewResizeObserver = null;
+  commandPlumePreviewIntersectionObserver = null;
+  commandPlumePreviewMap?.remove();
+  commandPlumePreviewMap = null;
+  commandPlumePreviewMapReady = false;
+  commandPlumePreviewGeometryKey = '';
+}
 
 function resizePlumeMapAfterLayout() {
   window.requestAnimationFrame(() => {
@@ -18618,6 +18970,7 @@ window.HazMatIQ.hazardProfileLegacy = {
   renderChemicalProfile,
   renderStarterHazardTab,
 };
+window.HazMatIQ.showChemicalSelectionPrompt = showChemicalSelectionPrompt;
 
 window.HazMatIQ.incidentCommandLegacy = {
   getActiveIncident,
@@ -18649,6 +19002,11 @@ window.HazMatIQ.mapInfrastructure = {
   streetStyle: liveMapDetailedStyleUrl,
   satelliteStyle: () => clonePlumeMapStyle(plumeSatelliteMapStyle),
   radarProviders: () => window.HazMatRadarProviders,
+};
+window.HazMatIQ.commandPlumePreview = {
+  render: renderCommandPlumePreviewMap,
+  resize: resizeCommandPlumePreviewMap,
+  destroy: destroyCommandPlumePreviewMap,
 };
 window.HazMatIQ.locationTools = {
   getCurrentGps,

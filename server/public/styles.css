@@ -11446,9 +11446,10 @@ body,
 
 .incident-command-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, .95fr) minmax(0, 1.35fr);
-  gap: 7px;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 10px;
   padding: 8px;
+  align-items: start;
 }
 
 .incident-command-panel {
@@ -11519,40 +11520,93 @@ body,
 
 .incident-command-status-row {
   display: grid;
-  grid-template-columns: minmax(150px, .7fr) minmax(0, 1.3fr);
-  gap: 5px 10px;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr) max-content;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 6px 18px;
   min-width: 0;
   padding: 8px 0;
   border-bottom: 1px solid rgba(120, 160, 190, .28);
 }
 
 .incident-command-status-row > strong {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
   color: #f8fbff;
   font-weight: 900;
   overflow-wrap: anywhere;
 }
 
-.incident-command-status-row > p {
-  grid-column: 1 / -1;
+.incident-command-status-row > .incident-command-status-control {
+  display: grid;
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-columns: minmax(150px, 220px);
+  gap: 7px;
+  align-items: start;
+  min-width: 0;
+}
+
+.incident-command-status-row > .incident-command-status-support {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-content: center;
+  justify-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.incident-command-status-support > p,
+.incident-command-status-support > small {
   margin: 0;
   color: #d5e6f2;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  text-align: center;
 }
 
-.incident-command-status-control {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
-  gap: 7px 10px;
-  align-items: start;
-  min-width: 0;
+.incident-command-status-row > .incident-command-badge {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .incident-command-status-evidence {
   color: #b9d2df;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .incident-command-status-row {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-rows: auto auto auto;
+    gap: 6px 10px;
+  }
+  .incident-command-status-row > strong {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .incident-command-status-row > .incident-command-status-control {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .incident-command-status-row > .incident-command-status-support {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    padding-top: 4px;
+  }
+  .incident-command-status-row > .incident-command-badge {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+    max-width: 140px;
+  }
 }
 
 .incident-command-guided-content section { min-width: 0; }
@@ -11576,19 +11630,23 @@ body,
 .incident-command-guided-list li,
 .incident-command-guided-progress > div {
   display: grid;
-  grid-template-columns: minmax(100px, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
   padding: 5px 0;
   border-bottom: 1px dotted rgba(120, 160, 190, 0.3);
   color: #e5f2fa;
-  font-size: 0.72rem;
+  font-size: 1.02rem;
+  font-weight: 850;
 }
+.incident-command-guided-list li > span { grid-column: 1; grid-row: 1; }
 
 .incident-command-guided-list button {
+  grid-column: 2;
+  grid-row: 1;
   width: auto;
-  min-width: 100px;
+  min-width: 116px;
   height: auto;
   min-height: 36px;
   padding: 6px 8px;
@@ -11684,7 +11742,7 @@ body,
 .incident-command-recent-reports button { border: 1px solid #3387c1; color: #a7ddff; background: transparent; }
 .incident-command-wide-action { width: calc(100% - 24px); margin: 2px 12px 12px; border-color: #3387c1; color: #a7ddff; }
 
-.incident-command-tools { margin: 0 8px 7px; }
+.incident-command-tools { margin: 10px 8px 0; }
 .incident-command-tool-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; padding: 7px 9px 9px; }
 .incident-command-tool {
   display: grid;
@@ -11703,16 +11761,20 @@ body,
 .incident-command-tool strong { color: #fff; font-size: 0.77rem; text-transform: uppercase; }
 .incident-command-tool span { color: #a9c0d1; font-size: 0.68rem; }
 .incident-command-tool-danger { border-color: #a92535; background: rgba(106, 17, 33, 0.25); }
-.incident-command-tool-danger strong { color: #ff737d; }
+.incident-command-tool-danger { min-height: 52px; padding: 12px 18px; justify-items: center; text-align: center; }
+.incident-command-tool-danger strong { color: #ff737d; font-size: .88rem; font-weight: 900; }
 
-.incident-command-operational-details { margin: 0 8px 8px; }
-.incident-command-operational-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; cursor: pointer; list-style: none; }
-.incident-command-operational-details > summary strong { color: #acd7f4; text-transform: uppercase; }
-.incident-command-operational-details > summary span { color: #b6cad9; font-size: 0.76rem; }
-.incident-command-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px; border-top: 1px solid #315d7d; }
-.incident-command-detail-grid section { padding: 10px; border: 1px solid rgba(64, 107, 145, 0.5); border-radius: 7px; background: rgba(5, 23, 39, 0.6); }
-.incident-command-detail-grid h3 { margin: 0 0 6px; color: #f6c343; font-size: 0.8rem; }
-.incident-command-detail-grid section > div { color: #c9dae6; font-size: 0.74rem; line-height: 1.45; }
+.incident-command-operational-details { display: block; position: static; flex: 0 0 auto; order: initial; margin: 0 8px 8px; color: #0b2540; background: #dfe4e8; border: 2px solid #8b949e; box-shadow: none; }
+.incident-command-operational-details > summary { position: static; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; cursor: pointer; list-style: none; }
+.incident-command-operational-details > summary::-webkit-details-marker { display: none; }
+.incident-command-operational-details > summary::after { content: '⌄'; flex: 0 0 auto; color: #f6c343; font-size: 1.35rem; font-weight: 900; line-height: 1; transform: rotate(0deg); transition: transform 150ms ease; }
+.incident-command-operational-details[open] > summary::after { transform: rotate(180deg); }
+.incident-command-operational-details > summary strong { color: #0b2540; text-transform: uppercase; }
+.incident-command-operational-details > summary span { color: #334e68; font-size: 0.76rem; }
+.incident-command-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px; border-top: 1px solid #aeb7c1; }
+.incident-command-detail-grid section { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 11px; border: 1px solid #b2bac3; border-radius: 7px; background: #f7f8fa; }
+.incident-command-detail-grid h3 { margin: 0 0 6px; color: #0b2540; font-size: 0.8rem; }
+.incident-command-detail-grid section > div { color: #243b53; font-size: 0.74rem; line-height: 1.45; }
 #ic-edit-scene-btn { margin: 0 12px 12px; }
 
 .incident-command-primary,
@@ -11801,7 +11863,7 @@ body,
 
 /* Every action whose purpose is opening or plotting the Plume Model uses red. */
 button[data-view="plume"],
-button[data-command-view="plume"],
+button[data-command-view="plume"]:not([data-incident-flow-action]),
 #open-plume-btn,
 #guided-open-plume-btn,
 #hazard-profile-plume-btn,
@@ -11815,7 +11877,7 @@ button[data-command-view="plume"],
   box-shadow: 0 5px 12px rgba(183, 14, 22, .25) !important;
 }
 button[data-view="plume"]:hover,
-button[data-command-view="plume"]:hover,
+button[data-command-view="plume"]:not([data-incident-flow-action]):hover,
 #open-plume-btn:hover,
 #guided-open-plume-btn:hover,
 #hazard-profile-plume-btn:hover,
@@ -11824,7 +11886,7 @@ button[data-command-view="plume"]:hover,
 .incident-command-plume-copy > button:hover,
 .chemical-profile-plume:hover { border-color: #ff7277 !important; background: linear-gradient(135deg, #f33b42, #c8151e) !important; }
 button[data-view="plume"]:disabled,
-button[data-command-view="plume"]:disabled,
+button[data-command-view="plume"]:not([data-incident-flow-action]):disabled,
 #open-plume-btn:disabled,
 #guided-open-plume-btn:disabled,
 #hazard-profile-plume-btn:disabled,
@@ -11835,7 +11897,7 @@ button[data-command-view="plume"]:disabled,
 
 /* Every Guided Response action uses the green action schema. */
 button[data-view="guided-response"],
-button[data-command-view="guided-response"],
+button[data-command-view="guided-response"]:not([data-incident-flow-action]),
 #open-guided-response-btn,
 .incident-guided-primary,
 .chemical-profile-guided {
@@ -11845,7 +11907,7 @@ button[data-command-view="guided-response"],
   box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 6px 14px rgba(13, 92, 46, .22) !important;
 }
 button[data-view="guided-response"]:hover,
-button[data-command-view="guided-response"]:hover,
+button[data-command-view="guided-response"]:not([data-incident-flow-action]):hover,
 #open-guided-response-btn:hover,
 .incident-guided-primary:hover,
 .chemical-profile-guided:hover {
@@ -11853,7 +11915,7 @@ button[data-command-view="guided-response"]:hover,
   background: linear-gradient(180deg, #35ac62, #1c7a42) !important;
 }
 button[data-view="guided-response"]:disabled,
-button[data-command-view="guided-response"]:disabled,
+button[data-command-view="guided-response"]:not([data-incident-flow-action]):disabled,
 #open-guided-response-btn:disabled,
 .incident-guided-primary:disabled,
 .chemical-profile-guided:disabled {
@@ -12841,7 +12903,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
     [class$="-card"]:not(.erg-review-distance-card),
     [class*="-card "],
     [class$="-panel"],
-    [class*="-panel "]
+    [class*="-panel "]:not(.incident-command-tools)
   ) {
     border-color: var(--hmi-border);
     background: var(--hmi-bg-panel) !important;

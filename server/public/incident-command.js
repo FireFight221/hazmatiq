@@ -263,9 +263,6 @@
         ['CAS', state?.activeChemical?.cas],
         ['UN', state?.activeChemical?.un],
         ['ERG', state?.activeChemical?.erg],
-        ['IDLH', state?.raw?.idlh],
-        ['Hazard Class', state?.activeChemical?.category],
-        ['Source / Review', state?.activeChemical?.sourceState],
       ];
       const list = document.createElement('dl');
       fields.forEach(([label, value]) => {
@@ -295,39 +292,29 @@
   function renderPlumeSummary(state) {
     const result = state?.plume?.result;
     const plumeNeedsRecalculation = state?.plume?.status === 'PLUME REQUIRES RECALCULATION';
-    const hasSavedImageRef = state?.plume?.status === 'PLOTTED' && Boolean(state?.raw?.plumeMapImageRef);
-    const hasPlume = Boolean(result || state?.plume?.mapImage || hasSavedImageRef);
+    const hasPlume = Boolean(result || state?.plume?.mapImage || state?.raw?.plumeMapImageRef);
     const status = document.getElementById('ic-plume-status');
     const image = document.getElementById('ic-plume-preview-image');
+    const map = document.getElementById('ic-plume-preview-map');
     const empty = document.getElementById('ic-plume-preview-empty');
     const title = document.getElementById('ic-plume-preview-title');
     const summary = document.getElementById('ic-plume-preview-summary');
     const facts = document.getElementById('ic-plume-preview-facts');
     const open = document.getElementById('ic-plume-open-btn');
-    if (!status || !image || !empty || !title || !summary || !facts || !open) return;
+    if (!status || !image || !map || !empty || !title || !summary || !facts || !open) return;
     status.textContent = hasPlume ? 'PLOTTED' : plumeNeedsRecalculation ? 'PLUME REQUIRES RECALCULATION' : 'NOT PLOTTED';
     status.dataset.state = hasPlume ? 'plotted' : plumeNeedsRecalculation ? 'recalculate' : 'missing';
-    const incidentId = state?.incidentId || '';
-    const imageRef = state?.raw?.plumeMapImageRef || '';
-    const hydrationKey = `${incidentId}:${imageRef}`;
-    const imageData = state?.plume?.mapImage || '';
-    const sameSnapshot = image.dataset.snapshotKey === hydrationKey && image.dataset.incidentId === incidentId;
-    if (imageData) {
-      if (image.src !== imageData) image.src = imageData;
-      image.dataset.snapshotKey = hydrationKey;
-      image.dataset.incidentId = incidentId;
-      image.hidden = false;
-    } else if (!sameSnapshot) {
-      image.removeAttribute('src');
-      image.removeAttribute('data-snapshot-key');
-      image.removeAttribute('data-incident-id');
-      image.hidden = true;
-    }
-    const imageVisible = !image.hidden && Boolean(image.src);
-    empty.hidden = imageVisible;
-    empty.textContent = hasSavedImageRef && !state?.plume?.mapImage
-      ? imageVisible ? '' : 'Loading saved plume snapshot…'
-      : 'No plume snapshot is saved for this incident.';
+    // The dashboard uses the live MapLibre preview. Keep the legacy image
+    // node hidden for report/export compatibility, but never present it as the
+    // map because enlarging a saved raster would lose map interaction.
+    image.hidden = true;
+    image.removeAttribute('src');
+    const previewRendered = hasPlume && Boolean(window.HazMatIQ?.commandPlumePreview?.render?.(state));
+    map.hidden = !previewRendered;
+    empty.hidden = previewRendered;
+    empty.textContent = hasPlume
+      ? 'The interactive plume map is unavailable in this browser.'
+      : 'No plume map is saved for this incident.';
     title.textContent = hasPlume
       ? (state.plume.summary?.title || 'Saved plume assessment')
       : plumeNeedsRecalculation ? 'Plume requires recalculation' : 'Plot a plume from Incident Command';
@@ -462,12 +449,14 @@
     const state = getActiveIncidentState();
     const chemical = state?.activeChemical;
     if (!chemical || !chemical.canonicalId || (chemical.profileType === 'chemical' && !chemical.chemicalCompanionId)) {
+      window.HazMatIQ?.showChemicalSelectionPrompt?.();
       return legacyApi()?.showView?.('lookup', { preserveHazardState: true, sourcePage: 'incident' });
     }
     const result = chemical.profileType === 'hazard'
       ? { id: chemical.cbrneCanonicalId || chemical.canonicalId, lane: chemical.routingLane, displayName: chemical.displayName }
       : { selectedChemicalId: chemical.chemicalCompanionId, ChemicalName: chemical.displayName, CasNumber: chemical.cas, UnnaNumber: chemical.un, ErgNumber: chemical.erg, guidanceEligible: true };
-    if (window.HazMatIQ.openHazardProfile) return window.HazMatIQ.openHazardProfile(result, { sourcePage: 'incident' });
+    const profileTab = chemical.profileType === 'hazard' ? 'ppe' : 'ppeMonitoring';
+    if (window.HazMatIQ.openHazardProfile) return window.HazMatIQ.openHazardProfile(result, { sourcePage: 'incident', profileTab });
     return legacyApi()?.showView?.('lookup', { preserveHazardState: true, sourcePage: 'incident' });
   }
 

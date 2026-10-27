@@ -17,7 +17,7 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     );
     const summaryStart = active.indexOf('<section class="incident-command-info-grid"');
     const summary = active.slice(summaryStart, active.indexOf('</section>', summaryStart));
-    expect(summary.match(/<article class="incident-info-card/g)).toHaveLength(4);
+    expect(summary.match(/<article class="incident-info-card/g)).toHaveLength(3);
     expect(summary).toContain('incident-involved-chemicals-compact');
     expect(active).not.toContain('incident-involved-chemicals-panel');
     expect(active.indexOf('class="incident-command-flow"')).toBeLessThan(summaryStart);
@@ -41,10 +41,8 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
   });
 
   it("uses the five requested command decisions", () => {
-    const flow = html.slice(
-      html.indexOf('<section class="incident-command-flow"'),
-      html.indexOf('<div class="incident-command-main-grid">'),
-    );
+    const flowStart = html.indexOf('<section class="incident-command-flow"');
+    const flow = html.slice(flowStart, html.indexOf('</section>', flowStart));
 
     expect(flow.match(/<article>/g)).toHaveLength(5);
     for (const title of [
@@ -54,13 +52,19 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
       "4. Tactical Decision",
       "5. Document / Report",
     ]) expect(flow).toContain(title);
+    expect(flow).not.toContain('class="incident-flow-status"');
+    expect(flow).not.toContain('class="incident-flow-details"');
+    expect(incidentStyles).toContain('border: 2px solid #fff;');
     expect(flow).toMatch(/1\. Scene Size-Up[\s\S]*data-incident-command-action="chemical-profile"[^>]*>Open Hazard Profile/);
-    expect(incidentStyles).toContain("grid-template-columns: repeat(5, minmax(0, 1fr));");
+    expect(flow.match(/class="incident-flow-chevron"/g)).toHaveLength(4);
+    expect(incidentStyles).toContain("grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr)");
+    expect(incidentStyles).toContain("#incident .incident-flow-chevron::after { content: '↓';");
   });
 
   it("keeps commander status controls tied to one canonical task and readable on small screens", () => {
     expect(script).toContain("row.className = 'incident-command-status-row';");
-    expect(script).toContain("summary.textContent = operationalTaskEvidence(task.id, model);");
+    expect(script).toContain("identity.textContent = task.label;");
+    expect(script).toContain("row.append(identity, control, badge);");
     expect(script).toContain("select.dataset.taskId = task.id;");
     expect(incidentStyles).toContain(".incident-command-status-list");
     expect(incidentStyles).toContain(".incident-command-status-control");
@@ -139,7 +143,7 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     expect(script).toContain("const chemicalData = selectedChemicalOperationalData({ ...chemicalContext, profile: chemicalProfile });");
     expect(script).toContain("const chemicalData = selectedChemicalOperationalData({");
     expect(script).toContain("nioshSourceId: firstChemicalDataValue(niosh.sourceRecordId, incidentHasCanonicalIdentity ? incident?.nioshSourceId : null)");
-    expect(script).toContain("['IDLH Source', model.nioshSourceId ? `NIOSH · ${model.nioshSourceId}` : noCurrentDataText]");
+    expect(script).toContain("model.nioshSourceId ? `Source NIOSH · ${model.nioshSourceId}` : 'Source / review not available'");
     expect(script).toContain("chemicalSources: chemicalProfile ? chemicalProfileSources(chemicalProfile) : (existingIncident?.chemicalSources || [])");
     expect(script).toContain("const ppeSource = profile.ppeRecommendation || profile.ppeRespiratory || incident.ppeSummary;");
     expect(script).toContain("const persistedMedicalSource = incident.medicalSummary || profile.medical;");

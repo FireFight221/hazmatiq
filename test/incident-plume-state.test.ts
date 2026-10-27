@@ -61,14 +61,14 @@ describe('Incident Command plume ownership', () => {
     expect(save).toContain('PLUME SAVE BLOCKED — ACTIVE INCIDENT / PLUME CHEMICAL MISMATCH');
   });
 
-  it('restores only the current incident snapshot and protects async switching', () => {
+  it('keeps the command preview live while protecting async incident switching', () => {
     expect(command).toContain('readIncidentMapSnapshot');
     expect(command).toContain('current?.incidentId !== state?.incidentId');
     expect(command).toContain('current?.raw?.plumeMapImageRef !== imageRef');
     expect(command).toContain('generation !== plumePreviewHydration.generation');
-    expect(command).toContain('if (image.src !== imageData) image.src = imageData;');
-    expect(command).toContain('imageVisible ? \'\' : \'Loading saved plume snapshot…\'');
-    expect(command).toContain("state?.plume?.status === 'PLOTTED'");
+    expect(command).toContain('commandPlumePreview?.render?.(state)');
+    expect(command).toContain('image.hidden = true;');
+    expect(command).toContain('state?.plume?.result');
     expect(command).toContain('PLUME REQUIRES RECALCULATION');
     expect(script).toContain('paintedFrames >= 2 && cameraSettled');
     expect(script).not.toContain('incident.plumeModelResults || planning.plumeModelResults ||');
