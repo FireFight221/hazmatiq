@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="chemical-intel.css?v=hazard-profile-panel-31" />
     <link rel="stylesheet" href="guided-response-overrides.css?v=2" />
     <link rel="stylesheet" href="hazard-profile-page.css?v=radiological-profile-1" />
-    <link rel="stylesheet" href="page-shell.css?v=1" />
+    <link rel="stylesheet" href="page-shell.css?v=2" />
     <link rel="stylesheet" href="plume-overrides.css?v=24&canonical-grid=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=7" />
     <link rel="stylesheet" href="monitoring-console.css?v=4" />
@@ -1868,29 +1868,32 @@
           </section>
 
           <section id="report" class="view reports-page" data-page-root="reports" data-page-name="Reports / ICS">
-            <header class="reports-heading"><div><p class="eyebrow">COMMAND WORKSHEETS</p><h1>Reports &amp; ICS Forms</h1><p>Incident data in. Ready-to-use worksheets out.</p></div><span class="reports-auto-badge">Auto-filled from saved incident data</span></header>
+            <header class="reports-heading"><div><h1>Reports &amp; ICS Forms</h1><p class="reports-subtitle">COMMAND WORKSHEETS</p></div><span class="reports-auto-badge">Auto-filled from saved incident data</span></header>
             <div class="panel-card report-center">
               <nav class="report-tabs" aria-label="Reports workspace">
-                <button class="report-workspace-card primary-btn" type="button" data-report-tab="library" aria-pressed="true"><span aria-hidden="true">▤</span><strong>ICS Forms Library</strong><small>Open a live worksheet or a blank fillable PDF</small><b id="report-library-count">13 forms</b></button>
-                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="current" aria-pressed="false"><span aria-hidden="true">◷</span><strong>Previous Incident Reports</strong><small>Find saved incidents and review their records</small><b id="report-history-count">0 saved incidents</b></button>
-                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="previous" aria-pressed="false"><span aria-hidden="true">✓</span><strong>Completed Reports</strong><small>Review closed incidents and their saved forms</small><b id="report-completed-count">0 completed</b></button>
+                <button class="report-workspace-card primary-btn" type="button" data-report-tab="library" aria-pressed="true"><span aria-hidden="true">▤</span><strong>ICS Forms Library</strong><small>Original government-issued fillable PDFs</small><b id="report-library-count">13 forms</b></button>
+                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="current" aria-pressed="false"><span aria-hidden="true">◷</span><strong>Active Incident Report</strong><small>Live incident brief and auto-filled ICS forms</small><b id="report-active-count">No active incident</b></button>
+                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="previous" aria-pressed="false"><span aria-hidden="true">✓</span><strong>Completed Incidents</strong><small>Review closed incidents and their saved forms</small><b id="report-completed-count">0 completed</b></button>
               </nav>
               <section id="report-library-section" class="report-section">
                 <div class="reports-section-heading"><div><h2>ICS Forms Library</h2><p>Original FEMA fillable forms. Recorded updates flow into incident forms; manual corrections stay saved.</p></div><a href="https://training.fema.gov/emiweb/is/icsresource/icsforms/" target="_blank" rel="noopener noreferrer">FEMA originals &amp; instructions ↗</a></div>
+                <div id="ics-form-library-list" class="incident-ics-form-list"></div>
+                <p class="muted">Original FEMA layouts and pages are preserved.</p>
+              </section>
+              <section id="report-current-section" class="report-section" hidden>
+                <h2>Active Incident Report</h2><p class="muted">The incident brief and worksheets update as incident information is saved.</p>
                 <div id="current-incident-list" class="report-incident-list"></div>
                 <div id="current-incident-options" class="report-form-options" tabindex="-1">
-                  <button class="ghost-btn" id="open-current-incident-summary-btn" type="button">View Incident Summary</button>
+                  <button class="ghost-btn" id="open-current-incident-summary-btn" type="button">Open / Edit Incident Brief</button>
                   <div id="active-ics-form-list" class="incident-ics-form-list"></div>
-                  <p class="muted">All forms retain their original FEMA layout and pages. Full recorded data is attached inside exported PDFs.</p>
                 </div>
               </section>
-              <section id="report-current-section" class="report-section" hidden><h2>Previous Incident Reports</h2><p class="muted">Saved incident records. Opening a report does not reactivate the incident.</p><div id="incident-history-list" class="report-incident-list"></div></section>
-              <section id="report-previous-section" class="report-section" hidden><h2>Completed Reports</h2><p class="muted">Closed incidents and their archived worksheets. Corrections are saved with the incident.</p><div id="previous-incident-list" class="report-incident-list"></div></section>
+              <section id="report-previous-section" class="report-section" hidden><h2>Completed Incidents</h2><p class="muted">Previous incident briefs and their attached ICS forms.</p><div id="previous-incident-list" class="report-incident-list"></div><details id="report-saved-open-section" hidden><summary>Other Saved Incidents</summary><div id="incident-history-list" class="report-incident-list"></div></details></section>
 
               <section id="incident-report-summary" class="report-section incident-report-summary" hidden>
                 <div class="incident-report-summary-heading">
                   <div>
-                    <p class="eyebrow">HazMat incident documentation</p>
+                    <p class="eyebrow">Incident Brief</p>
                     <h2 id="incident-report-summary-title">Incident Summary</h2>
                   </div>
                   <div class="button-row report-summary-actions">
@@ -2040,7 +2043,8 @@
     <script src="weather-radar.js"></script>
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
-    <script src="script.js?v=field-trial-fixes-1"></script>
+    <script src="incident-report-model.js"></script>
+     <script src="script.js?v=incident-report-brief-2"></script>
     <script src="weather-workspace.js?v=7"></script>
     <script src="settings-workspace.js?v=1"></script>
     <script src="incident-command.js"></script>

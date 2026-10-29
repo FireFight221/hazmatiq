@@ -76,7 +76,7 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
   if (formId === '215' && /^reportinglocation\d+$/.test(n)) return text(a?.locationStatus);
   if (formId === '215' && /^6resources\d+$/.test(n)) return summary;
   if (/signature/.test(n)) return ''; // No automatic signatures or approvals.
-  if (/^(?:\d+)?preparedbyname\d*$/.test(n) || (formId === '214' && n === '3name')) return text(incident.preparedBy || incident.commanderName);
+  if (/^(?:\d+)?preparedbyname\d*$/.test(n) || (formId === '214' && n === '3name')) return text(incident.preparedBy);
   if (/^positiontitle\d*$/.test(n) || (formId === '214' && n === '4icsposition')) return text(incident.preparedByPosition);
   if (formId === '214' && n === '5homeagencyandunit') return text(incident.agencyName);
   if (/^(?:\d+)?dateprepared$/.test(n) || n === 'date') return text(incident.startDate);
@@ -97,7 +97,13 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
   if (n === '12decontaminationleader') return role(/decon/i);
   if (formId === '203' && n.startsWith('agencyorganizationrow')) return text(a?.unit);
   if (formId === '203' && n.startsWith('namerow')) return [a?.personnel, a?.role].map(text).filter(Boolean).join(' | ');
-  if (formId === '201' && /^resourcerow/.test(n)) return text(a?.role);
+  if (formId === '201' && /^resourcerow/.test(n)) return [a?.role, a?.personnel].map(text).filter(Boolean).join(' - ');
+  if (formId === '201' && /^datetimeorderedrow/.test(n)) {
+    const history = Array.isArray(incident.guidedResponseAssignmentHistory) ? incident.guidedResponseAssignmentHistory as RecordValue[] : [];
+    const assigned = history.find((entry) => entry.action === 'assigned' && a?.assignmentId && (entry.assignmentId === a.assignmentId || (entry.assignment as RecordValue | undefined)?.assignmentId === a.assignmentId));
+    return text(a?.assignedAt || a?.createdAt || assigned?.changedAt);
+  }
+  if (formId === '201' && n.startsWith('9currentorganization')) return summary;
   if (/^resourceidentifierrow/.test(n)) return text(a?.unit);
   if (/^leaderrow/.test(n)) return text(a?.personnel);
   if (/^numberofpersonsrow/.test(n)) return text(a?.crewSize || a?.personnelCount); // A team is not automatically one person.

@@ -54,7 +54,7 @@ describe("unified Hazard ID workspace", () => {
   it("keeps Chemical Companion controls and safely gates non-chemical plume actions", () => {
     expect(html).toContain('id="chemical-search-form"');
     expect(html).toContain('id="chemical-id-results"');
-    expect(html).toContain('script.js?v=field-trial-fixes-1');
+    expect(html).toContain('script.js?v=incident-report-brief-2');
     expect(html).toContain('id="open-plume-btn"');
     expect(html).toContain('id="hazard-profile-plume-btn" type="button" disabled');
     expect(script).toContain("Plume requires verified endpoint/source data.");

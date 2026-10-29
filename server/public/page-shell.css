@@ -70,3 +70,33 @@
 
 .reports-page #ics-form-editor-context { color:#fbd34d !important; }
 .reports-page .report-workspace-card[aria-pressed="true"] { border-color:#fbd34d !important; background:#173a54 !important; }
+
+/* A compact incident brief, distinct from detailed FEMA worksheets. */
+.reports-heading .reports-subtitle { color:#bfd1df; letter-spacing:.2em; font-size:.85rem; font-weight:700; }
+#incident-report-summary-title { font-family:Arial,sans-serif; font-size:1.5rem; text-transform:none; letter-spacing:0; }
+#incident-report-summary > .incident-report-summary-heading .eyebrow { color:#fbd34d; }
+.incident-brief-report { box-sizing:border-box; max-width:1000px; margin:18px auto; padding:26px 32px; background:#f7f9fc; border:1px solid #bacbda; border-radius:8px; color:#172c3e; font:16px/1.55 Arial,sans-serif; }
+.incident-brief-report h3 { margin:0 0 8px; color:#102e47; font:700 1.08rem/1.35 Arial,sans-serif; letter-spacing:0; text-transform:none; }
+.incident-brief-report p { margin:0; color:#172c3e; white-space:pre-line; overflow-wrap:anywhere; }
+.incident-brief-report > section { padding:17px 0; border-bottom:1px solid #d4dee7; }
+.report-brief-metadata { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 20px; padding-bottom:18px; border-bottom:2px solid #1e4a6c; }
+.report-brief-metadata > div { min-width:0; }
+.report-brief-metadata span { display:block; color:#4b6173; font-size:.78rem; font-weight:700; text-transform:uppercase; }
+.report-brief-metadata strong { display:block; color:#172c3e; font-size:.94rem; overflow-wrap:anywhere; }
+.incident-brief-report .report-brief-empty { color:#586b7b; font-style:italic; }
+.report-brief-map { display:flex; align-items:center; justify-content:center; min-height:180px; background:#e5edf3; border:1px solid #a5bacb; border-radius:5px; margin:12px 0; padding:10px; }
+.report-brief-map img { display:block; width:100%; max-height:430px; object-fit:contain; }
+.report-threat-table { width:100%; border-collapse:collapse; text-align:left; margin-top:12px; color:#172c3e; }
+.report-threat-table caption { text-align:left; font-weight:700; margin-bottom:5px; }
+.report-threat-table th,.report-threat-table td { text-align:left; padding:7px 9px; border:1px solid #b6c8d6; color:#172c3e; background:#f7f9fc; }
+.report-threat-table th { background:#dde8f0; }
+.incident-brief-report .report-brief-caption { font-size:.8rem; color:#4b6173; margin-top:8px; }
+.report-prepared-by { display:flex; flex-wrap:wrap; gap:6px 20px; justify-content:space-between; padding-top:18px; color:#172c3e; font-size:.9rem; }
+.report-ics-attachments { max-width:1000px; margin:16px auto; padding:14px; border:1px solid #58748c; border-radius:8px; }
+.report-ics-attachments > summary { color:#fff; cursor:pointer; font-weight:700; }
+.report-narrative-editor label { display:block; margin-top:16px; color:#172c3e; }
+.report-narrative-editor label > span { display:block; font-weight:700; margin-bottom:5px; }
+.report-narrative-editor input,.report-narrative-editor textarea { width:100%; box-sizing:border-box; color:#172c3e !important; background:#fff !important; border:1px solid #8da7ba; border-radius:4px; padding:9px; font:16px/1.5 Arial,sans-serif; }
+@media(max-width:650px) { .incident-brief-report { padding:18px; } .report-brief-metadata { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media print { .incident-brief-report { margin:0; padding:10px 0; border:0; max-width:none; background:#fff; } .incident-brief-report > section,.report-prepared-by { break-inside:avoid; } .report-ics-attachments { display:none !important; } .report-brief-map { min-height:100px; } .report-brief-map img { max-height:260px; } }
+@media print { #incident-report-summary-title, #incident-report-summary .eyebrow { color:#102e47 !important; } }

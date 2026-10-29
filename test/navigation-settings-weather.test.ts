@@ -123,7 +123,7 @@ describe('navigation, settings, and weather workspace contract', () => {
     expect(weatherScript).toContain('weatherBriefs: [...briefs, record]');
     expect(weatherScript).toContain('mapInfrastructure');
     expect(script).toContain('WEATHER_BRIEF');
-    expect(script).toContain('appendWeatherBriefsToIncidentReport');
+    expect(script).toContain("paragraph('Conditions', model.weather)");
     expect(html).toContain('Send Weather Brief to Command');
   });
 });

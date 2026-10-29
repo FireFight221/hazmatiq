@@ -2531,6 +2531,7 @@ function createIncidentRecord() {
     startedAt: now.toISOString(),
     updatedAt: now.toISOString(),
     status: 'Active',
+    ...(currentReportAuthor() ? { preparedBy: currentReportAuthor().name, preparedByUserId: currentReportAuthor().userId, preparedBySource: 'account-profile' } : {}),
     operationalMode: initialMode,
     operationalModeHistory: [{ mode: initialMode, changedAt: now.toISOString(), changedBy, source: 'commander', reason: 'Incident created' }],
     operationalChecklist: { tasks: operationalStatusTaskDefinitions.map((task) => ({ id: task.id, status: 'Not Started' })), history: [] },
@@ -2750,7 +2751,7 @@ function renderIncidentCard(container, incident, activeId) {
   summary.textContent = [incident.startDate, incident.startTime, place].filter(Boolean).join(' · ');
   const status = document.createElement('span');
   status.className = 'status-pill';
-  status.textContent = incident.incidentId === activeId ? 'Active' : incident.status || 'Completed';
+  status.textContent = incident.incidentId === activeId ? 'Active' : incident.status === 'Completed' ? 'Completed' : 'Saved / Not Closed';
   details.append(name, summary);
   item.append(details, status);
   item.addEventListener('click', () => openIncidentSummary(incident.incidentId));
@@ -2772,9 +2773,10 @@ function renderIncidentLists({ renderCommand = true } = {}) {
   const previous = incidents.filter((incident) => incident.status === 'Completed');
   previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId));
   if (!previous.length && previousContainer) previousContainer.textContent = 'No completed incident forms saved yet.';
-  incidents.filter((incident) => incident.incidentId !== current?.incidentId).forEach((incident) => renderIncidentCard(historyContainer, incident, activeId));
-  if (historyContainer && !historyContainer.children.length) historyContainer.textContent = 'No previous incidents saved yet.';
-  setText('report-history-count', `${incidents.filter((incident) => incident.incidentId !== current?.incidentId).length} saved incidents`);
+  const otherSaved = incidents.filter((incident) => incident.incidentId !== current?.incidentId && incident.status !== 'Completed');
+  otherSaved.forEach((incident) => renderIncidentCard(historyContainer, incident, activeId));
+  document.getElementById('report-saved-open-section')?.toggleAttribute('hidden', !otherSaved.length);
+  setText('report-active-count', current ? '1 active incident' : 'No active incident');
   setText('report-completed-count', `${previous.length} completed`);
   renderActiveIcsFormList();
   if (renderCommand) renderIncidentCommandDashboard();
@@ -2791,29 +2793,27 @@ function createIcsFormLink(incidentId, formId, title) {
 
 function renderActiveIcsFormList() {
   const container = document.getElementById('active-ics-form-list');
-  if (!container) return;
-  container.replaceChildren();
+  const library = document.getElementById('ics-form-library-list');
+  if (!container || !library) return;
+  container.replaceChildren(); library.replaceChildren();
   const incident = getActiveIncident();
   document.getElementById('open-current-incident-summary-btn')?.toggleAttribute('hidden', !incident);
   icsFormCatalog.forEach(([id, title]) => {
     const tile = document.createElement('article');
     tile.className = 'report-form-tile';
     const heading = document.createElement('strong'); heading.textContent = title;
-    const size = document.createElement('small');
-    size.textContent = 'FEMA Original · Fillable PDF';
-    tile.append(heading, size);
-    if (incident) tile.append(createIcsFormLink(incident.incidentId, id, 'Open Auto-filled Worksheet'));
-    const blank = document.createElement('a'); blank.href = `/api/ics-forms/${id}/blank`; blank.target = '_blank'; blank.rel = 'noopener'; blank.textContent = 'Blank PDF';
-    const original = document.createElement('a'); original.href = `/api/ics-forms/${id}/original`; original.target = '_blank'; original.rel = 'noopener'; original.textContent = ' · FEMA Original';
-    tile.append(blank, original); container.append(tile);
+    const original = document.createElement('a'); original.href = `/api/ics-forms/${id}/original`; original.target = '_blank'; original.rel = 'noopener'; original.textContent = 'Open Original FEMA PDF';
+    tile.append(heading, original); library.append(tile);
+    if (incident) container.append(createIcsFormLink(incident.incidentId, id, title));
   });
+  if (!incident) container.textContent = 'No active worksheets. Start an incident from Command.';
 }
 
 function appendCompletedIcsForms(container, incident) {
   const section = document.createElement('section');
   section.className = 'report-summary-block completed-ics-forms';
   const heading = document.createElement('h3');
-  heading.textContent = 'Completed Forms';
+  heading.textContent = 'Attached ICS Forms';
   const list = document.createElement('div');
   list.className = 'incident-ics-form-list';
   icsFormCatalog.forEach(([id, title]) => list.append(createIcsFormLink(incident.incidentId, id, title)));
@@ -2821,188 +2821,19 @@ function appendCompletedIcsForms(container, incident) {
   container.append(section);
 }
 
-function appendIncidentSummarySection(container, title, entries) {
-  const applicable = entries.filter(([, value]) => Array.isArray(value) ? value.length : value !== '' && value !== null && value !== undefined);
-  if (!applicable.length) return;
-  const section = document.createElement('section');
-  section.className = 'report-summary-block';
-  const heading = document.createElement('h3');
-  heading.textContent = responderText.normalizeSectionHeading(title);
-  const list = document.createElement('dl');
-  applicable.forEach(([label, value]) => {
-    const row = document.createElement('div');
-    row.className = 'report-summary-row';
-    row.dataset.field = String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const term = document.createElement('dt');
-    term.textContent = responderText.normalizeSectionHeading(label);
-    const description = document.createElement('dd');
-    if (Array.isArray(value)) {
-      const bullets = document.createElement('ul');
-      responderText.formatResponderGuidance(value).forEach((item) => {
-        const bullet = document.createElement('li');
-        bullet.textContent = item;
-        bullets.append(bullet);
-      });
-      description.append(bullets);
-    } else {
-      description.textContent = String(value);
-    }
-    row.append(term, description);
-    list.append(row);
-  });
-  section.append(heading, list);
-  container.append(section);
-}
-
-function incidentProfileValue(value) {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => {
-      const formatted = incidentProfileValue(item);
-      return Array.isArray(formatted) ? formatted : formatted ? [formatted] : [];
-    });
-  }
-  if (value && typeof value === 'object') {
-    return Object.entries(value).flatMap(([key, item]) => {
-      const formatted = incidentProfileValue(item);
-      if (!formatted || (Array.isArray(formatted) && !formatted.length)) return [];
-      const label = titleCaseProfileLabel(key.replace(/([a-z])([A-Z0-9])/g, '$1 $2'));
-      return Array.isArray(formatted)
-        ? formatted.map((entry) => `${label}: ${entry}`)
-        : [`${label}: ${formatted}`];
-    });
-  }
-  const text = String(value ?? '').trim();
-  return hasAvailableProfileData(text) ? text : '';
-}
-
-function appendChemicalProfileToIncidentReport(container, profile) {
-  if (!profile || typeof profile !== 'object') return;
-  const header = profile.header || {};
-  appendIncidentSummarySection(container, 'Chemical Hazard Summary', [
-    ['Canonical chemical', header.name],
-    ['CAS number', header.cas],
-    ['UN/NA number', header.un],
-    ['ERG guide', header.ergGuide],
-    ['IDLH', header.idlh],
-    ['IDLH source', profile.niosh?.status === 'VERIFIED_NIOSH' && profile.niosh?.sourceRecordId
-      ? `NIOSH · ${profile.niosh.sourceRecordId}` : ''],
-    ['Primary hazard', header.hazard],
-  ]);
-  const sections = [
-    ['Chemical Properties', 'properties'],
-    ['Exposure Information', 'exposures'],
-    ['PPE / Respiratory Protection', 'ppeRespiratory'],
-    ['Detection Information', 'detectors'],
-    ['Reactivity', 'reactivity'],
-    ['Isolation Distances / ERG', 'isolationErg'],
-    ['Medical Considerations', 'medical'],
-    ['Fire', 'fire'],
-    ['Decontamination', 'decon'],
-  ];
-  sections.forEach(([title, key]) => {
-    const section = profile[key];
-    if (!section || typeof section !== 'object') return;
-    const entries = Object.entries(section).map(([field, value]) => [
-      titleCaseProfileLabel(field.replace(/([a-z])([A-Z0-9])/g, '$1 $2')),
-      incidentProfileValue(value),
-    ]);
-    appendIncidentSummarySection(container, title, entries);
-  });
-}
-
-function appendGuidedResponseTacticalReport(container, incident) {
-  const record = incident?.guidedResponseTacticalRecord;
-  if (!record) return;
-  const flow = record.tacticalDecisionFlow || {};
-  const mitigation = flow.mitigation?.specificValues || record.mitigationDecisionSupport || {};
-  const isolation = flow.verifyIsolate?.specificValues || {};
-  const ppe = flow.lifeSafety?.specificValues || {};
-  const profile = incident.chemicalProfile || {};
-  const toReportValues = (...valuesToUse) => valuesToUse
-    .flatMap((value) => {
-      if (Array.isArray(value)) return value;
-      if (value && typeof value === 'object') return incidentProfileValue(value);
-      return value;
-    })
-    .flat(Infinity)
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean);
-  const selectedMode = record.selectedTacticalMode || record.mitigationDecisionSupport?.selectedTacticalMode;
-  appendIncidentSummarySection(container, 'Tactical Decision', [
-    ['Selected tactical mode', selectedMode],
-    ['Decision source', record.mitigationDecisionSupport?.tacticalPostureSource],
-    ['Entry posture', mitigation.entryDecision || ppe.protectionLevel],
-    ['PPE / respiratory protection', toReportValues(incident.ppeSummary?.items, record.ppeRecommendation, ppe.protectionLevel)],
-    ['Safety hazards / controls', toReportValues(
-      profile.fire?.explosionHazards,
-      mitigation.vaporFireControl,
-      mitigation.nonInterventionConsiderations,
-      mitigation.spillReleaseControl,
-    )],
-    ['Isolation distances / ERG', toReportValues(
-      isolation.initialIsolation,
-      isolation.largeSpillIsolation,
-      isolation.protectiveAction,
-      profile.isolationErg,
-    )],
-    ['Public protective actions', toReportValues(incident.protectiveActionSummary, isolation.protectiveAction)],
-    ['Required verification / approval', toReportValues(mitigation.requiredVerification, record.disclaimers)],
-  ]);
-}
-
-function appendWeatherBriefsToIncidentReport(container, incident) {
-  const briefs = Array.isArray(incident?.weatherBriefs) ? incident.weatherBriefs : [];
-  if (!briefs.length) return;
-  const entries = briefs.map((brief, index) => {
-    const impacts = (brief.operationalImpacts || []).slice(0, 3).map((impact) => `${impact.title}: ${impact.summary}`);
-    const alerts = (brief.activeAlerts || []).map((alert) => `${alert.event}${alert.area ? ` · ${alert.area}` : ''}`);
-    const acknowledged = brief.acknowledgedAt
-      ? `Acknowledged ${new Date(brief.acknowledgedAt).toLocaleString()}`
-      : 'Not acknowledged';
-    return [`Weather Brief ${index + 1} · ${brief.createdAt ? new Date(brief.createdAt).toLocaleString() : 'Time unavailable'}`, [
-      `Source: ${(brief.sourceSummary || []).join(' / ') || 'Weather source unavailable'}`,
-      `Summary: ${impacts.join(' · ') || 'No prioritized operational impacts recorded.'}`,
-      `Alerts: ${alerts.join(' · ') || 'No active warnings or watches recorded.'}`,
-      acknowledged,
-    ]];
-  });
-  appendIncidentSummarySection(container, 'Weather Brief History', entries);
-}
-
 const completedReportFields = [
-  ['incidentName', 'Incident name', 'text'],
-  ['startDate', 'Start date', 'text'],
-  ['startTime', 'Start time', 'text'],
-  ['completedDate', 'Completed date', 'text'],
-  ['completedTime', 'Completed time', 'text'],
-  ['facilityName', 'Facility', 'text'],
-  ['address', 'Street address / scene location', 'text'],
-  ['city', 'City', 'text'],
-  ['state', 'State', 'text'],
-  ['zip', 'ZIP', 'text'],
-  ['latitude', 'Latitude', 'number'],
-  ['longitude', 'Longitude', 'number'],
-  ['chemicalName', 'Chemical / product', 'text'],
-  ['casNumber', 'CAS number', 'text'],
-  ['unNumber', 'UN/NA number', 'text'],
-  ['quantity', 'Released quantity / rate', 'text'],
-  ['containerType', 'Container type', 'text'],
-  ['containerSize', 'Container size', 'text'],
-  ['containerSizeUnit', 'Size unit', 'text'],
-  ['containerFillLevel', 'Fill level %', 'number'],
-  ['containerPressure', 'Pressure', 'number'],
-  ['containerPressureUnit', 'Pressure unit', 'text'],
-  ['containerCapacity', 'Capacity / range', 'text'],
-  ['containerPressureProfile', 'Pressure profile', 'text'],
-  ['containerReleaseLocation', 'Release location', 'text'],
-  ['containerReleasePhase', 'Release phase', 'text'],
-  ['weather', 'Weather / conditions', 'text'],
-  ['windSpeed', 'Wind speed (mph)', 'text'],
-  ['windDirection', 'Wind direction', 'text'],
-  ['notes', 'Scene notes', 'textarea'],
+  ['preparedBy', 'Prepared By', 'text'],
+  ['reportNarrative', 'Incident Brief', 'textarea'],
+  ['reportResponse', 'Response Summary', 'textarea'],
+  ['reportOutcome', 'Outcome & Follow-up', 'textarea'],
+  ['reportAdditionalNotes', 'Additional Notes', 'textarea'],
+  ['reportThreatZoneNotes', 'Threat Zone Observations', 'textarea'],
 ];
+let incidentSummaryEditing = false;
+let incidentSummaryRefreshTimer = null;
 
 function setIncidentSummaryEditing(editing) {
+  incidentSummaryEditing = editing;
   const edit = document.getElementById('edit-incident-summary-btn');
   const save = document.getElementById('save-incident-summary-btn');
   const cancel = document.getElementById('cancel-incident-summary-edit-btn');
@@ -3011,38 +2842,35 @@ function setIncidentSummaryEditing(editing) {
   if (cancel) cancel.hidden = !editing;
 }
 
+function currentReportAuthor() {
+  const user = window.HazMatIQ?.user;
+  return user && typeof user.name === 'string' && user.name.trim()
+    ? { name: user.name.trim(), userId: user.id || '', source: 'account-profile' } : null;
+}
+
 function renderCompletedReportEditor(incident) {
   const content = document.getElementById('incident-report-summary-content');
   if (!content) return;
+  const plume = isIncidentPlumeCurrent(incident.plumeModelResults, incident) ? incident.plumeModelResults : null;
+  const model = window.HazMatIQ.buildIncidentReportModel({ ...incident, operationalChecklist: normalizeOperationalChecklist(incident) }, plume);
+  const defaults = { preparedBy: model.preparedBy || currentReportAuthor()?.name || '', reportNarrative: model.brief,
+    reportResponse: model.response, reportOutcome: model.outcome, reportAdditionalNotes: model.notes, reportThreatZoneNotes: model.threatNotes };
   content.replaceChildren();
-  const notice = document.createElement('p');
-  notice.className = 'report-edit-notice';
-  notice.textContent = 'Incident number is reserved for First Due and remains blank.';
-  const form = document.createElement('form');
-  form.id = 'completed-report-edit-form';
-  form.className = 'completed-report-edit-grid';
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    saveCompletedReportEdits();
-  });
+  const form = document.createElement('form'); form.id = 'completed-report-edit-form'; form.className = 'incident-brief-report report-narrative-editor';
+  const notice = document.createElement('p'); notice.textContent = 'Add or correct the brief below. Unchanged automatic text continues to follow incident updates. ICS forms retain the operational details.';
+  form.append(notice);
+  form.addEventListener('submit', (event) => { event.preventDefault(); saveCompletedReportEdits(); });
   completedReportFields.forEach(([key, labelText, type]) => {
     const label = document.createElement('label');
-    if (type === 'textarea') label.className = 'report-edit-field-wide';
-    const caption = document.createElement('span');
-    caption.textContent = labelText;
+    const caption = document.createElement('span'); caption.textContent = labelText;
     const control = document.createElement(type === 'textarea' ? 'textarea' : 'input');
-    if (type === 'textarea') control.rows = 5;
-    else {
-      control.type = type;
-      if (type === 'number') control.step = 'any';
-    }
-    control.name = key;
-    control.value = incident[key] ?? '';
-    label.append(caption, control);
-    form.append(label);
+    if (type === 'textarea') control.rows = key === 'reportNarrative' ? 4 : 3;
+    else control.type = 'text';
+    control.name = key; control.value = defaults[key];
+    control.addEventListener('input', () => { control.dataset.dirty = 'true'; });
+    label.append(caption, control); form.append(label);
   });
-  content.append(notice, form);
-  setIncidentSummaryEditing(true);
+  content.append(form); setIncidentSummaryEditing(true);
 }
 
 function saveCompletedReportEdits() {
@@ -3050,139 +2878,90 @@ function saveCompletedReportEdits() {
   if (!form || !openIncidentSummaryId) return;
   const incidents = readIncidents();
   const index = incidents.findIndex((incident) => incident.incidentId === openIncidentSummaryId);
-  if (index < 0 || incidents[index].status !== 'Completed') return;
-  const values = Object.fromEntries(new FormData(form).entries());
-  incidents[index] = {
-    ...incidents[index],
-    ...values,
-    incidentNumber: '',
-    updatedAt: new Date().toISOString(),
-  };
-  writeIncidents(incidents);
-  renderIncidentLists();
-  openIncidentSummary(openIncidentSummaryId);
+  if (index < 0) return;
+  const changes = {};
+  const allowed = new Set(completedReportFields.map(([key]) => key));
+  form.querySelectorAll('[data-dirty="true"]').forEach((control) => { if (allowed.has(control.name)) changes[control.name] = control.value; });
+  const author = currentReportAuthor();
+  if (!Object.prototype.hasOwnProperty.call(changes, 'preparedBy') && !incidents[index].preparedBy && author) changes.preparedBy = author.name;
+  const now = new Date().toISOString();
+  incidents[index] = { ...incidents[index], ...changes, reportUpdatedAt: now, updatedAt: now,
+    ...(Object.prototype.hasOwnProperty.call(changes, 'preparedBy') ? { preparedBySource: changes.preparedBy === author?.name ? 'account-profile' : 'manual', preparedByUserId: changes.preparedBy === author?.name ? author.userId : '' } : {}),
+    reportEditedBy: author?.name || incidentResponderIdentity() };
+  writeIncidents(incidents); renderIncidentLists(); openIncidentSummary(openIncidentSummaryId);
 }
 
-function appendIncidentMapSnapshot(content, incident, imageData) {
-  if (!content || !incident || !imageData) return;
-  const mapSection = document.createElement('section');
-  mapSection.className = 'report-summary-block plume-map-summary';
-  const mapHeading = document.createElement('h3');
-  mapHeading.textContent = `${incident.incidentName || 'Incident'} Plume Model`;
-  const mapTimestamp = document.createElement('p');
-  mapTimestamp.className = 'muted';
-  mapTimestamp.textContent = incident.plumeUpdatedAt
-    ? `Plume model generated ${new Date(incident.plumeUpdatedAt).toLocaleString()}`
-    : 'Plume model date and time unavailable';
-  const mapImage = document.createElement('img');
-  mapImage.src = imageData;
-  mapImage.alt = 'Most recent plume model map for this incident';
-  mapSection.append(mapHeading, mapTimestamp, mapImage);
-  content.append(mapSection);
-}
-
-function openIncidentSummary(incidentId) {
+function openIncidentSummary(incidentId, { preserveScroll = false } = {}) {
   const incident = readIncidents().find((item) => item.incidentId === incidentId);
   const summary = document.getElementById('incident-report-summary');
   const content = document.getElementById('incident-report-summary-content');
   if (!incident || !summary || !content) return;
-  const chemicalContext = getIncidentChemicalContext(incident);
-  const chemicalData = selectedChemicalOperationalData({ ...chemicalContext, profile: chemicalContext.profile });
-  const currentPlume = isIncidentPlumeCurrent(incident.plumeModelResults, incident)
-    ? incident.plumeModelResults
-    : null;
-  openIncidentSummaryId = incidentId;
-  setIncidentSummaryEditing(false);
-  const editButton = document.getElementById('edit-incident-summary-btn');
-  if (editButton) editButton.hidden = incident.status !== 'Completed';
-  document.getElementById('incident-report-summary-title').textContent = incident.incidentName || 'Incident Summary';
+  const currentPlume = isIncidentPlumeCurrent(incident.plumeModelResults, incident) ? incident.plumeModelResults : null;
+  const model = window.HazMatIQ.buildIncidentReportModel({ ...incident, operationalChecklist: normalizeOperationalChecklist(incident) }, currentPlume);
+  openIncidentSummaryId = incidentId; setIncidentSummaryEditing(false);
+  document.getElementById('incident-report-summary-title').textContent = model.title;
   content.replaceChildren();
-  appendIncidentSummarySection(content, 'Incident Details', [
-    ['Incident name', incident.incidentName],
-    ['Incident ID', incident.incidentId],
-    ['Status', incident.status],
-    ['Started', [incident.startDate, incident.startTime].filter(Boolean).join(' ')],
-    ['Completed', [incident.completedDate, incident.completedTime].filter(Boolean).join(' ')],
-  ]);
-  appendIncidentSummarySection(content, 'Location', [
-    ['Facility', incident.facilityName],
-    ['Address', [incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', ')],
-    ['Facility verification', incident.facilityVerificationStatus === 'verified' ? 'Verified linked facility record' : incident.selectedFacility?.name ? 'Manual entry — not verified' : 'No facility selected'],
-    ['GPS', incident.latitude !== '' && incident.longitude !== '' ? `${incident.latitude}, ${incident.longitude}` : ''],
-  ]);
-  appendIncidentSummarySection(content, 'Chemical and Release', [
-    ['Chemical', chemicalData.chemicalName],
-    ['ChemicalID', chemicalData.selectedChemicalId],
-    ['CAS number', chemicalData.casNumber],
-    ['UN/NA number', chemicalData.unNumber],
-    ['ERG guide', chemicalData.ergGuide],
-    ['Quantity', incident.quantity],
-    ['Container type', incident.containerType],
-    ['Container size', [incident.containerSize, incident.containerSizeUnit].filter(Boolean).join(' ')],
-    ['Fill level', incident.containerFillLevel ? `${incident.containerFillLevel}%` : ''],
-    ['Pressure', [incident.containerPressure, incident.containerPressureUnit].filter(Boolean).join(' ')],
-    ['Typical capacity/range', incident.containerCapacity],
-    ['Pressure profile', incident.containerPressureProfile],
-    ['Release location', incident.containerReleaseLocation],
-    ['Release phase', incident.containerReleasePhase],
-    ['Sources', incident.chemicalSources],
-  ]);
-  const supporting = document.createElement('details');
-  supporting.className = 'incident-report-optional';
-  const supportingTitle = document.createElement('summary');
-  supportingTitle.textContent = 'Supporting hazard references and operational guidance (optional)';
-  supporting.append(supportingTitle);
-  content.append(supporting);
-  appendChemicalProfileToIncidentReport(supporting, chemicalContext.profile);
-  const checklist = normalizeOperationalChecklist(incident);
-  appendIncidentSummarySection(content, 'Operational Mode and Status', [
-    ['Operational mode', incident.operationalMode || 'Research & Assessment'],
-    ['Mode history', (incident.operationalModeHistory || []).map((entry) => `${entry.mode} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
-    ['Checklist', checklist.tasks.map((task) => `${task.label}: ${task.status}${task.evidence ? ` · ${task.evidence}` : ''}`)],
-    ['Status history', checklist.history.map((entry) => `${entry.label}: ${entry.from} → ${entry.to} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
-  ]);
-  appendGuidedResponseTacticalReport(supporting, incident);
-  appendIncidentSummarySection(content, 'Conditions', [
-    ['Weather', incident.weather],
-    ['Wind speed (mph)', incident.windSpeed],
-    ['Wind direction', incident.windDirection],
-  ]);
-  appendWeatherBriefsToIncidentReport(content, incident);
-  appendIncidentSummarySection(supporting, 'PPE Reference Guidance', [['Guidance', incident.ppeSummary?.items || []]]);
-  appendIncidentSummarySection(supporting, 'Medical Reference Guidance', [['Guidance', incident.medicalSummary?.items || []]]);
-  appendIncidentSummarySection(content, 'Plume Model', [
-    ['Result', currentPlume ? incident.plumeSummary?.summary : 'NOT PLOTTED'],
-    ['Source', currentPlume ? incident.plumeSummary?.source : 'Active incident has no current plume for its canonical chemical record.'],
-    ['Details', currentPlume ? incident.plumeSummary?.details || [] : []],
-  ]);
-  appendIncidentMapSnapshot(content, incident, currentPlume ? incident.plumeMapImage : '');
-  if (currentPlume && !incident.plumeMapImage && incident.plumeMapImageRef) {
-    void readIncidentMapSnapshot(incident.plumeMapImageRef).then((imageData) => {
-      if (openIncidentSummaryId === incidentId) appendIncidentMapSnapshot(content, incident, imageData);
-    });
-  }
-  appendIncidentSummarySection(content, 'Documentation Notes', [['Notes', incident.notes]]);
-  const activityDetails = document.createElement('details');
-  activityDetails.className = 'incident-report-optional';
-  const activityTitle = document.createElement('summary');
-  activityTitle.textContent = `Recorded incident timeline (${(incident.incidentTimeline || []).length} events)`;
-  activityDetails.append(activityTitle);
-  content.append(activityDetails);
-  appendIncidentSummarySection(activityDetails, 'Incident Timeline', [[
-    'Recorded events',
-    (Array.isArray(incident.incidentTimeline) ? incident.incidentTimeline : []).map((entry) => `${entry.type || 'event'} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'System'}${entry.to ? ` · ${entry.to}` : ''}`),
-  ]]);
-  if (incident.status === 'Completed') appendCompletedIcsForms(content, incident);
-  document.querySelector('.report-tabs').hidden = true;
-  ['current', 'previous', 'library'].forEach((name) => {
-    const section = document.getElementById(`report-${name}-section`);
-    if (section) section.hidden = true;
+  const paper = document.createElement('article'); paper.className = 'incident-brief-report'; content.append(paper);
+  const metadata = document.createElement('div'); metadata.className = 'report-brief-metadata';
+  [['Incident Number', model.incidentNumber], ['Status', model.status], ['Started', model.started], ['Closed', model.ended], ['Location', model.location], ['Hazard IDs', model.identifiers]].forEach(([label, value]) => {
+    if (!value) return;
+    const item = document.createElement('div'); const caption = document.createElement('span'); const detail = document.createElement('strong');
+    caption.textContent = label; detail.textContent = value; item.append(caption, detail); metadata.append(item);
   });
+  paper.append(metadata);
+  const paragraph = (title, text, placeholder = '') => {
+    const section = document.createElement('section'); const heading = document.createElement('h3'); heading.textContent = title;
+    const body = document.createElement('p'); body.textContent = text || placeholder;
+    if (!text) body.className = 'report-brief-empty'; section.append(heading, body); paper.append(section); return section;
+  };
+  paragraph('Incident Brief', model.brief, 'Add a short description of the call.');
+  paragraph('Response Summary', model.response, 'No response narrative has been recorded. Select Edit Report to add actions taken.');
+  paragraph('Outcome & Follow-up', model.outcome, 'Add the outcome and any follow-up needed.');
+  if (model.weather) paragraph('Conditions', model.weather);
+  const plumeSection = paragraph('Plume Map & Threat Zones', model.plumeSummary,
+    currentPlume ? 'Saved plume assessment. See the recorded threat zones below.' : 'No current plume assessment is recorded for this incident.');
+  const map = document.createElement('div'); map.className = 'report-brief-map';
+  const mapPlaceholder = document.createElement('p'); mapPlaceholder.textContent = currentPlume ? 'Map image is not available in this browser.' : 'Plume map will appear here when a current model is saved.';
+  map.append(mapPlaceholder); plumeSection.append(map);
+  const showImage = (imageData) => {
+    if (openIncidentSummaryId !== incidentId || !map.isConnected || !imageData || !/^data:image\/(?:png|jpeg);base64,/.test(imageData)) return;
+    const image = document.createElement('img'); image.alt = 'Recorded incident plume map'; image.src = imageData; map.replaceChildren(image);
+  };
+  if (currentPlume) {
+    if (incident.plumeMapImage) showImage(incident.plumeMapImage);
+    else if (incident.plumeMapImageRef) void readIncidentMapSnapshot(incident.plumeMapImageRef).then(showImage);
+    const zoneTable = document.createElement('table'); zoneTable.className = 'report-threat-table';
+    const caption = document.createElement('caption'); caption.textContent = 'Recorded Threat Zone Data'; zoneTable.append(caption);
+    const head = document.createElement('thead'); const row = document.createElement('tr');
+    ['Zone', 'Downwind Distance', 'Threshold'].forEach((text) => { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = text; row.append(cell); }); head.append(row); zoneTable.append(head);
+    const body = document.createElement('tbody');
+    model.zones.forEach((zone) => { const tr = document.createElement('tr'); [zone.name, zone.distance || 'Not recorded', zone.threshold || 'Not recorded'].forEach((text) => { const td = document.createElement('td'); td.textContent = text; tr.append(td); }); body.append(tr); });
+    zoneTable.append(body); if (model.zones.length) plumeSection.append(zoneTable);
+    const time = document.createElement('p'); time.className = 'report-brief-caption'; time.textContent = `Model saved: ${model.plumeTime || 'Time not recorded'}. Distances are modeled estimates.`; plumeSection.append(time);
+  }
+  if (model.threatNotes) { const notes = document.createElement('p'); notes.textContent = model.threatNotes; plumeSection.append(notes); }
+  if (model.notes) paragraph('Additional Notes', model.notes);
+  const author = document.createElement('footer'); author.className = 'report-prepared-by';
+  const name = document.createElement('strong'); name.textContent = `Prepared By: ${model.preparedBy || 'Not yet entered'}`;
+  const updated = document.createElement('span'); updated.textContent = model.updatedAt ? `Last updated ${new Date(model.updatedAt).toLocaleString()}` : '';
+  author.append(name, updated); paper.append(author); content.append(paper);
+  // The detailed operational record remains in the incident-owned FEMA forms.
+  const attachments = document.createElement('details'); attachments.className = 'report-ics-attachments';
+  const attachmentHeading = document.createElement('summary'); attachmentHeading.textContent = 'Attached ICS Forms'; attachments.append(attachmentHeading);
+  appendCompletedIcsForms(attachments, incident); content.append(attachments);
+  document.querySelector('.report-tabs').hidden = true;
+  ['current', 'previous', 'library'].forEach((name) => { const section = document.getElementById(`report-${name}-section`); if (section) section.hidden = true; });
   summary.hidden = false;
-  const formEditor = document.getElementById('ics-form-editor');
-  if (formEditor) formEditor.hidden = true;
-  summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('ics-form-editor').hidden = true;
+  if (!preserveScroll) summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+window.addEventListener('hazmatiq:incident-record-saved', () => {
+  if (!openIncidentSummaryId || incidentSummaryEditing || openIcsForm) return;
+  window.clearTimeout(incidentSummaryRefreshTimer);
+  incidentSummaryRefreshTimer = window.setTimeout(() => {
+    if (openIncidentSummaryId && !incidentSummaryEditing && !openIcsForm) openIncidentSummary(openIncidentSummaryId, { preserveScroll: true });
+  }, 800);
+});
 
 function closeIncidentSummary() {
   openIncidentSummaryId = null;
@@ -3807,7 +3586,7 @@ function openCurrentIncidentReport() {
   const active = getActiveIncident();
   if (!active) return;
   showView('report', { sourcePage: 'incident', incidentId: active.incidentId });
-  document.querySelector('[data-report-tab="library"]')?.click();
+  document.querySelector('[data-report-tab="current"]')?.click();
   openIncidentSummary(active.incidentId);
 }
 
@@ -4038,7 +3817,7 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
   } else if (action === 'ics') {
     const active = getActiveIncident();
     showView('report', { sourcePage: 'incident', incidentId: active?.incidentId });
-    document.querySelector('[data-report-tab="library"]')?.click();
+    document.querySelector('[data-report-tab="current"]')?.click();
     document.getElementById('active-ics-form-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });

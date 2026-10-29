@@ -25,7 +25,7 @@
       if (section) section.hidden = name !== selected;
     });
     reportsApi()?.renderIncidentLists?.();
-    if (selected === 'library') document.getElementById('current-incident-options')?.focus();
+    if (selected === 'current') document.getElementById('current-incident-options')?.focus();
   }
 
   function handleReportClick(event) {
@@ -42,7 +42,7 @@
       api.closeIncidentSummary();
     } else if (target.id === 'edit-incident-summary-btn') {
       const incident = api.getIncidentById(api.getOpenIncidentSummaryId());
-      if (incident?.status === 'Completed') api.renderCompletedReportEditor(incident);
+      if (incident) api.renderCompletedReportEditor(incident);
     } else if (target.id === 'cancel-incident-summary-edit-btn') {
       if (api.getOpenIncidentSummaryId()) api.openIncidentSummary(api.getOpenIncidentSummaryId());
     } else if (target.id === 'save-incident-summary-btn') {

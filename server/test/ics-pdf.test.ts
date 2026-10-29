@@ -67,6 +67,14 @@ describe('Editable incident ICS worksheets', () => {
     expect(incidentActivity(completed).at(-1)?.detail).toContain('Incident closed');
     expect(incidentActivity(sample).some((event) => event.detail.includes('Incident closed'))).toBe(false);
   });
+  it('places Command assignments into ICS 201 resource and assignment fields', () => {
+    expect(recordedIcsValue('201', 'ResourceRow1', sample)).toBe('Entry Team - Team Alpha');
+    expect(recordedIcsValue('201', 'Resource IdentifierRow2', sample)).toBe('Medic 1');
+    expect(recordedIcsValue('201', 'Notes locationassignmentstatus', sample)).toContain('Recon');
+    expect(recordedIcsValue('201', 'Notes locationassignmentstatus_2', sample)).toContain('Cold zone');
+    expect(recordedIcsValue('201', '6 Prepared by Name', { ...sample, preparedBy: 'Report Writer' })).toBe('Report Writer');
+    expect(recordedIcsValue('201', '6 Prepared by Name', { commanderName: 'Other Person' })).toBe('');
+  });
   it('retains recorded assignment events and leaves unknown facts blank', () => {
     const incident = { guidedResponseAssignmentHistory: [{ action: 'assigned', changedAt: '2026-10-29T13:30:00Z', assignment: { personnel: 'Entry Team 2', unit: 'Unit 4' } }] };
     expect(incidentActivity(incident)[0].detail).toContain('Entry Team 2');
