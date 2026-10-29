@@ -34,6 +34,11 @@ describe("Planning Tools card board", () => {
     expect(planningGrid).toContain('<span class="planning-tool-index">04</span>');
     expect(planningGrid).toContain('id="planning-pipeline-title">Pipeline Planning</h3>');
     expect(planningGrid).toContain('id="pipeline-preplan-btn"');
+    expect(planningGrid).toContain('planning-tool-logo-facility');
+    expect(planningGrid).toContain('planning-tool-logo-tabletop');
+    expect(planningGrid).toContain('planning-tool-logo-preplan');
+    expect(planningGrid).toContain('planning-tool-logo-pipeline');
+    expect(planningStyles).toContain('#planning-tools .planning-tool-logo');
     expect(planningStyles).toContain("grid-auto-rows: minmax(290px, auto);");
     expect(planningStyles).toContain(".planning-tool-subfeatures");
     expect(planningStyles).toContain(".planning-tool-note");

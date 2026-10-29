@@ -49,6 +49,37 @@
   width: 100%;
   margin-top: auto;
 }
+#planning-tools .planning-tool-section-heading {
+  align-items: center;
+  gap: 11px;
+}
+#planning-tools .planning-tool-section-heading > div {
+  min-width: 0;
+}
+#planning-tools .planning-tool-logo {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  background: #f7fafc;
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,.75);
+}
+#planning-tools .planning-tool-logo svg {
+  width: 31px;
+  height: 31px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+#planning-tools .planning-tool-logo-facility { color: #0f5a91; }
+#planning-tools .planning-tool-logo-tabletop { color: #9f1016; }
+#planning-tools .planning-tool-logo-preplan { color: #1f5d8b; }
+#planning-tools .planning-tool-logo-pipeline { color: #2e7d4f; }
 #planning-tools .planning-tool-pipeline { border-top-color: #2e7d4f; }
 #planning-tools .planning-tool-pipeline .planning-tool-index { color: #2e7d4f; }
 .planning-tool-subfeatures { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; width:100%; }
@@ -65,6 +96,7 @@
 }
 @media(max-width:850px){.preplan-form-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:560px){.preplan-form-grid{grid-template-columns:1fr;}.preplan-saved-row{grid-template-columns:1fr;}.planning-tool-subfeatures{grid-template-columns:1fr;}.preplan-site-image-actions .ghost-btn{width:100%;}}
+@media(max-width:420px){#planning-tools .planning-tool-logo{flex-basis:42px;width:42px;height:42px;}#planning-tools .planning-tool-logo svg{width:27px;height:27px;}}
 @media(max-width:640px){.live-map-plan-context{min-width:0;}.live-map-plan-context strong{font-size:.78rem;}}
 @media print {
   body * { visibility:hidden; }
