@@ -687,7 +687,8 @@ function initializeActivePage(targetId, { skipPlumeInitialization = false, conte
   if (targetId === 'weather') window.HazMatIQ.initializeWeatherPage?.(context);
   if (targetId === 'settings') window.HazMatIQ.initializeSettingsPage?.(context);
   if (targetId === 'map') {
-    window.requestAnimationFrame(() => window.requestAnimationFrame(initializeLiveMap));
+    liveMapPlanningContext = context?.planningPlan ? context : null;
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => initializeLiveMap(context)));
   }
   if (targetId === 'plume') {
     updatePlumeModeLabel();
@@ -993,41 +994,256 @@ const preplanStoreKey = 'hazmatiq_preplan_records';
 const preplanEl = (id) => document.getElementById(`preplan-${id}`);
 function readPreplans() { try { const value = JSON.parse(localStorage.getItem(preplanStoreKey) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } }
 function setPreplanMessage(message) { setText('preplan-status-message', message); }
+let currentPreplanDraft = { id: '', attachments: [], siteImage: null };
+const preplanPipelineField = document.getElementById('preplan-pipeline-field');
+const preplanPipelineTypes = new Set(['Pipeline Incident Pre-Plan']);
+const preplanFileSizeLimit = 3 * 1024 * 1024;
+const preplanImageSizeLimit = 4 * 1024 * 1024;
+
+function formatPreplanBytes(bytes) {
+  if (!Number.isFinite(Number(bytes)) || bytes < 1024) return `${bytes || 0} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function writePreplans(records) {
+  try {
+    localStorage.setItem(preplanStoreKey, JSON.stringify(records));
+    return true;
+  } catch (error) {
+    setPreplanMessage(/quota/i.test(error?.message || '')
+      ? 'Save failed: local browser storage is full. Remove an attachment or image and try again.'
+      : 'Save failed: this browser could not write the pre-plan locally.');
+    return false;
+  }
+}
+
+function isPipelinePreplan(record) {
+  return preplanPipelineTypes.has(record?.type) || preplanPipelineTypes.has(record?.planType);
+}
+
+function syncPreplanEditorMode() {
+  const pipeline = isPipelinePreplan({ type: preplanEl('type')?.value });
+  if (preplanPipelineField) preplanPipelineField.hidden = !pipeline;
+  const title = document.getElementById('preplan-builder-title');
+  if (title) title.textContent = pipeline ? 'Build a pipeline planning pre-plan' : 'Build a response-ready pre-plan';
+  const description = title?.parentElement?.querySelector('p:last-child');
+  if (description) description.textContent = pipeline
+    ? 'Record the operator, segment, access, isolation, and response layout details for a pipeline incident.'
+    : 'Build facility, event, pipeline, and HazMat tactical pre-plans before the incident starts.';
+}
+
+function renderPreplanSiteImage() {
+  const image = currentPreplanDraft.siteImage;
+  const preview = document.getElementById('preplan-site-image-preview');
+  const previewImage = document.getElementById('preplan-site-image-preview-img');
+  const fileName = document.getElementById('preplan-site-image-file-name');
+  const state = document.getElementById('preplan-site-image-state');
+  const add = document.getElementById('preplan-site-image-btn');
+  const replace = document.getElementById('preplan-site-image-replace-btn');
+  const remove = document.getElementById('preplan-site-image-remove-btn');
+  if (!preview || !previewImage || !state) return;
+  preview.hidden = !image;
+  previewImage.src = image?.dataUrl || '';
+  if (fileName) fileName.textContent = image ? `${image.fileName} · ${formatPreplanBytes(image.size)}` : '';
+  state.textContent = image ? `${image.fileName} is attached to this pre-plan. Save to keep the association.` : 'No site image attached. PNG or JPEG up to 4 MB.';
+  if (add) add.hidden = Boolean(image);
+  if (replace) replace.hidden = !image;
+  if (remove) remove.hidden = !image;
+}
+
+function renderPreplanAttachments() {
+  const list = document.getElementById('preplan-attachments-list');
+  const empty = document.getElementById('preplan-attachments-empty');
+  if (!list || !empty) return;
+  list.replaceChildren();
+  const attachments = Array.isArray(currentPreplanDraft.attachments) ? currentPreplanDraft.attachments : [];
+  empty.hidden = attachments.length > 0;
+  attachments.forEach((attachment, index) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = `${attachment.fileName || 'Document'} · ${formatPreplanBytes(attachment.size)}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'ghost-btn';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      currentPreplanDraft.attachments.splice(index, 1);
+      renderPreplanAttachments();
+      setPreplanMessage('Document removed from the draft. Save the pre-plan to keep the change.');
+    });
+    item.append(label, remove);
+    list.append(item);
+  });
+}
+
 function collectPreplan() {
-  const existing = preplanEl('id')?.value;
+  const existingId = preplanEl('id')?.value;
+  const existing = readPreplans().find((item) => item.id === existingId) || {};
   const now = new Date().toISOString();
-  const record = { id: existing || `preplan-${Date.now()}`, createdAt: now, updatedAt: now };
+  const record = { ...existing, id: existingId || `preplan-${Date.now()}`, createdAt: existing.createdAt || now, updatedAt: now };
   preplanFields.forEach((field) => { const input = preplanEl(field); if (input) record[field] = input.value.trim(); });
+  record.pipelinePlanning = preplanEl('pipeline')?.value.trim() || existing.pipelinePlanning || '';
+  record.attachments = Array.isArray(currentPreplanDraft.attachments) ? currentPreplanDraft.attachments : [];
+  record.siteImage = currentPreplanDraft.siteImage || null;
   return record;
 }
-function openPreplan(record = null) {
+
+function openPreplan(record = null, { pipeline = false } = {}) {
   document.getElementById('preplan-builder').hidden = false;
   document.getElementById('preplan-saved-card').hidden = true;
-  preplanFields.forEach((field) => { const input = preplanEl(field); if (input) input.value = record?.[field] || (field === 'status' ? 'Draft' : ''); });
+  const draft = record || (pipeline ? { type: 'Pipeline Incident Pre-Plan' } : null);
+  currentPreplanDraft = {
+    id: draft?.id || '',
+    attachments: Array.isArray(draft?.attachments) ? draft.attachments.map((item) => ({ ...item })) : [],
+    siteImage: draft?.siteImage ? { ...draft.siteImage } : null,
+  };
+  preplanFields.forEach((field) => { const input = preplanEl(field); if (input) input.value = draft?.[field] || (field === 'status' ? 'Draft' : ''); });
+  const pipelineInput = preplanEl('pipeline');
+  if (pipelineInput) pipelineInput.value = draft?.pipelinePlanning || '';
   let hiddenId = preplanEl('id'); if (!hiddenId) { hiddenId = document.createElement('input'); hiddenId.type = 'hidden'; hiddenId.id = 'preplan-id'; document.getElementById('preplan-form')?.append(hiddenId); } hiddenId.value = record?.id || '';
+  if (pipeline) {
+    const type = preplanEl('type');
+    if (type) type.value = 'Pipeline Incident Pre-Plan';
+    const name = preplanEl('name');
+    if (name) name.placeholder = 'Pipeline, operator, or segment name';
+    setPreplanMessage('Pipeline planning template opened. Add a location, operator, product, pressure, valve, access, and isolation information.');
+  } else {
+    const name = preplanEl('name');
+    if (name) name.placeholder = 'Facility or event name';
+  }
+  syncPreplanEditorMode();
+  renderPreplanSiteImage();
+  renderPreplanAttachments();
 }
 function renderSavedPreplans() {
   const list = document.getElementById('preplan-saved-list'); if (!list) return; list.replaceChildren();
   const records = readPreplans();
   if (!records.length) { list.textContent = 'No saved pre-plans yet.'; return; }
-  records.forEach((record) => { const row = document.createElement('div'); row.className = 'preplan-saved-row'; const title = document.createElement('strong'); title.textContent = record.name || 'Untitled Pre-Plan'; const meta = document.createElement('span'); meta.textContent = `${record.type || 'Facility Pre-Plan'} · ${record.status || 'Draft'}`; const button = document.createElement('button'); button.className = 'ghost-btn'; button.type = 'button'; button.textContent = 'Edit'; button.addEventListener('click', () => openPreplan(record)); row.append(title, meta, button); list.append(row); });
+  records.forEach((record) => { const row = document.createElement('div'); row.className = 'preplan-saved-row'; const title = document.createElement('strong'); title.textContent = record.name || 'Untitled Pre-Plan'; const meta = document.createElement('span'); meta.textContent = `${record.type || 'Facility Pre-Plan'} · ${record.status || 'Draft'}${record.attachments?.length ? ` · ${record.attachments.length} file${record.attachments.length === 1 ? '' : 's'}` : ''}${record.siteImage ? ' · site image' : ''}`; const button = document.createElement('button'); button.className = 'ghost-btn'; button.type = 'button'; button.textContent = 'Edit'; button.addEventListener('click', () => openPreplan(record)); row.append(title, meta, button); list.append(row); });
 }
 document.getElementById('new-preplan-btn')?.addEventListener('click', () => openPreplan());
-document.getElementById('pipeline-preplan-btn')?.addEventListener('click', () => {
-  openPreplan();
-  const type = preplanEl('type');
-  if (type) type.value = 'Pipeline Incident Pre-Plan';
-  const name = preplanEl('name');
-  if (name) name.placeholder = 'Pipeline, operator, or segment name';
-  setPreplanMessage('Pipeline planning template opened. Add operator, product, pressure, valve, access, and isolation information.');
-});
+document.getElementById('pipeline-preplan-btn')?.addEventListener('click', () => openPreplan(null, { pipeline: true }));
 document.getElementById('open-preplans-btn')?.addEventListener('click', () => { document.getElementById('preplan-saved-card').hidden = false; document.getElementById('preplan-builder').hidden = true; renderSavedPreplans(); });
 document.getElementById('preplan-close-btn')?.addEventListener('click', () => { document.getElementById('preplan-builder').hidden = true; });
 document.getElementById('preplan-saved-close-btn')?.addEventListener('click', () => { document.getElementById('preplan-saved-card').hidden = true; });
-document.getElementById('preplan-form')?.addEventListener('submit', (event) => { event.preventDefault(); const record = collectPreplan(); const records = readPreplans(); const index = records.findIndex((item) => item.id === record.id); if (index >= 0) { record.createdAt = records[index].createdAt; records[index] = record; } else records.unshift(record); localStorage.setItem(preplanStoreKey, JSON.stringify(records)); setPreplanMessage(`Saved ${record.name || 'pre-plan'} locally.`); });
-document.getElementById('preplan-print-btn')?.addEventListener('click', () => window.print());
+document.getElementById('preplan-type')?.addEventListener('change', syncPreplanEditorMode);
+document.getElementById('preplan-form')?.addEventListener('submit', (event) => { event.preventDefault(); const record = collectPreplan(); const records = readPreplans(); const index = records.findIndex((item) => item.id === record.id); if (index >= 0) { record.createdAt = records[index].createdAt; records[index] = record; } else records.unshift(record); if (!writePreplans(records)) return; currentPreplanDraft.id = record.id; const hiddenId = preplanEl('id'); if (hiddenId) hiddenId.value = record.id; setPreplanMessage(`Saved ${record.name || 'pre-plan'} locally. Attachments and site image are associated with this plan.`); });
+document.getElementById('preplan-print-btn')?.addEventListener('click', () => { setPreplanMessage('Print preview opened. Choose “Save to PDF” in the browser print dialog to generate a PDF.'); window.print(); });
 document.getElementById('preplan-send-incident-btn')?.addEventListener('click', () => setPreplanMessage('Pre-plan summary ready to attach when an active incident is selected.'));
-document.getElementById('preplan-import-btn')?.addEventListener('click', () => setText('planning-tools-status', 'Document attachments are recorded as links or notes in the pre-plan; credentials are never stored.'));
+document.getElementById('preplan-import-btn')?.addEventListener('click', () => openPreplanAttachmentDialog());
+document.getElementById('preplan-import-editor-btn')?.addEventListener('click', () => openPreplanAttachmentDialog(currentPreplanDraft.id));
+
+function readPreplanFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve({
+      id: window.crypto?.randomUUID?.() || `attachment-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      fileName: file.name,
+      mediaType: file.type || 'application/octet-stream',
+      size: file.size,
+      dataUrl: reader.result,
+      attachedAt: new Date().toISOString(),
+    }));
+    reader.addEventListener('error', () => reject(new Error(`Could not read ${file.name}.`)));
+    reader.readAsDataURL(file);
+  });
+}
+
+function openPreplanAttachmentDialog(preferredId = '') {
+  const dialog = document.getElementById('preplan-attachment-dialog');
+  const select = document.getElementById('preplan-attachment-plan');
+  const input = document.getElementById('preplan-attachment-input');
+  const status = document.getElementById('preplan-attachment-status');
+  if (!dialog || !select || !input || !status) return;
+  select.replaceChildren();
+  const newOption = document.createElement('option');
+  newOption.value = '__new__';
+  newOption.textContent = 'New draft pre-plan';
+  select.append(newOption);
+  readPreplans().forEach((record) => {
+    const option = document.createElement('option');
+    option.value = record.id;
+    option.textContent = `${record.name || 'Untitled Pre-Plan'} · ${record.type || 'Facility Pre-Plan'}`;
+    select.append(option);
+  });
+  if (preferredId && [...select.options].some((option) => option.value === preferredId)) select.value = preferredId;
+  input.value = '';
+  status.textContent = 'No documents selected.';
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+}
+
+document.getElementById('preplan-attachment-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (event.submitter?.value === 'cancel') { document.getElementById('preplan-attachment-dialog')?.close(); return; }
+  const dialog = document.getElementById('preplan-attachment-dialog');
+  const select = document.getElementById('preplan-attachment-plan');
+  const input = document.getElementById('preplan-attachment-input');
+  const status = document.getElementById('preplan-attachment-status');
+  const files = [...(input?.files || [])];
+  if (!files.length) { if (status) status.textContent = 'Choose at least one document before attaching.'; return; }
+  const oversized = files.find((file) => file.size > preplanFileSizeLimit);
+  if (oversized) { if (status) status.textContent = `${oversized.name} is larger than ${formatPreplanBytes(preplanFileSizeLimit)}. Choose a smaller file.`; return; }
+  if (status) status.textContent = 'Reading documents locally…';
+  try {
+    const records = readPreplans();
+    let record = records.find((item) => item.id === select?.value);
+    if (!record) {
+      const now = new Date().toISOString();
+      record = { id: `preplan-${Date.now()}`, name: `Attached documents ${new Date().toLocaleDateString()}`, type: 'Facility Pre-Plan', status: 'Draft', createdAt: now, updatedAt: now, attachments: [], siteImage: null };
+      records.unshift(record);
+    }
+    const attachments = await Promise.all(files.map(readPreplanFile));
+    record.attachments = [...(Array.isArray(record.attachments) ? record.attachments : []), ...attachments];
+    record.updatedAt = new Date().toISOString();
+    const saved = writePreplans(records);
+    if (!saved) return;
+    dialog?.close();
+    openPreplan(record);
+    setPreplanMessage(`${attachments.length} document${attachments.length === 1 ? '' : 's'} attached successfully to ${record.name || 'the pre-plan'}. Save the plan after any edits.`);
+  } catch (error) {
+    if (status) status.textContent = `Upload failed: ${error.message || 'the selected documents could not be read.'}`;
+  }
+});
+
+function choosePreplanSiteImage() { document.getElementById('preplan-site-image-input')?.click(); }
+document.getElementById('preplan-site-image-btn')?.addEventListener('click', choosePreplanSiteImage);
+document.getElementById('preplan-site-image-replace-btn')?.addEventListener('click', choosePreplanSiteImage);
+document.getElementById('preplan-site-image-input')?.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!['image/png', 'image/jpeg'].includes(file.type)) { setPreplanMessage('Upload failed: choose a PNG or JPEG site image.'); return; }
+  if (file.size > preplanImageSizeLimit) { setPreplanMessage(`Upload failed: site image must be ${formatPreplanBytes(preplanImageSizeLimit)} or smaller.`); return; }
+  try {
+    currentPreplanDraft.siteImage = await readPreplanFile(file);
+    renderPreplanSiteImage();
+    setPreplanMessage(`${file.name} uploaded successfully. Save the pre-plan to keep the image association.`);
+  } catch (error) { setPreplanMessage(`Upload failed: ${error.message}`); }
+});
+document.getElementById('preplan-site-image-remove-btn')?.addEventListener('click', () => { currentPreplanDraft.siteImage = null; renderPreplanSiteImage(); setPreplanMessage('Site image removed from the draft. Save the pre-plan to keep the change.'); });
+
+function getPlanningMapRecord({ pipeline = false } = {}) {
+  if (document.getElementById('preplan-builder')?.hidden === false) {
+    const draft = collectPreplan();
+    if (draft.name || draft.address || draft.facility) return draft;
+  }
+  const records = readPreplans();
+  return records.find((record) => (pipeline ? isPipelinePreplan(record) : true) && (record.address || record.facility)) || null;
+}
+
+function openPlanningMapForRecord(record, { responseLayout = false } = {}) {
+  if (!record) { setText('planning-tools-status', 'Save a pre-plan with an address or GPS coordinates before opening its Planning Map.'); return; }
+  const coordinates = parseGpsCoordinate(record.address);
+  const mapContext = { planningPlanId: record.id, planningPlan: { name: record.name || 'Pre-Plan', address: record.address || '', facility: record.facility || '', coordinates }, responseLayout };
+  showView('map', mapContext);
+}
+document.getElementById('preplans-map-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord()));
+document.getElementById('preplan-map-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: isPipelinePreplan({ type: preplanEl('type')?.value }) })));
+document.getElementById('preplan-layout-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: isPipelinePreplan({ type: preplanEl('type')?.value }) }), { responseLayout: true }));
+document.getElementById('pipeline-map-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: true })));
+document.getElementById('pipeline-layout-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: true }), { responseLayout: true }));
 
 document.getElementById('add-facility-preplan-btn')?.addEventListener('click', () => {
   setText('facility-preplan-status', 'Document upload, naming, and saving will be available here in a future update.');
@@ -17071,6 +17287,7 @@ let liveMapGpsRequested = false;
 let liveMapResizeObserver = null;
 let liveMapStoredStyleApplied = false;
 let liveMapStyleRequestToken = 0;
+let liveMapPlanningContext = null;
 let pendingIncidentResourcePlacement = null;
 // Vector street style includes roads, buildings, parks, schools, hospitals, and POIs.
 const liveMapDetailedStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
@@ -18534,7 +18751,36 @@ function observeLiveMapContainer(container) {
   liveMapResizeObserver.observe(container);
 }
 
-function initializeLiveMap() {
+function focusLiveMapOnPlanningPlan(context = {}) {
+  const plan = context?.planningPlan;
+  if (!plan || !liveMapState) return;
+  const coordinates = normalizePlumeLocation(plan.coordinates || parseGpsCoordinate(plan.address));
+  const focus = (location) => {
+    if (!location || !liveMap) return;
+    liveMapState.mapCenter = [location.lon, location.lat];
+    liveMapState.zoom = Math.max(Number(liveMapState.zoom) || 14, 15);
+    liveMap.jumpTo({ center: liveMapState.mapCenter, zoom: liveMapState.zoom });
+    setText('live-map-status', `${plan.name || 'Pre-plan'} location loaded. Existing Incident, Tier II / HazMat Facility, Wildfire, and Weather Radar layers are available; no pipeline overlay is connected.`);
+    updateLiveMapReadout();
+  };
+  setText('live-map-incident-name', plan.name || 'Planning Map');
+  setText('live-map-mode', context.responseLayout ? 'Response Layout' : 'Pre-Plan Location');
+  if (coordinates) {
+    focus(coordinates);
+    return;
+  }
+  if (!plan.address) {
+    setText('live-map-status', `${plan.name || 'Pre-plan'} has no GPS coordinates. Enter latitude, longitude in the plan to center this map; existing planning layers remain available.`);
+    return;
+  }
+  setText('live-map-status', `Locating ${plan.name || 'pre-plan'} address…`);
+  void geocodePlumeAddress(plan.address).then(focus).catch(() => {
+    setText('live-map-status', `${plan.name || 'Pre-plan'} address could not be located. Enter latitude, longitude to center the map; existing planning layers remain available.`);
+  });
+}
+
+function initializeLiveMap(context = {}) {
+  const effectiveContext = context?.planningPlan ? context : (liveMapPlanningContext || {});
   if (!window.maplibregl) {
     setText('live-map-loading', 'Map library unavailable. Refresh the page and try again.');
     setText('live-map-status', 'The local MapLibre library did not load.');
@@ -18545,9 +18791,14 @@ function initializeLiveMap() {
     return;
   }
   const incident = getActiveIncident();
-  setText('live-map-incident-name', incident?.incidentName || 'Planning Map');
-  setText('live-map-mode', incident ? 'Active Incident' : 'Planning Mode');
   if (!liveMapState) liveMapState = readLiveMapState();
+  const planningCoordinates = normalizePlumeLocation(effectiveContext?.planningPlan?.coordinates || parseGpsCoordinate(effectiveContext?.planningPlan?.address));
+  if (planningCoordinates) {
+    liveMapState.mapCenter = [planningCoordinates.lon, planningCoordinates.lat];
+    liveMapState.zoom = Math.max(Number(liveMapState.zoom) || 14, 15);
+  }
+  setText('live-map-incident-name', effectiveContext?.planningPlan?.name || incident?.incidentName || 'Planning Map');
+  setText('live-map-mode', effectiveContext?.planningPlan ? (effectiveContext.responseLayout ? 'Response Layout' : 'Pre-Plan Location') : (incident ? 'Active Incident' : 'Planning Mode'));
   liveMapState.incidentId = incident?.incidentId || null;
   const container = document.getElementById('live-gis-map');
   observeLiveMapContainer(container);
@@ -18650,6 +18901,7 @@ function initializeLiveMap() {
   });
   updateLiveMapPanels();
   restoreLiveMapOverlays();
+  focusLiveMapOnPlanningPlan(effectiveContext);
   // Deferred navigation from Monitoring: page transition can precede MapLibre creation.
   const pendingMonitorFocus = window.HazMatIQ?.pendingMonitorMapFocus;
   if (pendingMonitorFocus) {
@@ -18671,7 +18923,7 @@ function initializeLiveMap() {
     logLiveMapDiagnostic();
   });
   window.setTimeout(() => liveMap.resize(), 150);
-  if (!liveMapGpsRequested) {
+  if (!liveMapGpsRequested && !effectiveContext?.planningPlan) {
     liveMapGpsRequested = true;
     setText('live-map-status', 'Locating current GPS position…');
     getCurrentGps().then((gps) => {
