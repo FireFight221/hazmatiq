@@ -799,6 +799,44 @@ describe("API routes", () => {
     expect(body.incidents).toContainEqual(incident);
   });
 
+  it("deletes completed incidents while blocking stale sync and active deletion", async () => {
+    const completed = {
+      incidentId: "disposable-delete-completed-incident",
+      incidentName: "Disposable deletion fixture",
+      status: "Completed",
+      completedAt: "2026-10-29T12:00:00.000Z",
+    };
+    const active = {
+      incidentId: "disposable-delete-active-incident",
+      incidentName: "Disposable active fixture",
+      status: "Active",
+    };
+    const saved = await app.request("/api/incidents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ incidents: [completed, active] }),
+    });
+    expect(saved.status).toBe(200);
+
+    const deleted = await app.request(`/api/incidents/${completed.incidentId}`, { method: "DELETE" });
+    expect(deleted.status).toBe(200);
+
+    const staleSync = await app.request("/api/incidents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ incidents: [completed] }),
+    });
+    expect(staleSync.status).toBe(200);
+    expect(await staleSync.json()).toMatchObject({ saved: 0, ignored: 1 });
+
+    const activeDeletion = await app.request(`/api/incidents/${active.incidentId}`, { method: "DELETE" });
+    expect(activeDeletion.status).toBe(409);
+
+    const listing = await (await app.request("/api/incidents")).json() as { incidents: { incidentId: string }[] };
+    expect(listing.incidents.some((incident) => incident.incidentId === completed.incidentId)).toBe(false);
+    expect(listing.incidents.some((incident) => incident.incidentId === active.incidentId)).toBe(true);
+  });
+
   it("prepares and generates a populated FEMA ICS form", async () => {
     const incident = {
       incidentId: "incident-pdf-1",

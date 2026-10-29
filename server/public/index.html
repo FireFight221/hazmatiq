@@ -1890,6 +1890,19 @@
               </section>
               <section id="report-previous-section" class="report-section" hidden><h2>Completed Incidents</h2><p class="muted">Previous incident briefs and their attached ICS forms.</p><div id="previous-incident-list" class="report-incident-list"></div><details id="report-saved-open-section" hidden><summary>Other Saved Incidents</summary><div id="incident-history-list" class="report-incident-list"></div></details></section>
 
+              <dialog id="delete-completed-incident-dialog" class="report-delete-dialog" aria-labelledby="delete-completed-incident-title">
+                <form method="dialog" class="report-delete-dialog-content">
+                  <p class="eyebrow">Permanent report removal</p>
+                  <h2 id="delete-completed-incident-title">Delete completed incident?</h2>
+                  <p>Delete <strong id="delete-completed-incident-name"></strong> and its saved ICS forms and plume snapshot? This cannot be undone.</p>
+                  <p id="delete-completed-incident-status" class="report-delete-status" role="status" aria-live="polite"></p>
+                  <div class="button-row report-delete-actions">
+                    <button class="ghost-btn" id="cancel-delete-completed-incident-btn" type="button">Cancel</button>
+                    <button class="danger-btn" id="confirm-delete-completed-incident-btn" type="button">Delete Report</button>
+                  </div>
+                </form>
+              </dialog>
+
               <section id="incident-report-summary" class="report-section incident-report-summary" hidden>
                 <div class="incident-report-summary-heading">
                   <div>

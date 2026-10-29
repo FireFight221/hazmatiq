@@ -1984,7 +1984,7 @@ app.post("/api/ics-forms/:formId/pdf", async (c) => {
 // ─── Durable incident reports ──────────────────────────────────────────
 app.get("/api/incidents", async (c) => {
   const rows = await getDb().select().from(schema.incidents);
-  const incidents = rows.flatMap((row) => {
+  const incidents = rows.filter((row) => row.status !== "Deleted").flatMap((row) => {
     try {
       return [{ ...JSON.parse(row.report), incidentId: row.id, status: row.status }];
     } catch {
@@ -2011,6 +2011,7 @@ app.post("/api/incidents", async (c) => {
     const id = incident.incidentId as string;
     const [existing] = await getDb().select().from(schema.incidents).where(eq(schema.incidents.id, id));
     if (existing) {
+      if (existing.status === "Deleted") { ignored += 1; continue; }
       let previous: Record<string, unknown> = {};
       try { previous = JSON.parse(existing.report); } catch { /* retain recoverable record */ }
       const priorTime = Date.parse(textValue(previous.updatedAt || previous.completedAt || previous.startedAt)) || 0;
@@ -2028,6 +2029,19 @@ app.post("/api/incidents", async (c) => {
     saved += 1;
   }
   return c.json({ saved, ignored });
+});
+
+app.delete("/api/incidents/:incidentId", async (c) => {
+  const incidentId = c.req.param("incidentId");
+  const [incident] = await getDb().select().from(schema.incidents).where(eq(schema.incidents.id, incidentId));
+  if (!incident) return c.json({ error: "Incident report not found" }, 404);
+  if (incident.status !== "Completed") return c.json({ error: "Active incident reports cannot be deleted" }, 409);
+  await getDb().update(schema.incidents).set({
+    status: "Deleted",
+    report: JSON.stringify({ incidentId, status: "Deleted" }),
+    updatedAt: sql`(datetime('now'))`,
+  }).where(eq(schema.incidents.id, incidentId));
+  return c.json({ deleted: incidentId });
 });
 
 // ─── Sync (delta since last sync) ───────────────────────────────────────

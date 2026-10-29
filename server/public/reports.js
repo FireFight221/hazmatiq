@@ -35,6 +35,9 @@
     if (!api) return;
     if (target.matches('[data-report-tab]')) {
       selectReportTab(target);
+    } else if (target.matches('[data-delete-incident]')) {
+      event.stopPropagation();
+      api.prepareCompletedIncidentDeletion?.(target.dataset.deleteIncident);
     } else if (target.id === 'open-current-incident-summary-btn') {
       const activeId = api.getActiveIncidentId();
       if (activeId) api.openIncidentSummary(activeId);
@@ -57,6 +60,21 @@
       void api.openIcsPdf();
     } else if (target.id === 'back-from-ics-form-btn') {
       api.closeOpenIcsForm();
+    } else if (target.id === 'cancel-delete-completed-incident-btn') {
+      document.getElementById('delete-completed-incident-dialog')?.close();
+    } else if (target.id === 'confirm-delete-completed-incident-btn') {
+      const dialog = document.getElementById('delete-completed-incident-dialog');
+      const incidentId = dialog?.dataset.incidentId;
+      if (!dialog || !incidentId) return;
+      target.disabled = true;
+      void Promise.resolve(api.deleteCompletedIncident?.(incidentId)).then((result) => {
+        target.disabled = false;
+        if (result?.ok) dialog.close();
+        else if (result?.error) {
+          const status = document.getElementById('delete-completed-incident-status');
+          if (status) status.textContent = result.error;
+        }
+      });
     }
   }
 

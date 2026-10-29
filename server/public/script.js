@@ -1069,6 +1069,7 @@ const incidentContainerFieldIds = [
   'container-release-phase',
 ];
 const incidentsStorageKey = 'hazmatiq_incidents';
+const incidentDeletionMarkersStorageKey = 'hazmatiq_incident_deletion_markers';
 const activeIncidentIdStorageKey = 'hazmatiq_active_incident_id';
 const incidentSnapshotDbName = 'hazmatiq_incident_snapshots';
 const incidentSnapshotStoreName = 'map_snapshots';
@@ -1219,6 +1220,63 @@ function readIncidentMapSnapshot(incidentId) {
   });
 }
 
+function deleteIncidentMapSnapshot(incidentId) {
+  if (!window.indexedDB || !incidentId) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    try {
+      const request = window.indexedDB.open(incidentSnapshotDbName, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore(incidentSnapshotStoreName, { keyPath: 'incidentId' });
+      };
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction(incidentSnapshotStoreName, 'readwrite');
+        transaction.objectStore(incidentSnapshotStoreName).delete(incidentId);
+        transaction.oncomplete = () => { database.close(); resolve(true); };
+        transaction.onerror = () => { database.close(); resolve(false); };
+        transaction.onabort = () => { database.close(); resolve(false); };
+      };
+      request.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+function readIncidentDeletionMarkers() {
+  try {
+    const markers = JSON.parse(window.localStorage.getItem(incidentDeletionMarkersStorageKey) || '{}');
+    return markers && typeof markers === 'object' && !Array.isArray(markers) ? markers : {};
+  } catch {
+    return {};
+  }
+}
+
+function setIncidentDeletionMarker(incidentId) {
+  try {
+    const markers = readIncidentDeletionMarkers();
+    markers[incidentId] = new Date().toISOString();
+    window.localStorage.setItem(incidentDeletionMarkersStorageKey, JSON.stringify(markers));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearIncidentDeletionMarker(incidentId) {
+  try {
+    const markers = readIncidentDeletionMarkers();
+    delete markers[incidentId];
+    window.localStorage.setItem(incidentDeletionMarkersStorageKey, JSON.stringify(markers));
+  } catch {
+    // A deletion marker is best effort after a failed server deletion.
+  }
+}
+
+function isIncidentDeletionMarked(incidentId) {
+  return Boolean(incidentId && Object.prototype.hasOwnProperty.call(readIncidentDeletionMarkers(), incidentId));
+}
+
 function compactIncidentForLocalStorage(incident) {
   if (!incident || typeof incident !== 'object' || typeof incident.plumeMapImage !== 'string' || !incident.plumeMapImage) return incident;
   if (!persistIncidentMapSnapshot(incident.incidentId, incident.plumeMapImage)) return incident;
@@ -1233,14 +1291,15 @@ function compactIncidentForLocalStorage(incident) {
 function readIncidents() {
   try {
     const incidents = JSON.parse(window.localStorage.getItem(incidentsStorageKey) || '[]');
-    return Array.isArray(incidents) ? incidents : [];
+    return Array.isArray(incidents) ? incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)) : [];
   } catch {
     return [];
   }
 }
 
 function writeIncidents(incidents) {
-  const localIncidents = incidents.map(compactIncidentForLocalStorage);
+  const retainedIncidents = incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
+  const localIncidents = retainedIncidents.map(compactIncidentForLocalStorage);
   let savedLocally = false;
   try {
     window.localStorage.setItem(incidentsStorageKey, JSON.stringify(localIncidents));
@@ -1250,17 +1309,18 @@ function writeIncidents(incidents) {
     setIncidentStatus('Local storage is full. Existing incident records were preserved; this update remains available in memory and will retry backend sync.');
   }
   window.clearTimeout(incidentSyncTimer);
-  incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(incidents), 250);
+  incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(retainedIncidents), 250);
   window.dispatchEvent(new CustomEvent('hazmatiq:incident-record-saved'));
   return savedLocally;
 }
 
 async function syncIncidentsToBackend(incidents = readIncidents()) {
+  const retainedIncidents = incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
   try {
     const response = await fetch('/api/incidents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ incidents }),
+      body: JSON.stringify({ incidents: retainedIncidents }),
     });
     if (!response.ok) throw new Error(`Incident sync failed (${response.status})`);
   } catch (error) {
@@ -1279,7 +1339,9 @@ async function restoreIncidentsFromBackend() {
     const remote = (await response.json()).incidents;
     if (!Array.isArray(remote)) return;
 
-    const merged = new Map(remote.map((incident) => [incident.incidentId, incident]));
+    const merged = new Map(remote
+      .filter((incident) => !isIncidentDeletionMarked(incident?.incidentId))
+      .map((incident) => [incident.incidentId, incident]));
     readIncidents().forEach((local) => {
       const saved = merged.get(local.incidentId);
       if (!saved || local.status === 'Completed' || (saved.status !== 'Completed' && incidentModifiedAt(local) >= incidentModifiedAt(saved))) merged.set(local.incidentId, local);
@@ -2738,8 +2800,10 @@ function completeActiveIncident() {
   return incidents[index];
 }
 
-function renderIncidentCard(container, incident, activeId) {
+function renderIncidentCard(container, incident, activeId, { deletable = false } = {}) {
   if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'report-incident-row';
   const item = document.createElement('button');
   item.type = 'button';
   item.className = 'report-incident-item';
@@ -2755,7 +2819,18 @@ function renderIncidentCard(container, incident, activeId) {
   details.append(name, summary);
   item.append(details, status);
   item.addEventListener('click', () => openIncidentSummary(incident.incidentId));
-  container.append(item);
+  row.append(item);
+  if (deletable) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'report-delete-incident-btn';
+    remove.dataset.deleteIncident = incident.incidentId;
+    remove.setAttribute('aria-label', `Delete completed incident ${incident.incidentName || 'report'}`);
+    remove.title = 'Delete completed incident report';
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>';
+    row.append(remove);
+  }
+  container.append(row);
 }
 
 function renderIncidentLists({ renderCommand = true } = {}) {
@@ -2771,7 +2846,7 @@ function renderIncidentLists({ renderCommand = true } = {}) {
   if (current) renderIncidentCard(currentContainer, current, activeId);
   else if (currentContainer) currentContainer.textContent = 'No active incident. Start one from the Home Page.';
   const previous = incidents.filter((incident) => incident.status === 'Completed');
-  previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId));
+  previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId, { deletable: true }));
   if (!previous.length && previousContainer) previousContainer.textContent = 'No completed incident forms saved yet.';
   const otherSaved = incidents.filter((incident) => incident.incidentId !== current?.incidentId && incident.status !== 'Completed');
   otherSaved.forEach((incident) => renderIncidentCard(historyContainer, incident, activeId));
@@ -2799,11 +2874,14 @@ function renderActiveIcsFormList() {
   const incident = getActiveIncident();
   document.getElementById('open-current-incident-summary-btn')?.toggleAttribute('hidden', !incident);
   icsFormCatalog.forEach(([id, title]) => {
-    const tile = document.createElement('article');
+    const tile = document.createElement('a');
     tile.className = 'report-form-tile';
+    tile.href = `/api/ics-forms/${encodeURIComponent(id)}/original`;
+    tile.target = '_blank';
+    tile.rel = 'noopener';
+    tile.setAttribute('aria-label', `${title} original government-issued PDF`);
     const heading = document.createElement('strong'); heading.textContent = title;
-    const original = document.createElement('a'); original.href = `/api/ics-forms/${id}/original`; original.target = '_blank'; original.rel = 'noopener'; original.textContent = 'Open Original FEMA PDF';
-    tile.append(heading, original); library.append(tile);
+    tile.append(heading); library.append(tile);
     if (incident) container.append(createIcsFormLink(incident.incidentId, id, title));
   });
   if (!incident) container.textContent = 'No active worksheets. Start an incident from Command.';
@@ -2909,17 +2987,19 @@ function openIncidentSummary(incidentId, { preserveScroll = false } = {}) {
     caption.textContent = label; detail.textContent = value; item.append(caption, detail); metadata.append(item);
   });
   paper.append(metadata);
-  const paragraph = (title, text, placeholder = '') => {
-    const section = document.createElement('section'); const heading = document.createElement('h3'); heading.textContent = title;
+  const paragraph = (title, text, placeholder = '', printClass = '') => {
+    const section = document.createElement('section');
+    if (printClass) section.className = printClass;
+    const heading = document.createElement('h3'); heading.textContent = title;
     const body = document.createElement('p'); body.textContent = text || placeholder;
     if (!text) body.className = 'report-brief-empty'; section.append(heading, body); paper.append(section); return section;
   };
-  paragraph('Incident Brief', model.brief, 'Add a short description of the call.');
+  paragraph('Incident Brief', model.brief, 'Add a short description of the call.', 'report-print-brief');
   paragraph('Response Summary', model.response, 'No response narrative has been recorded. Select Edit Report to add actions taken.');
   paragraph('Outcome & Follow-up', model.outcome, 'Add the outcome and any follow-up needed.');
   if (model.weather) paragraph('Conditions', model.weather);
   const plumeSection = paragraph('Plume Map & Threat Zones', model.plumeSummary,
-    currentPlume ? 'Saved plume assessment. See the recorded threat zones below.' : 'No current plume assessment is recorded for this incident.');
+    currentPlume ? 'Saved plume assessment. See the recorded threat zones below.' : 'No current plume assessment is recorded for this incident.', 'report-print-plume');
   const map = document.createElement('div'); map.className = 'report-brief-map';
   const mapPlaceholder = document.createElement('p'); mapPlaceholder.textContent = currentPlume ? 'Map image is not available in this browser.' : 'Plume map will appear here when a current model is saved.';
   map.append(mapPlaceholder); plumeSection.append(map);
@@ -2973,6 +3053,43 @@ function closeIncidentSummary() {
   const selected = document.querySelector('[data-report-tab].primary-btn')?.dataset.reportTab || 'library';
   const selectedSection = document.getElementById(`report-${selected}-section`);
   if (selectedSection) selectedSection.hidden = false;
+}
+
+function prepareCompletedIncidentDeletion(incidentId) {
+  const incident = readIncidents().find((item) => item.incidentId === incidentId);
+  const dialog = document.getElementById('delete-completed-incident-dialog');
+  const status = document.getElementById('delete-completed-incident-status');
+  if (!incident || incident.status !== 'Completed' || getActiveIncident()?.incidentId === incidentId || !dialog) return false;
+  dialog.dataset.incidentId = incidentId;
+  setText('delete-completed-incident-name', incident.incidentName || 'Untitled incident');
+  if (status) status.textContent = '';
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  return true;
+}
+
+async function deleteCompletedIncident(incidentId) {
+  const incident = readIncidents().find((item) => item.incidentId === incidentId);
+  if (!incident || incident.status !== 'Completed') return { ok: false, error: 'Only completed incident reports can be deleted.' };
+  if (getActiveIncident()?.incidentId === incidentId) return { ok: false, error: 'Active incidents are protected from deletion.' };
+  if (!setIncidentDeletionMarker(incidentId)) return { ok: false, error: 'The report could not be marked for deletion. It was kept.' };
+
+  window.clearTimeout(incidentSyncTimer);
+  incidentSyncTimer = null;
+  try {
+    const response = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw new Error(`Server deletion failed (${response.status})`);
+    await deleteIncidentMapSnapshot(incidentId);
+    const remaining = readIncidents().filter((item) => item.incidentId !== incidentId);
+    if (openIcsForm?.incidentId === incidentId) closeOpenIcsForm({ returnToSummary: false });
+    if (openIncidentSummaryId === incidentId) closeIncidentSummary();
+    writeIncidents(remaining);
+    renderIncidentLists();
+    return { ok: true };
+  } catch (error) {
+    clearIncidentDeletionMarker(incidentId);
+    return { ok: false, error: `The report was kept because server deletion failed. ${error instanceof Error ? error.message : 'Retry when connected.'}` };
+  }
 }
 
 function formatIcsFieldLabel(name) {
@@ -3191,6 +3308,8 @@ window.HazMatIQ.reportsApi = {
   closeOpenIcsForm,
   getActiveIncidentId: () => window.localStorage.getItem(activeIncidentIdStorageKey),
   getIncidentById: (incidentId) => readIncidents().find((incident) => incident.incidentId === incidentId),
+  prepareCompletedIncidentDeletion,
+  deleteCompletedIncident,
   getOpenIncidentSummaryId: () => openIncidentSummaryId,
   openIncidentIcsForm,
   openIncidentSummary,

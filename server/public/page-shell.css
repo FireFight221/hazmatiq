@@ -55,17 +55,89 @@
 .reports-section-heading p { max-width:650px; color:#c7d9e8; line-height:1.5; margin:0 0 14px; }
 .reports-page a { color:#a7d8ff; }
 .reports-page .incident-ics-form-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin-top:15px; }
-.report-form-tile { border:1px solid #426681; border-radius:8px; padding:13px; background:#0b2236; min-width:0; }
+.report-form-tile { display:block; border:2px solid #fff; border-radius:8px; padding:13px; background:#0b2236; min-width:0; color:#fff; text-decoration:none; }
+.report-form-tile:hover, .report-form-tile:focus-visible { border-color:#fff; background:#153b59; color:#fff; text-decoration:none; }
 .report-form-tile strong { display:block; color:#fff; font:700 .95rem/1.4 Arial,sans-serif; margin-bottom:8px; }
 .report-form-tile .ics-form-text-link { color:#a5f3cb; display:block; text-align:left; font-size:.9rem; }
 .report-form-tile a { display:inline-block; margin-top:8px; font-size:.85rem; }
 .report-form-tile small { display:block; color:#bdd1e0; margin:6px 0; }
+.report-incident-row { display:flex; align-items:stretch; gap:8px; min-width:0; }
+.report-incident-row .report-incident-item { flex:1 1 auto; min-width:0; }
+.report-delete-incident-btn { display:grid; flex:0 0 40px; place-items:center; align-self:stretch; min-height:40px; padding:8px; border:1px solid #c85a62; border-radius:8px; background:#4a1c28; color:#ffd9dc; cursor:pointer; }
+.report-delete-incident-btn:hover, .report-delete-incident-btn:focus-visible { border-color:#ff9da3; background:#6b2633; color:#fff; }
+.report-delete-incident-btn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; }
+.report-delete-dialog { width:min(460px, calc(100vw - 28px)); border:1px solid #6c879d; border-radius:10px; padding:0; background:#0b2236; color:#fff; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+.report-delete-dialog::backdrop { background:rgba(2,12,22,.72); }
+.report-delete-dialog-content { display:grid; gap:10px; padding:22px; }
+.report-delete-dialog-content h2, .report-delete-dialog-content p { margin:0; }
+.report-delete-dialog-content strong { color:#fff; }
+.report-delete-status { min-height:1.25em; color:#ffb5ba; }
+.report-delete-actions { justify-content:flex-end; margin-top:4px; }
 .reports-page [hidden] { display:none !important; }
 @media(max-width:650px) { .reports-heading { align-items:start; flex-direction:column; } .reports-page .report-tabs { grid-template-columns:1fr; gap:9px; } .reports-page .report-workspace-card { padding:12px; } .reports-page .report-workspace-card.primary-btn { padding:11px; } .reports-section-heading { flex-direction:column; gap:5px; } }
 
 .reports-page > .report-center {
   width:100%;
   margin:0;
+}
+
+@media print {
+  @page { margin: .5in; }
+  body { background:#fff !important; color:#172c3e !important; }
+  #incident-report-summary,
+  #incident-report-summary * {
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+  #incident-report-summary {
+    position:absolute;
+    inset:0;
+    width:100%;
+    margin:0;
+    padding:0;
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+  #incident-report-summary .incident-report-summary-heading,
+  #incident-report-summary .report-summary-actions,
+  #incident-report-summary .incident-brief-report > section:not(.report-print-brief):not(.report-print-plume),
+  #incident-report-summary .report-prepared-by,
+  #incident-report-summary .report-ics-attachments { display:none !important; }
+  #incident-report-summary .incident-brief-report {
+    max-width:none;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+  #incident-report-summary .report-brief-metadata,
+  #incident-report-summary .report-print-brief,
+  #incident-report-summary .report-print-brief *,
+  #incident-report-summary .report-print-plume,
+  #incident-report-summary .report-print-plume * {
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+  #incident-report-summary .report-brief-metadata { border-color:#526574; }
+  #incident-report-summary .report-print-brief,
+  #incident-report-summary .report-print-plume { break-inside:avoid; }
+  #incident-report-summary .report-brief-map {
+    min-height:0;
+    margin:10px 0;
+    padding:0;
+    border:1px solid #526574;
+    background:#fff !important;
+  }
+  #incident-report-summary .report-brief-map img { max-height:none; }
+  #incident-report-summary .report-threat-table { break-inside:avoid; color:#172c3e; }
+  #incident-report-summary .report-threat-table th,
+  #incident-report-summary .report-threat-table td {
+    border:1px solid #526574;
+    background:#fff !important;
+    color:#172c3e !important;
+  }
 }
 
 .reports-page #ics-form-editor-context { color:#fbd34d !important; }
