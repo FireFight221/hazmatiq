@@ -13,17 +13,19 @@
     if (!selected) return;
     const root = document.getElementById('report');
     if (!root) return;
+    reportsApi()?.closeOpenIcsForm?.({ returnToSummary: false });
     root.querySelectorAll('[data-report-tab]').forEach((tab) => {
       const active = tab === button;
       tab.classList.toggle('primary-btn', active);
       tab.classList.toggle('ghost-btn', !active);
+      tab.setAttribute('aria-pressed', String(active));
     });
     ['current', 'previous', 'library'].forEach((name) => {
       const section = document.getElementById(`report-${name}-section`);
       if (section) section.hidden = name !== selected;
     });
     reportsApi()?.renderIncidentLists?.();
-    if (selected === 'current') document.getElementById('current-incident-options')?.focus();
+    if (selected === 'library') document.getElementById('current-incident-options')?.focus();
   }
 
   function handleReportClick(event) {

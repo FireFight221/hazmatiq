@@ -1599,6 +1599,13 @@ h1 { font-weight: 800; }
   text-underline-offset: 3px;
 }
 
+.ics-pdf-preview { display: block; width: 100%; height: min(78dvh, 1000px); min-height: 360px; border: 1px solid #7893a8; border-radius: 6px; background: #e5e7eb; }
+.ics-pdf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 10px 0; }
+.ics-pdf-actions a { color: #fff; }
+#ics-form-corrections { margin-top: 12px; }
+#ics-form-corrections > summary, .incident-report-optional > summary { cursor: pointer; font-weight: 800; padding: 10px; }
+@media print { .incident-report-optional { display: none !important; } }
+
 .ics-form-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

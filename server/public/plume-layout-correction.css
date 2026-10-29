@@ -13,8 +13,9 @@
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
   gap: 8px !important;
+  height: var(--plume-available-height, calc(100dvh - 120px)) !important;
   min-height: 0 !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 #plume.view.active .plume-v2-location-toolbar,
@@ -122,11 +123,12 @@
 
 #plume.view.active .plume-v2-input-column {
   grid-area: inputs !important;
-  align-self: start !important;
+  align-self: stretch !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  height: auto !important;
-  overflow: visible !important;
+  height: 100% !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
 }
 
 #plume.view.active .plume-v2-map-column {
@@ -257,6 +259,7 @@
   #plume.view.active {
     grid-template-rows: auto auto !important;
     height: auto !important;
+    overflow: visible !important;
   }
 
   #plume.view.active .plume-v2-location-toolbar,
@@ -282,19 +285,21 @@
 
   #plume.view.active .plume-v2-workspace {
     grid-template-rows: auto auto !important;
-    grid-template-areas: "inputs" "map" !important;
+    grid-template-areas: "map" "inputs" !important;
     height: auto !important;
     gap: 10px !important;
   }
 
+  #plume.view.active .plume-v2-input-column { height: auto !important; overflow: visible !important; }
+
   #plume.view.active .plume-v2-map-column {
-    height: clamp(430px, 65dvh, 720px) !important;
-    min-height: 380px !important;
+    height: max(160px, calc(var(--plume-available-height, 75dvh) - var(--plume-toolbar-height, 100px) - 16px)) !important;
+    min-height: 0 !important;
   }
 
   #plume.view.active .plume-v2-map-card {
     height: 100% !important;
-    min-height: 380px !important;
+    min-height: 0 !important;
   }
 
   #plume.view.active .plume-v2-map-controls {

@@ -48,7 +48,7 @@ describe("HazMatIQ Command Bar", () => {
       "HAZARD ID",
       "LIVE MAP",
       "Guided Response",
-      "Reports &amp; Forms",
+      "Reports &amp; ICS Forms",
       "Equipment",
       "Weather Intelligence",
       "Settings",
@@ -56,7 +56,7 @@ describe("HazMatIQ Command Bar", () => {
     ])
       expect(html).toContain(title);
     expect(html).not.toContain("HazMatIQ Command Center");
-    expect(html.match(/hazmat-page-hero/g)?.length).toBeGreaterThanOrEqual(9);
+    expect(html.match(/hazmat-page-hero/g)?.length).toBeGreaterThanOrEqual(8);
     expect(html).not.toContain('class="hazmat-page-hero variant-plume');
     expect(html).not.toContain('class="hazmat-page-hero hazmat-page-hero-compact variant-live-map');
     expect(styles).toContain(".hazmat-page-hero {");

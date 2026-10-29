@@ -23,7 +23,9 @@ import { asc, eq, inArray, or, sql } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PDFDocument, PDFTextField } from "pdf-lib";
+import { createIcsTemplate, fillIcsPdf } from './ics-pdf.js';
+import { recordedIcsValue } from "./ics-prefill.js";
+import { PDFTextField } from "pdf-lib";
 import { getDb } from "./db.js";
 import * as schema from "./schema.js";
 import { NIOSH_IDENTITY_STATUS, queryChemicalProfile, searchCompanionChemicals } from "./chemical-companion.js";
@@ -166,27 +168,31 @@ function textValue(value: unknown) {
 }
 
 function incidentContainerSummary(incident: Record<string, unknown>, detailed = false) {
-  const size = [incident.containerSize, incident.containerSizeUnit]
+  const known = (value: unknown) => {
+    const text = textValue(value).trim();
+    return /^(unknown(?:\s*\/.*)?|not (?:specified|available)|no current data exists)$/i.test(text) ? '' : text;
+  };
+  const size = [known(incident.containerSize), incident.containerSize ? incident.containerSizeUnit : '']
     .map(textValue)
     .filter(Boolean)
     .join(" ");
-  const pressure = [incident.containerPressure, incident.containerPressureUnit]
+  const pressure = [known(incident.containerPressure), incident.containerPressure !== '' && incident.containerPressure != null ? incident.containerPressureUnit : '']
     .map(textValue)
     .filter(Boolean)
     .join(" ");
   const parts = [
-    textValue(incident.containerType),
+    known(incident.containerType),
     size && `Size ${size}`,
     incident.containerFillLevel && `Fill ${textValue(incident.containerFillLevel)}%`,
     pressure && `Pressure ${pressure}`,
   ];
   if (detailed) {
     parts.push(
-      !size && incident.containerCapacity
-        ? `Capacity ${textValue(incident.containerCapacity)}`
+      !size && known(incident.containerCapacity)
+        ? `Capacity ${known(incident.containerCapacity)}`
         : "",
-      incident.containerPressureProfile
-        ? `Pressure profile ${textValue(incident.containerPressureProfile)}`
+      known(incident.containerPressureProfile)
+        ? `Pressure profile ${known(incident.containerPressureProfile)}`
         : "",
       incident.containerPayloadNotes ? `Payload ${textValue(incident.containerPayloadNotes)}` : "",
       incident.containerModelSource
@@ -306,7 +312,9 @@ function guidedAssignmentLocation(assignment: Record<string, unknown>) {
   return textValue(assignment.locationStatus) || "Location not set";
 }
 
-function automaticIcsValue(fieldName: string, incident: Record<string, unknown>) {
+function automaticIcsValue(fieldName: string, incident: Record<string, unknown>, formId = "") {
+  const recorded = recordedIcsValue(formId, fieldName, incident);
+  if (recorded !== undefined) return recorded;
   const normalized = fieldName.toLowerCase().replace(/[^a-z0-9]/g, "");
   const guidedAssignments = guidedAssignmentsForIcs(incident);
   const firstGuidedAssignment = guidedAssignments[0];
@@ -432,7 +440,7 @@ function automaticIcsValue(fieldName: string, incident: Record<string, unknown>)
 async function loadIcsPdf(formId: string) {
   const definition = getIcsForm(formId);
   if (!definition) return null;
-  const pdf = await PDFDocument.load(await readFile(path.join(icsFormDirectory, definition[2])));
+  const pdf = await createIcsTemplate(definition[0], definition[1], await readFile(path.join(icsFormDirectory, definition[2])));
   return { definition, pdf };
 }
 
@@ -1508,7 +1516,8 @@ function normalizeFacilitySearchText(value: unknown): string {
 function facilityMatchesQuery(values: unknown[], query: string): boolean {
   const normalizedQuery = normalizeFacilitySearchText(query);
   if (!normalizedQuery) return true;
-  return values.some((value) => normalizeFacilitySearchText(value).includes(normalizedQuery));
+  const combined = values.map(normalizeFacilitySearchText).join(" ");
+  return normalizedQuery.split(" ").every((term) => combined.includes(term));
 }
 
 function commandChemicalFromTier2(row: schema.Tier2ChemicalRow, facility: schema.Tier2FacilityRow) {
@@ -1746,6 +1755,7 @@ app.get("/api/facilities", async (c) => {
     limit,
     offset,
     query: q,
+    coverage: { legacyRecords: legacyRows.length, tier2Records: tier2Rows.length },
     sourceCounts: {
       legacy: legacyMatches.length,
       tier2: tier2Matches.length,
@@ -1906,6 +1916,22 @@ app.get("/api/ics-forms", (c) =>
   }),
 );
 
+app.get("/api/ics-forms/:formId/blank", async (c) => {
+  const loaded = await loadIcsPdf(c.req.param("formId"));
+  if (!loaded) return c.json({ error: "ICS form not found" }, 404);
+  c.header("Content-Type", "application/pdf");
+  c.header("Content-Disposition", `inline; filename="ICS-${loaded.definition[0]}-blank.pdf"`);
+  return c.body(new Uint8Array(await fillIcsPdf(loaded.pdf, loaded.definition[0], {}, () => '')));
+});
+
+app.get("/api/ics-forms/:formId/original", async (c) => {
+  const definition = getIcsForm(c.req.param("formId"));
+  if (!definition) return c.json({ error: "ICS form not found" }, 404);
+  c.header("Content-Type", "application/pdf");
+  c.header("Content-Disposition", `inline; filename="${definition[2]}"`);
+  return c.body(new Uint8Array(await readFile(path.join(icsFormDirectory, definition[2]))));
+});
+
 app.post("/api/ics-forms/:formId/prepare", async (c) => {
   const loaded = await loadIcsPdf(c.req.param("formId"));
   if (!loaded) return c.json({ error: "ICS form not found" }, 404);
@@ -1921,16 +1947,18 @@ app.post("/api/ics-forms/:formId/prepare", async (c) => {
     .getFields()
     .filter((field): field is PDFTextField => field instanceof PDFTextField)
     .map((field) => {
+      const hasSaved = Object.prototype.hasOwnProperty.call(savedFields, field.getName());
       const saved = textValue(savedFields[field.getName()]);
-      const automatic = automaticIcsValue(field.getName(), incident);
+      const automatic = automaticIcsValue(field.getName(), incident, loaded.definition[0]);
       return {
         name: field.getName(),
-        value: saved || automatic,
-        source: saved ? "manual" : automatic ? "automatic" : "blank",
+        value: hasSaved ? saved : automatic,
+        source: hasSaved ? "manual" : automatic ? "automatic" : "blank",
         multiline: field.isMultiline(),
       };
     });
-  return c.json({ id: loaded.definition[0], title: loaded.definition[1], fields });
+  return c.json({ id: loaded.definition[0], title: loaded.definition[1], pages: loaded.pdf.getPageCount(),
+    format: 'Original FEMA fillable form', fields });
 });
 
 app.post("/api/ics-forms/:formId/pdf", async (c) => {
@@ -1939,17 +1967,8 @@ app.post("/api/ics-forms/:formId/pdf", async (c) => {
   const incident = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!incident || typeof incident !== "object")
     return c.json({ error: "incident is required" }, 400);
-  const savedFields =
-    (incident.icsForms as Record<string, { fields?: Record<string, unknown> }> | undefined)?.[
-      loaded.definition[0]
-    ]?.fields || {};
-  for (const field of loaded.pdf.getForm().getFields()) {
-    if (!(field instanceof PDFTextField)) continue;
-    const value =
-      textValue(savedFields[field.getName()]) || automaticIcsValue(field.getName(), incident);
-    if (value) field.setText(value);
-  }
-  const bytes = await loaded.pdf.save();
+  const bytes = await fillIcsPdf(loaded.pdf, loaded.definition[0], incident,
+    (name) => automaticIcsValue(name, incident, loaded.definition[0]));
   const safeName =
     `${textValue(incident.incidentName) || "incident"}-${loaded.definition[0]}`.replace(
       /[^a-z0-9-]+/gi,
@@ -1986,8 +2005,18 @@ app.post("/api/incidents", async (c) => {
       typeof item === "object" &&
       typeof (item as Record<string, unknown>).incidentId === "string",
   );
+  let saved = 0;
+  let ignored = 0;
   for (const incident of incidents) {
     const id = incident.incidentId as string;
+    const [existing] = await getDb().select().from(schema.incidents).where(eq(schema.incidents.id, id));
+    if (existing) {
+      let previous: Record<string, unknown> = {};
+      try { previous = JSON.parse(existing.report); } catch { /* retain recoverable record */ }
+      const priorTime = Date.parse(textValue(previous.updatedAt || previous.completedAt || previous.startedAt)) || 0;
+      const incomingTime = Date.parse(textValue(incident.updatedAt || incident.completedAt || incident.startedAt)) || 0;
+      if ((existing.status === "Completed" && incident.status !== "Completed") || (incomingTime < priorTime && incident.status !== "Completed")) { ignored += 1; continue; }
+    }
     const status = typeof incident.status === "string" ? incident.status : "Completed";
     await getDb()
       .insert(schema.incidents)
@@ -1996,8 +2025,9 @@ app.post("/api/incidents", async (c) => {
         target: schema.incidents.id,
         set: { status, report: JSON.stringify(incident), updatedAt: sql`(datetime('now'))` },
       });
+    saved += 1;
   }
-  return c.json({ saved: incidents.length });
+  return c.json({ saved, ignored });
 });
 
 // ─── Sync (delta since last sync) ───────────────────────────────────────

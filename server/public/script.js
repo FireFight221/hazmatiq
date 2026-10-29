@@ -554,6 +554,11 @@ async function initializeTacticalClock() {
   try {
     const savedLocation = await getIncidentCoordinates({ requestGps: false }).catch(() => null);
     const gps = savedLocation || await getCurrentGps();
+    const coordinatesInput = document.getElementById('incident-coordinates-input');
+    if (!savedLocation && coordinatesInput && !coordinatesInput.value.trim() && !getIncidentAddressValue()) {
+      coordinatesInput.value = `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}`;
+      setText('incident-location-status', 'Current device location acquired. Confirm this is the incident location.');
+    }
     try {
       await setTacticalClockTimeZoneFromCoordinates(gps);
     } catch {
@@ -563,12 +568,13 @@ async function initializeTacticalClock() {
   } catch {
     // The live clock remains useful with the device timezone if GPS is unavailable.
     updateNotificationCenter({ weather: 'Location needed for live weather' });
+    setText('incident-location-status', 'Device location unavailable or not permitted. Use Current GPS in Command to retry, or enter an incident address/coordinates.');
   }
 }
 
 // Start the clock before the remaining dashboard modules initialize so an
 // unrelated module error cannot leave the Notification Center time unloaded.
-initializeTacticalClock();
+// Tactical clock/GPS initialization runs after incident and location state below.
 
 function updateNotificationCenter(update = {}) {
   if (Object.prototype.hasOwnProperty.call(update, 'tactical') && tacticalAlertMessage) {
@@ -897,7 +903,13 @@ function syncPlumeWorkspaceHeight() {
   if (!workspace?.classList.contains('active') || workspace.classList.contains('plume-map-maximized')) return;
   const top = Math.max(0, workspace.getBoundingClientRect().top);
   workspace.style.setProperty('--plume-workspace-top', `${Math.ceil(top)}px`);
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  workspace.style.setProperty('--plume-available-height', `${Math.max(160, Math.floor(viewportHeight - top - 8))}px`);
+  const toolbar = workspace.querySelector('.plume-v2-location-toolbar');
+  workspace.style.setProperty('--plume-toolbar-height', `${Math.ceil(toolbar?.getBoundingClientRect().height || 58)}px`);
 }
+window.addEventListener('resize', syncPlumeWorkspaceHeight);
+window.visualViewport?.addEventListener('resize', syncPlumeWorkspaceHeight);
 function syncPlumeMapControlsHeight() {
   const controls = document.querySelector('.plume-v2-map-controls');
   const card = controls?.closest('.plume-v2-map-card');
@@ -1239,6 +1251,7 @@ function writeIncidents(incidents) {
   }
   window.clearTimeout(incidentSyncTimer);
   incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(incidents), 250);
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-record-saved'));
   return savedLocally;
 }
 
@@ -1269,9 +1282,11 @@ async function restoreIncidentsFromBackend() {
     const merged = new Map(remote.map((incident) => [incident.incidentId, incident]));
     readIncidents().forEach((local) => {
       const saved = merged.get(local.incidentId);
-      if (!saved || incidentModifiedAt(local) >= incidentModifiedAt(saved)) merged.set(local.incidentId, local);
+      if (!saved || local.status === 'Completed' || (saved.status !== 'Completed' && incidentModifiedAt(local) >= incidentModifiedAt(saved))) merged.set(local.incidentId, local);
     });
     writeIncidents([...merged.values()]);
+    const pointer = window.localStorage.getItem(activeIncidentIdStorageKey);
+    if (pointer && !getActiveIncident()) clearActiveIncidentState();
     renderIncidentLists();
   } catch (error) {
     console.warn('Using incident reports saved on this device; backend restore is unavailable.', error);
@@ -1280,11 +1295,11 @@ async function restoreIncidentsFromBackend() {
 
 function getActiveIncident() {
   const activeId = window.localStorage.getItem(activeIncidentIdStorageKey);
-  return readIncidents().find((incident) => incident.incidentId === activeId) || null;
+  return readIncidents().find((incident) => incident.incidentId === activeId && incident.status !== 'Completed') || null;
 }
 
 function hasActiveIncident() {
-  return Boolean(window.localStorage.getItem(activeIncidentIdStorageKey));
+  return Boolean(getActiveIncident());
 }
 
 function openNewIncidentEntry() {
@@ -2184,7 +2199,7 @@ function renderIncidentCommandDashboard() {
   const productInput = document.getElementById('incident-product');
   if (productInput && document.activeElement !== productInput) productInput.value = model.incident.chemicalName || '';
   const facilityInput = document.getElementById('incident-facility-name');
-  if (facilityInput && document.activeElement !== facilityInput) facilityInput.value = model.incident.facilityName || model.incident.selectedFacility?.name || '';
+  if (facilityInput && document.activeElement !== facilityInput && !commandFacilitySuggestions?.contains(document.activeElement) && commandFacilitySuggestions?.hidden !== false) facilityInput.value = model.incident.facilityName || model.incident.selectedFacility?.name || '';
   setText('ic-assignment-count', `${model.assignmentCount} ${model.assignmentCount === 1 ? 'assignment' : 'assignments'}`);
   setText('ic-assignment-summary', model.assignmentSummary);
   renderIncidentAssignmentEditor(model.incident);
@@ -2555,7 +2570,7 @@ function renderIncidentTimer() {
 
 function startIncidentTimer() {
   renderIncidentTimer();
-  if (!incidentTimerInterval) incidentTimerInterval = window.setInterval(renderIncidentTimer, 1000);
+  if (getActiveIncident() && !incidentTimerInterval) incidentTimerInterval = window.setInterval(renderIncidentTimer, 1000);
 }
 
 function getIncidentFormData() {
@@ -2709,27 +2724,16 @@ function completeActiveIncident() {
     }])),
   };
   writeIncidents(incidents);
-  const nextActiveIncident = incidents.find((incident) => incident.status !== 'Completed' && incident.incidentId !== activeId) || null;
-  window.localStorage.removeItem(activeIncidentIdStorageKey);
+  // Completing a response must never silently activate an older drill/incident.
+  // Keep all older records available in Reports for explicit selection.
   clearActiveIncidentState();
-  if (nextActiveIncident) {
-    window.localStorage.setItem(activeIncidentIdStorageKey, nextActiveIncident.incidentId);
-    incidentWorkflowActive = true;
-    setSystemMode('incident');
-    startIncidentTimer();
-    renderIncidentLists();
-    restoreIncidentContainerData();
-    void restoreSelectedChemical();
-    setIncidentStatus(`Incident completed. Viewing incident response: ${nextActiveIncident.incidentName || 'New Incident'}.`);
-    showView('incident', { sourcePage: 'incident-complete', incidentId: nextActiveIncident.incidentId });
-  } else {
-    setSystemMode('normal');
-    renderIncidentTimer();
-    renderIncidentLists();
-    setIncidentStatus('Incident completed and its ICS forms moved to Completed Forms.');
-    showView('report');
-    document.querySelector('[data-report-tab="previous"]')?.click();
-  }
+  incidentWorkflowActive = false;
+  setSystemMode('normal');
+  renderIncidentLists();
+  renderSystemNotification();
+  setIncidentStatus('Incident completed. No active incident. Saved records remain in Reports.');
+  showView('report');
+  document.querySelector('[data-report-tab="previous"]')?.click();
   return incidents[index];
 }
 
@@ -2758,14 +2762,20 @@ function renderIncidentLists({ renderCommand = true } = {}) {
   const incidents = readIncidents();
   const currentContainer = document.getElementById('current-incident-list');
   const previousContainer = document.getElementById('previous-incident-list');
+  const historyContainer = document.getElementById('incident-history-list');
+  historyContainer?.replaceChildren();
   currentContainer?.replaceChildren();
   previousContainer?.replaceChildren();
-  const current = incidents.find((incident) => incident.incidentId === activeId);
+  const current = getActiveIncident();
   if (current) renderIncidentCard(currentContainer, current, activeId);
   else if (currentContainer) currentContainer.textContent = 'No active incident. Start one from the Home Page.';
   const previous = incidents.filter((incident) => incident.status === 'Completed');
   previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId));
   if (!previous.length && previousContainer) previousContainer.textContent = 'No completed incident forms saved yet.';
+  incidents.filter((incident) => incident.incidentId !== current?.incidentId).forEach((incident) => renderIncidentCard(historyContainer, incident, activeId));
+  if (historyContainer && !historyContainer.children.length) historyContainer.textContent = 'No previous incidents saved yet.';
+  setText('report-history-count', `${incidents.filter((incident) => incident.incidentId !== current?.incidentId).length} saved incidents`);
+  setText('report-completed-count', `${previous.length} completed`);
   renderActiveIcsFormList();
   if (renderCommand) renderIncidentCommandDashboard();
 }
@@ -2784,11 +2794,19 @@ function renderActiveIcsFormList() {
   if (!container) return;
   container.replaceChildren();
   const incident = getActiveIncident();
-  if (!incident) {
-    container.textContent = 'Start an incident to create its ICS form drafts.';
-    return;
-  }
-  icsFormCatalog.forEach(([id, title]) => container.append(createIcsFormLink(incident.incidentId, id, title)));
+  document.getElementById('open-current-incident-summary-btn')?.toggleAttribute('hidden', !incident);
+  icsFormCatalog.forEach(([id, title]) => {
+    const tile = document.createElement('article');
+    tile.className = 'report-form-tile';
+    const heading = document.createElement('strong'); heading.textContent = title;
+    const size = document.createElement('small');
+    size.textContent = 'FEMA Original · Fillable PDF';
+    tile.append(heading, size);
+    if (incident) tile.append(createIcsFormLink(incident.incidentId, id, 'Open Auto-filled Worksheet'));
+    const blank = document.createElement('a'); blank.href = `/api/ics-forms/${id}/blank`; blank.target = '_blank'; blank.rel = 'noopener'; blank.textContent = 'Blank PDF';
+    const original = document.createElement('a'); original.href = `/api/ics-forms/${id}/original`; original.target = '_blank'; original.rel = 'noopener'; original.textContent = ' · FEMA Original';
+    tile.append(blank, original); container.append(tile);
+  });
 }
 
 function appendCompletedIcsForms(container, incident) {
@@ -3109,7 +3127,13 @@ function openIncidentSummary(incidentId) {
     ['Release phase', incident.containerReleasePhase],
     ['Sources', incident.chemicalSources],
   ]);
-  appendChemicalProfileToIncidentReport(content, chemicalContext.profile);
+  const supporting = document.createElement('details');
+  supporting.className = 'incident-report-optional';
+  const supportingTitle = document.createElement('summary');
+  supportingTitle.textContent = 'Supporting hazard references and operational guidance (optional)';
+  supporting.append(supportingTitle);
+  content.append(supporting);
+  appendChemicalProfileToIncidentReport(supporting, chemicalContext.profile);
   const checklist = normalizeOperationalChecklist(incident);
   appendIncidentSummarySection(content, 'Operational Mode and Status', [
     ['Operational mode', incident.operationalMode || 'Research & Assessment'],
@@ -3117,15 +3141,15 @@ function openIncidentSummary(incidentId) {
     ['Checklist', checklist.tasks.map((task) => `${task.label}: ${task.status}${task.evidence ? ` · ${task.evidence}` : ''}`)],
     ['Status history', checklist.history.map((entry) => `${entry.label}: ${entry.from} → ${entry.to} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
   ]);
-  appendGuidedResponseTacticalReport(content, incident);
+  appendGuidedResponseTacticalReport(supporting, incident);
   appendIncidentSummarySection(content, 'Conditions', [
     ['Weather', incident.weather],
     ['Wind speed (mph)', incident.windSpeed],
     ['Wind direction', incident.windDirection],
   ]);
   appendWeatherBriefsToIncidentReport(content, incident);
-  appendIncidentSummarySection(content, 'PPE Requirements', [['Guidance', incident.ppeSummary?.items || []]]);
-  appendIncidentSummarySection(content, 'Medical Summary', [['Guidance', incident.medicalSummary?.items || []]]);
+  appendIncidentSummarySection(supporting, 'PPE Reference Guidance', [['Guidance', incident.ppeSummary?.items || []]]);
+  appendIncidentSummarySection(supporting, 'Medical Reference Guidance', [['Guidance', incident.medicalSummary?.items || []]]);
   appendIncidentSummarySection(content, 'Plume Model', [
     ['Result', currentPlume ? incident.plumeSummary?.summary : 'NOT PLOTTED'],
     ['Source', currentPlume ? incident.plumeSummary?.source : 'Active incident has no current plume for its canonical chemical record.'],
@@ -3138,7 +3162,13 @@ function openIncidentSummary(incidentId) {
     });
   }
   appendIncidentSummarySection(content, 'Documentation Notes', [['Notes', incident.notes]]);
-  appendIncidentSummarySection(content, 'Incident Timeline', [[
+  const activityDetails = document.createElement('details');
+  activityDetails.className = 'incident-report-optional';
+  const activityTitle = document.createElement('summary');
+  activityTitle.textContent = `Recorded incident timeline (${(incident.incidentTimeline || []).length} events)`;
+  activityDetails.append(activityTitle);
+  content.append(activityDetails);
+  appendIncidentSummarySection(activityDetails, 'Incident Timeline', [[
     'Recorded events',
     (Array.isArray(incident.incidentTimeline) ? incident.incidentTimeline : []).map((entry) => `${entry.type || 'event'} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'System'}${entry.to ? ` · ${entry.to}` : ''}`),
   ]]);
@@ -3161,7 +3191,7 @@ function closeIncidentSummary() {
   if (summary) summary.hidden = true;
   const tabs = document.querySelector('.report-tabs');
   if (tabs) tabs.hidden = false;
-  const selected = document.querySelector('[data-report-tab].primary-btn')?.dataset.reportTab || 'current';
+  const selected = document.querySelector('[data-report-tab].primary-btn')?.dataset.reportTab || 'library';
   const selectedSection = document.getElementById(`report-${selected}-section`);
   if (selectedSection) selectedSection.hidden = false;
 }
@@ -3203,8 +3233,14 @@ async function openIncidentIcsForm(incidentId, formId) {
   const summary = document.getElementById('incident-report-summary');
   if (summary) summary.hidden = true;
   editor.hidden = false;
+  const selectedForm = openIcsForm;
+  const preview = document.getElementById('ics-pdf-preview');
+  if (preview) preview.removeAttribute('src');
+  const corrections = document.getElementById('ics-form-corrections');
+  if (corrections) corrections.open = false;
   fieldsContainer.replaceChildren();
-  status.textContent = 'Preparing the saved FEMA form…';
+  status.textContent = 'Preparing auto-filled worksheet…';
+  document.getElementById('ics-original-download').href = `/api/ics-forms/${encodeURIComponent(formId)}/original`;
 
   try {
     const response = await fetch(`/api/ics-forms/${encodeURIComponent(formId)}/prepare`, {
@@ -3214,7 +3250,8 @@ async function openIncidentIcsForm(incidentId, formId) {
     });
     if (!response.ok) throw new Error(`Form preparation failed (${response.status})`);
     const prepared = await response.json();
-    document.getElementById('ics-form-editor-title').textContent = prepared.title;
+    if (openIcsForm !== selectedForm) return;
+    document.getElementById('ics-form-editor-title').textContent = `${prepared.title} · ${prepared.pages} ${prepared.pages === 1 ? 'Page' : 'Pages'}`;
     document.getElementById('ics-form-editor-context').textContent = openIcsForm.completed
       ? `${incident.incidentName} · Completed form`
       : `${incident.incidentName} · Active incident form`;
@@ -3237,6 +3274,7 @@ async function openIncidentIcsForm(incidentId, formId) {
     status.textContent = openIcsForm.completed
       ? 'Archived with the completed incident. Select Edit to add missing information.'
       : 'Dashboard data is prefilled. Manual changes are saved with this active incident.';
+    await refreshIcsPdfPreview(incident, selectedForm);
     editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     console.error(error);
@@ -3253,8 +3291,7 @@ function saveOpenIcsForm() {
   const existing = incident.icsForms?.[openIcsForm.formId] || { fields: {} };
   const fields = { ...(existing.fields || {}) };
   document.querySelectorAll('#ics-form-fields input[data-dirty="true"], #ics-form-fields textarea[data-dirty="true"]').forEach((control) => {
-    if (control.value.trim()) fields[control.name] = control.value;
-    else delete fields[control.name];
+    fields[control.name] = control.value; // An intentionally cleared field must stay blank.
     delete control.dataset.dirty;
     control.dataset.source = control.value.trim() ? 'manual' : 'blank';
   });
@@ -3273,37 +3310,100 @@ function saveOpenIcsForm() {
   return incidents[index];
 }
 
+async function refreshIcsPdfPreview(incident, selection = openIcsForm) {
+  if (!selection) return;
+  const status = document.getElementById('ics-form-editor-status');
+  const requestVersion = selection.previewVersion = (selection.previewVersion || 0) + 1;
+  const payload = { ...incident };
+  if (!isIncidentPlumeCurrent(payload.plumeModelResults, payload)) delete payload.plumeMapImage;
+  if (!payload.plumeMapImage && payload.plumeMapImageRef && isIncidentPlumeCurrent(payload.plumeModelResults, payload)) {
+    payload.plumeMapImage = await readIncidentMapSnapshot(payload.plumeMapImageRef);
+  }
+  if (openIcsForm !== selection) return;
+  const response = await fetch(`/api/ics-forms/${encodeURIComponent(selection.formId)}/pdf`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`PDF generation failed (${response.status})`);
+  const blob = await response.blob();
+  if (openIcsForm !== selection || requestVersion !== selection.previewVersion) return;
+  if (openIcsFormObjectUrl) URL.revokeObjectURL(openIcsFormObjectUrl);
+  openIcsFormObjectUrl = URL.createObjectURL(blob);
+  const preview = document.getElementById('ics-pdf-preview');
+  if (preview) preview.src = `${openIcsFormObjectUrl}#view=FitH`;
+  const download = document.getElementById('ics-pdf-download');
+  if (download) {
+    download.href = openIcsFormObjectUrl;
+    download.download = `${incident.incidentName || 'incident'}-ICS-${selection.formId}.pdf`;
+    download.hidden = false;
+  }
+  if (status) status.textContent = 'Editable ICS worksheet prepared from recorded incident data. Unknown fields remain blank. Download to keep edits made in the PDF viewer; use Saved Field Corrections to save changes in EMERGENZ.';
+}
+
 async function openIcsPdf() {
   if (!openIcsForm) return;
-  const incident = openIcsForm.editing
-    ? saveOpenIcsForm()
-    : readIncidents().find((item) => item.incidentId === openIcsForm.incidentId);
+  const selection = openIcsForm;
+  const incident = selection.editing ? saveOpenIcsForm()
+    : readIncidents().find((item) => item.incidentId === selection.incidentId);
   if (!incident) return;
   const status = document.getElementById('ics-form-editor-status');
-  status.textContent = 'Generating the populated FEMA PDF…';
+  // Open synchronously so browser popup blocking cannot discard an awaited PDF.
+  const tab = window.open('', '_blank');
+  if (tab) tab.opener = null;
   try {
-    const response = await fetch(`/api/ics-forms/${encodeURIComponent(openIcsForm.formId)}/pdf`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(incident),
-    });
-    if (!response.ok) throw new Error(`PDF generation failed (${response.status})`);
-    if (openIcsFormObjectUrl) URL.revokeObjectURL(openIcsFormObjectUrl);
-    openIcsFormObjectUrl = URL.createObjectURL(await response.blob());
-    window.open(openIcsFormObjectUrl, '_blank', 'noopener');
-    status.textContent = 'The populated PDF opened in a new tab.';
+    await refreshIcsPdfPreview(incident, selection);
+    if (openIcsForm !== selection) { tab?.close(); return; }
+    if (tab) tab.location.href = openIcsFormObjectUrl;
+    else if (status) status.textContent += ' Your browser blocked a new tab; use the PDF preview or Download Editable PDF.';
   } catch (error) {
+    tab?.close();
     console.error(error);
-    status.textContent = 'The populated PDF could not be generated. Please try again.';
+    if (openIcsForm === selection && status) status.textContent = 'The populated PDF could not be generated. Your saved incident was preserved. Retry when the server is available.';
   }
 }
 
-function closeOpenIcsForm() {
+let icsPreviewRefreshTimer = null;
+async function refreshOpenIcsForm() {
+  const selection = openIcsForm;
+  if (!selection) return;
+  const incident = readIncidents().find((item) => item.incidentId === selection.incidentId);
+  if (!incident) return;
+  setText('ics-form-editor-context', `${incident.incidentName} · ${incident.status === 'Completed' ? 'Completed form' : 'Active incident form'}`);
+  selection.completed = incident.status === 'Completed';
+  if (document.querySelector('#ics-form-fields [data-dirty="true"]')) {
+    setText('ics-form-editor-status', 'Incident updated. Save your field corrections to refresh the worksheet.');
+    return;
+  }
+  try {
+    const response = await fetch(`/api/ics-forms/${selection.formId}/prepare`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(incident) });
+    if (!response.ok) throw new Error('Form refresh failed');
+    const prepared = await response.json();
+    if (openIcsForm !== selection) return;
+    const values = new Map(prepared.fields.map((field) => [field.name, field]));
+    document.querySelectorAll('#ics-form-fields input, #ics-form-fields textarea').forEach((control) => {
+      const field = values.get(control.name);
+      if (field && control.dataset.dirty !== 'true') { control.value = field.value || ''; control.dataset.source = field.source; }
+    });
+    await refreshIcsPdfPreview(incident, selection);
+  } catch {
+    if (openIcsForm === selection) setText('ics-form-editor-status', 'Saved incident retained. PDF refresh unavailable; retry Open PDF when connected.');
+  }
+}
+window.addEventListener('hazmatiq:incident-record-saved', () => {
+  if (!openIcsForm) return;
+  window.clearTimeout(icsPreviewRefreshTimer);
+  icsPreviewRefreshTimer = window.setTimeout(() => void refreshOpenIcsForm(), 800);
+});
+
+function closeOpenIcsForm({ returnToSummary = true } = {}) {
   const incidentId = openIcsForm?.incidentId;
   const completed = openIcsForm?.completed;
+  window.clearTimeout(icsPreviewRefreshTimer);
   document.getElementById('ics-form-editor').hidden = true;
+  document.getElementById('ics-pdf-preview')?.removeAttribute('src');
+  if (openIcsFormObjectUrl) URL.revokeObjectURL(openIcsFormObjectUrl);
+  openIcsFormObjectUrl = null;
   openIcsForm = null;
-  if (completed && incidentId) openIncidentSummary(incidentId);
+  if (returnToSummary && completed && incidentId) openIncidentSummary(incidentId);
   else closeIncidentSummary();
 }
 
@@ -3707,7 +3807,7 @@ function openCurrentIncidentReport() {
   const active = getActiveIncident();
   if (!active) return;
   showView('report', { sourcePage: 'incident', incidentId: active.incidentId });
-  document.querySelector('[data-report-tab="current"]')?.click();
+  document.querySelector('[data-report-tab="library"]')?.click();
   openIncidentSummary(active.incidentId);
 }
 
@@ -3938,7 +4038,7 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
   } else if (action === 'ics') {
     const active = getActiveIncident();
     showView('report', { sourcePage: 'incident', incidentId: active?.incidentId });
-    document.querySelector('[data-report-tab="current"]')?.click();
+    document.querySelector('[data-report-tab="library"]')?.click();
     document.getElementById('active-ics-form-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
@@ -13117,25 +13217,30 @@ function getGpsErrorMessage(error) {
   return error instanceof Error ? error.message : 'Browser GPS could not provide a valid location.';
 }
 
+let pendingDeviceGpsRequest = null;
+let recentDeviceGps = null;
 function getCurrentGps() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Browser GPS is not supported by this device.'));
+  if (recentDeviceGps && Date.now() - recentDeviceGps.receivedAt < 30000) return Promise.resolve(recentDeviceGps.location);
+  if (pendingDeviceGpsRequest) return pendingDeviceGpsRequest;
+  pendingDeviceGpsRequest = new Promise((resolve, reject) => {
+    if (window.isSecureContext === false || !navigator.geolocation) {
+      reject(new Error('Device location requires HTTPS and a browser with location support. Enter an incident address or coordinates.'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const location = normalizePlumeLocation({ lat: coords?.latitude, lon: coords?.longitude });
-        if (!location) {
-          reject(new Error('Browser GPS returned an invalid location.'));
-          return;
-        }
-        resolve({ ...location, source: 'Current device GPS', acquiredAt: new Date().toISOString() });
-      },
-      (error) => reject(new Error(getGpsErrorMessage(error))),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
-    );
-  });
+    const success = ({ coords }) => {
+      const location = normalizePlumeLocation({ lat: coords?.latitude, lon: coords?.longitude });
+      if (!location) { reject(new Error('Browser GPS returned an invalid location.')); return; }
+      const result = { ...location, accuracy: coords.accuracy, source: 'Current device GPS', acquiredAt: new Date().toISOString() };
+      recentDeviceGps = { location: result, receivedAt: Date.now() };
+      resolve(result);
+    };
+    navigator.geolocation.getCurrentPosition(success, (error) => {
+      if (error?.code === 1) { reject(new Error(getGpsErrorMessage(error))); return; }
+      navigator.geolocation.getCurrentPosition(success, (fallback) => reject(new Error(getGpsErrorMessage(fallback))),
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  }).finally(() => { pendingDeviceGpsRequest = null; });
+  return pendingDeviceGpsRequest;
 }
 
 function setText(id, value) {
@@ -16243,6 +16348,7 @@ document.getElementById('use-current-location-btn')?.addEventListener('click', a
 // ─── Tier II facilities: backed by the real /api/facilities data ───
 
 let tier2FacilitiesPromise = null;
+let facilitySearchCoverage = null;
 function getTier2Facilities(query = '') {
   const normalizedQuery = String(query || '').trim();
   const endpoint = normalizedQuery
@@ -16250,6 +16356,7 @@ function getTier2Facilities(query = '') {
     : '/api/facilities';
   const load = () => fetchJson(endpoint).then((data) => {
       if (!Array.isArray(data?.facilities)) throw new Error('Facility search returned an invalid response.');
+      facilitySearchCoverage = data.coverage || null;
       return data.facilities;
     });
   if (normalizedQuery) return load();
@@ -16634,7 +16741,9 @@ function renderCommandFacilityMatches(facilities) {
   const matches = facilities.filter((facility) => String(facility.name || '').trim());
   if (!matches.length) {
     clearCommandFacilitySuggestions();
-    setCommandFacilitySearchStatus('No facility names matched that search.', 'error');
+    setCommandFacilitySearchStatus(facilitySearchCoverage?.tier2Records === 0
+      ? 'No imported Tier II records are available on this server. A missing search result does not mean the facility has no hazards. Use manual entry or import the agency facility dataset.'
+      : 'No facility names matched that search. Try a partial name or location; missing results do not mean no hazards.', 'error');
     return;
   }
   commandFacilitySuggestions.replaceChildren(...matches.slice(0, 12).map((facility) => {
@@ -16863,9 +16972,11 @@ function filterCommandFacilities(facilities, query) {
   const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
   const normalized = normalize(query);
   if (!normalized) return [];
-  return facilities.filter((facility) =>
-    [facility.name, facility.address, ...(Array.isArray(facility.aliases) ? facility.aliases : []), facility.city, facility.state, facility.zip]
-      .some((value) => normalize(value).includes(normalized)));
+  const terms = normalized.split(' ');
+  return facilities.filter((facility) => {
+    const text = normalize([facility.name, facility.address, ...(Array.isArray(facility.aliases) ? facility.aliases : []), facility.city, facility.county, facility.state, facility.zip, facility.sourceFacilityId, facility.stateFacilityId].filter(Boolean).join(' '));
+    return terms.every((term) => text.includes(term));
+  });
 }
 
 function facilityChemicalSummary(facility) {
@@ -18990,6 +19101,7 @@ if (document.getElementById('overview')?.classList.contains('active')) activateP
 else syncCommandBarContext();
 
 // Render saved incidents only after chemical state and all control handlers are initialized.
+void initializeTacticalClock();
 startIncidentTimer();
 renderIncidentLists();
 void restoreIncidentsFromBackend();

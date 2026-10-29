@@ -54,7 +54,7 @@ describe("unified Hazard ID workspace", () => {
   it("keeps Chemical Companion controls and safely gates non-chemical plume actions", () => {
     expect(html).toContain('id="chemical-search-form"');
     expect(html).toContain('id="chemical-id-results"');
-    expect(html).toContain('script.js?v=hazard-radiological-profile-1');
+    expect(html).toContain('script.js?v=field-trial-fixes-1');
     expect(html).toContain('id="open-plume-btn"');
     expect(html).toContain('id="hazard-profile-plume-btn" type="button" disabled');
     expect(script).toContain("Plume requires verified endpoint/source data.");
@@ -96,7 +96,7 @@ describe("unified Hazard ID workspace", () => {
   });
 
   it("keeps the Hazard ID shell fluid from desktop through tablet widths", () => {
-    expect(html).toContain('styles.css?v=live-map-responsive-6');
+    expect(html).toContain('styles.css?v=live-map-responsive-7');
     expect(html).toContain('chemical-intel.css?v=hazard-profile-panel-31');
     expect(styles).toContain('#lookup > .hazard-id-page-hero');
     expect(styles).toContain('#lookup > .hazard-id-command-console.chemical-id-search-card');

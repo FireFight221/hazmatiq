@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EMERGENZ | Incident Intelligence + Response Planning</title>
     <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css" />
-    <link rel="stylesheet" href="styles.css?v=live-map-responsive-6" />
+    <link rel="stylesheet" href="styles.css?v=live-map-responsive-7" />
     <link rel="stylesheet" href="hero-overrides.css?v=13" />
     <link rel="stylesheet" href="hazard-id-overrides.css?v=3" />
     <link rel="stylesheet" href="global-ui-overrides.css?v=21" />
@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="plume-overrides.css?v=24&canonical-grid=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=7" />
     <link rel="stylesheet" href="monitoring-console.css?v=4" />
-    <link rel="stylesheet" href="plume-layout-correction.css?v=14" />
+    <link rel="stylesheet" href="plume-layout-correction.css?v=15" />
     <link rel="stylesheet" href="dashboard-header.css?v=17" />
   </head>
   <body>
@@ -1868,50 +1868,24 @@
           </section>
 
           <section id="report" class="view reports-page" data-page-root="reports" data-page-name="Reports / ICS">
-            <header class="hazmat-page-hero emergenz-page-header variant-reports">
-              <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><rect x="11" y="5" width="34" height="51" rx="4"/><path d="M20 5V2h16v3M19 22h18M19 31h18M19 40h11"/></svg></span><div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title">Reports &amp; Forms</h1><p class="hazmat-hero-subtitle">Generate, Print, Export &amp; Archive.</p></div></div>
-            </header>
+            <header class="reports-heading"><div><p class="eyebrow">COMMAND WORKSHEETS</p><h1>Reports &amp; ICS Forms</h1><p>Incident data in. Ready-to-use worksheets out.</p></div><span class="reports-auto-badge">Auto-filled from saved incident data</span></header>
             <div class="panel-card report-center">
-              <div class="button-row report-tabs">
-                <button class="primary-btn" type="button" data-report-tab="current">Current Incident Forms</button>
-                <button class="ghost-btn" type="button" data-report-tab="previous">Completed Forms</button>
-                <button class="ghost-btn" type="button" data-report-tab="library">ICS Forms Library</button>
-              </div>
-
-              <section id="report-current-section" class="report-section">
-                <h3>Current Active Incident</h3>
+              <nav class="report-tabs" aria-label="Reports workspace">
+                <button class="report-workspace-card primary-btn" type="button" data-report-tab="library" aria-pressed="true"><span aria-hidden="true">▤</span><strong>ICS Forms Library</strong><small>Open a live worksheet or a blank fillable PDF</small><b id="report-library-count">13 forms</b></button>
+                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="current" aria-pressed="false"><span aria-hidden="true">◷</span><strong>Previous Incident Reports</strong><small>Find saved incidents and review their records</small><b id="report-history-count">0 saved incidents</b></button>
+                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="previous" aria-pressed="false"><span aria-hidden="true">✓</span><strong>Completed Reports</strong><small>Review closed incidents and their saved forms</small><b id="report-completed-count">0 completed</b></button>
+              </nav>
+              <section id="report-library-section" class="report-section">
+                <div class="reports-section-heading"><div><h2>ICS Forms Library</h2><p>Original FEMA fillable forms. Recorded updates flow into incident forms; manual corrections stay saved.</p></div><a href="https://training.fema.gov/emiweb/is/icsresource/icsforms/" target="_blank" rel="noopener noreferrer">FEMA originals &amp; instructions ↗</a></div>
                 <div id="current-incident-list" class="report-incident-list"></div>
                 <div id="current-incident-options" class="report-form-options" tabindex="-1">
-                  <h3>Active Incident Forms</h3>
-                  <button class="ghost-btn" id="open-current-incident-summary-btn" type="button">Incident Summary</button>
+                  <button class="ghost-btn" id="open-current-incident-summary-btn" type="button">View Incident Summary</button>
                   <div id="active-ics-form-list" class="incident-ics-form-list"></div>
-                  <p class="muted">Available dashboard data is automatically merged into each saved FEMA form.</p>
+                  <p class="muted">All forms retain their original FEMA layout and pages. Full recorded data is attached inside exported PDFs.</p>
                 </div>
               </section>
-
-              <section id="report-previous-section" class="report-section" hidden>
-                <h3>Completed Forms</h3>
-                <div id="previous-incident-list" class="report-incident-list"></div>
-              </section>
-
-              <section id="report-library-section" class="report-section" hidden>
-                <h3>ICS Forms Library</h3>
-                <ul class="ics-form-library">
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20201%2C%20Incident%20Briefing%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 201 Incident Briefing</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20202%2C%20Incident%20Objectives%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 202 Incident Objectives</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20203%2C%20Organization%20Assignment%20List%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 203 Organization Assignment List</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20204%2C%20Assignment%20List%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 204 Assignment List</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20205%2C%20Incident%20Radio%20Communications%20Plan%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 205 Communications Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20205A%2C%20Communications%20List%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 205A Communications List</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20206%2C%20Medical%20Plan%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 206 Medical Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20208%2C%20Safety%20Message-Plan%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 208 Safety Message / Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20208HM%2C%20Site%20Safety%20and%20Control%20Plan%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 208HM Site Safety and Control Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20209%2C%20Incident%20Status%20Summary%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 209 Incident Status Summary</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20214%2C%20Activity%20Log%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 214 Activity Log</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20215%2C%20Operational%20Planning%20Worksheet%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 215 Operational Planning Worksheet</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20215A%2C%20Incident%20Action%20Plan%20Safety%20Analysis%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 215A IAP Safety Analysis</a></li>
-                </ul>
-              </section>
+              <section id="report-current-section" class="report-section" hidden><h2>Previous Incident Reports</h2><p class="muted">Saved incident records. Opening a report does not reactivate the incident.</p><div id="incident-history-list" class="report-incident-list"></div></section>
+              <section id="report-previous-section" class="report-section" hidden><h2>Completed Reports</h2><p class="muted">Closed incidents and their archived worksheets. Corrections are saved with the incident.</p><div id="previous-incident-list" class="report-incident-list"></div></section>
 
               <section id="incident-report-summary" class="report-section incident-report-summary" hidden>
                 <div class="incident-report-summary-heading">
@@ -1943,12 +1917,14 @@
                   <div class="button-row report-summary-actions">
                     <button class="ghost-btn" id="back-from-ics-form-btn" type="button">Back to Forms</button>
                     <button class="primary-btn" id="edit-ics-form-btn" type="button" hidden>Edit</button>
-                    <button class="primary-btn" id="save-ics-form-btn" type="button">Save</button>
+                    <button class="primary-btn" id="save-ics-form-btn" type="button">Save Corrections</button>
                     <button class="ghost-btn" id="download-ics-form-btn" type="button">Open PDF</button>
                   </div>
                 </div>
                 <p class="muted" id="ics-form-editor-status" role="status" aria-live="polite"></p>
-                <div id="ics-form-fields" class="ics-form-fields"></div>
+                <div class="ics-pdf-actions"><a id="ics-pdf-download" class="ghost-btn" hidden>Download Editable PDF</a><a id="ics-original-download" target="_blank" rel="noopener">Original FEMA form &amp; instructions</a></div>
+                <iframe id="ics-pdf-preview" class="ics-pdf-preview" title="Auto-filled editable ICS worksheet"></iframe>
+                <details id="ics-form-corrections"><summary>Saved Field Corrections (Optional)</summary><p>These changes are saved with the incident. The preview refreshes after saving. PDF viewer edits must be downloaded to retain them.</p><div id="ics-form-fields" class="ics-form-fields"></div></details>
               </section>
             </div>
           </section>
@@ -2064,7 +2040,7 @@
     <script src="weather-radar.js"></script>
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
-    <script src="script.js?v=hazard-radiological-profile-1"></script>
+    <script src="script.js?v=field-trial-fixes-1"></script>
     <script src="weather-workspace.js?v=7"></script>
     <script src="settings-workspace.js?v=1"></script>
     <script src="incident-command.js"></script>
