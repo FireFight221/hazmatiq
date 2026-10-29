@@ -55,9 +55,10 @@
 .reports-section-heading p { max-width:650px; color:#c7d9e8; line-height:1.5; margin:0 0 14px; }
 .reports-page a { color:#a7d8ff; }
 .reports-page .incident-ics-form-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin-top:15px; }
-.report-form-tile { display:block; border:2px solid #fff; border-radius:8px; padding:13px; background:#e5e7eb; min-width:0; color:#082540; text-decoration:none; }
+.report-form-tile { display:flex; width:100%; height:108px; box-sizing:border-box; flex-direction:column; align-items:center; justify-content:center; border:2px solid #fff; border-radius:8px; padding:13px; background:#e5e7eb; min-width:0; color:#082540; text-align:center; text-decoration:none; }
 .report-form-tile:hover, .report-form-tile:focus-visible { border-color:#fff; background:#d1d5db; color:#082540; text-decoration:none; }
-.report-form-tile strong { display:block; color:#082540; font:700 .95rem/1.4 Arial,sans-serif; margin-bottom:8px; }
+.report-form-tile strong { display:block; color:#082540; font:700 .95rem/1.25 Arial,sans-serif; margin-bottom:5px; }
+.report-form-tile .report-form-title { display:block; color:#082540; font:600 .9rem/1.3 Arial,sans-serif; overflow-wrap:anywhere; }
 .report-form-tile .ics-form-text-link { color:#082540; display:block; text-align:left; font-size:.9rem; }
 .report-form-tile a { display:inline-block; margin-top:8px; font-size:.85rem; }
 .report-form-tile small { display:block; color:#082540; margin:6px 0; }

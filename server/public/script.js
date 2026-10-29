@@ -2875,13 +2875,20 @@ function renderActiveIcsFormList() {
   document.getElementById('open-current-incident-summary-btn')?.toggleAttribute('hidden', !incident);
   icsFormCatalog.forEach(([id, title]) => {
     const tile = document.createElement('a');
+    const formNumber = `ICS ${id}`;
+    const description = title.replace(/^ICS\s+\S+\s+/, '');
     tile.className = 'report-form-tile';
     tile.href = `/api/ics-forms/${encodeURIComponent(id)}/original`;
     tile.target = '_blank';
     tile.rel = 'noopener';
-    tile.setAttribute('aria-label', `${title} original government-issued PDF`);
-    const heading = document.createElement('strong'); heading.textContent = title;
-    tile.append(heading); library.append(tile);
+    tile.setAttribute('aria-label', `${formNumber} ${description} original government-issued PDF`);
+    const number = document.createElement('strong');
+    number.className = 'report-form-number';
+    number.textContent = formNumber;
+    const heading = document.createElement('span');
+    heading.className = 'report-form-title';
+    heading.textContent = description;
+    tile.append(number, heading); library.append(tile);
     if (incident) container.append(createIcsFormLink(incident.incidentId, id, title));
   });
   if (!incident) container.textContent = 'No active worksheets. Start an incident from Command.';
