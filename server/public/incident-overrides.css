@@ -32,7 +32,7 @@
 .incident-command-flow-steps { display: grid; grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr); gap: 0 7px; align-items: stretch; min-width: 0; }
 .incident-command-flow-steps article { min-width: 0; padding: 8px; border: 1px solid #356b94; border-radius: 4px; background: #0b2944; }
 .incident-command-flow-steps article strong { color: #fff; }
-.incident-command-flow-steps button { align-self: flex-start; margin-top: auto; min-height: 44px; padding: 6px 12px; border: 1px solid #5a8db5; border-radius: 6px; background: #123f63; color: #fff; }
+.incident-command-flow-steps button { align-self: flex-start; margin-top: auto; min-height: 44px; padding: 6px 12px; border: 1px solid #aeb8c3; border-radius: 6px; background: #e5e7eb; color: #082540; }
 .incident-guided-primary { width: 100%; min-height: 44px; margin-bottom: 12px; border: 1px solid #f6c343; border-radius: 7px; background: #123f63; color: #fff; }
 .incident-command-snapshot[hidden] { display: none !important; }
 .incident-command-brief-list { margin: 0; padding: 5px 11px 8px; }
@@ -286,12 +286,12 @@
   font-variant-numeric: tabular-nums;
 }
 .incident-command-flow-steps button { max-width: 100%; text-align: left; cursor: pointer; }
-.incident-command-flow-steps button:hover { background: #1a527c; border-color: #9dc4df; }
+.incident-command-flow-steps button:hover { background: #d1d5db; border-color: #7b8794; color: #082540; }
 .incident-command-flow-steps button.command-flow-hazard,
 .incident-command-flow-steps button.command-flow-erg,
 .incident-command-flow-steps button[data-command-view="plume"],
 .incident-command-flow-steps button[data-command-view="guided-response"],
-.incident-command-flow-steps button[data-command-view="report"] { background: #123f63; border-color: #5a8db5; color: #fff; }
+.incident-command-flow-steps button[data-command-view="report"] { background: #e5e7eb; border-color: #aeb8c3; color: #082540; }
 
 .erg-review-dialog {
   width: min(920px, calc(100vw - 28px));
@@ -1303,13 +1303,15 @@
   font-size: .7rem;
 }
 #incident .incident-command-flow-steps article:nth-of-type(4) > button {
-  border-color: #fff;
-  background: #0b9f4b;
+  border-color: #aeb8c3;
+  background: #e5e7eb;
+  color: #082540;
 }
 #incident .incident-command-flow-steps article:nth-of-type(4) > button:hover,
 #incident .incident-command-flow-steps article:nth-of-type(4) > button:focus-visible {
-  border-color: #fff;
-  background: #12c761;
+  border-color: #7b8794;
+  background: #d1d5db;
+  color: #082540;
 }
 #incident .incident-command-brief-panel > h2,
 #incident .incident-command-guided-panel > h2 {

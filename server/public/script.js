@@ -1827,10 +1827,10 @@ function updateOperationalTaskStatus(taskId, status, evidence = '') {
     updatedAt: now,
   };
   writeIncidents(incidents);
-  renderIncidentLists();
+  renderIncidentLists({ renderCommand: false });
   renderIncidentCommandSnapshot();
-  renderIncidentCommandDashboard();
-  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+  renderIncidentCommandDashboardSilently();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: incidents[index] }));
   return incidents[index];
 }
 
@@ -2157,6 +2157,8 @@ function renderCommandWeatherBrief(incident = typeof getActiveIncident === 'func
   document.getElementById('command-weather-brief-ack')?.toggleAttribute('hidden', Boolean(brief.acknowledgedAt));
 }
 
+let suppressIncidentCommandUpdateEvent = false;
+
 function renderIncidentCommandDashboard() {
   const model = buildIncidentCommandViewModel();
   const empty = document.getElementById('incident-command-empty');
@@ -2310,8 +2312,19 @@ function renderIncidentCommandDashboard() {
   setText('ic-detail-protective', model.protectiveActionsSummary);
   setText('ic-detail-safety', `PPE: ${model.entryTeamPpe} · Decon: ${model.deconTeamPpe} · Medical: ${model.medicalConcerns}`);
   setText('ic-detail-reports', model.completedReports.length ? `${model.completedReports.length} recent completed report${model.completedReports.length === 1 ? '' : 's'}` : 'No completed reports yet');
-  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: model.incident }));
+  if (!suppressIncidentCommandUpdateEvent) {
+    window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: model.incident }));
+  }
   resizePlumeMapAfterLayout();
+}
+
+function renderIncidentCommandDashboardSilently() {
+  suppressIncidentCommandUpdateEvent = true;
+  try {
+    renderIncidentCommandDashboard();
+  } finally {
+    suppressIncidentCommandUpdateEvent = false;
+  }
 }
 
 document.getElementById('command-weather-brief-view')?.addEventListener('click', (event) => {
@@ -2524,11 +2537,20 @@ function createIncidentRecord() {
 }
 
 function renderIncidentTimer() {
-  const timer = document.getElementById('active-incident-timer');
   const activeIncident = getActiveIncident();
-  if (timer) timer.textContent = getIncidentElapsedTime(activeIncident);
-  renderIncidentCommandDashboard();
-  renderSystemNotification();
+  const elapsed = getIncidentElapsedTime(activeIncident);
+  const timer = document.getElementById('active-incident-timer');
+  if (timer) timer.textContent = elapsed;
+  setText('ic-summary-elapsed', elapsed);
+
+  // The clock is a narrow, once-per-second update. Keep the tactical status
+  // current without rebuilding the Command dashboard or recording a new
+  // notification-history entry on every tick.
+  if (activeIncident) {
+    const tactical = `Active Incident · ${elapsed}`;
+    notificationCurrentValues.tactical = tactical;
+    if (!getPrimaryNotification() && tacticalAlertMessage) tacticalAlertMessage.textContent = tactical;
+  }
 }
 
 function startIncidentTimer() {
@@ -2731,7 +2753,7 @@ function renderIncidentCard(container, incident, activeId) {
   container.append(item);
 }
 
-function renderIncidentLists() {
+function renderIncidentLists({ renderCommand = true } = {}) {
   const activeId = window.localStorage.getItem(activeIncidentIdStorageKey);
   const incidents = readIncidents();
   const currentContainer = document.getElementById('current-incident-list');
@@ -2745,7 +2767,7 @@ function renderIncidentLists() {
   previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId));
   if (!previous.length && previousContainer) previousContainer.textContent = 'No completed incident forms saved yet.';
   renderActiveIcsFormList();
-  renderIncidentCommandDashboard();
+  if (renderCommand) renderIncidentCommandDashboard();
 }
 
 function createIcsFormLink(incidentId, formId, title) {
@@ -10350,7 +10372,9 @@ let commandPlumePreviewMap = null;
 let commandPlumePreviewMapReady = false;
 let commandPlumePreviewResizeObserver = null;
 let commandPlumePreviewIntersectionObserver = null;
-let commandPlumePreviewGeometryKey = '';
+let commandPlumePreviewZonesKey = '';
+let commandPlumePreviewReleaseKey = '';
+let commandPlumePreviewCameraKey = '';
 
 function commandPlumePreviewData(state) {
   const result = state?.plume?.result || {};
@@ -10389,18 +10413,27 @@ function commandPlumePreviewSetData(state) {
   if (!commandPlumePreviewMap || !commandPlumePreviewMapReady) return;
   const data = commandPlumePreviewData(state);
   const geometry = data.geometry || { type: 'FeatureCollection', features: [] };
-  commandPlumePreviewMap.getSource('command-plume-preview-zones')?.setData(geometry);
-  commandPlumePreviewMap.getSource('command-plume-preview-release')?.setData({
+  const release = {
     type: 'FeatureCollection',
     features: data.location ? [{
       type: 'Feature',
       properties: { label: 'Release point' },
       geometry: { type: 'Point', coordinates: [data.location.longitude, data.location.latitude] },
     }] : [],
-  });
-  const signature = JSON.stringify({ geometry, location: data.location });
-  if (signature !== commandPlumePreviewGeometryKey) {
-    commandPlumePreviewGeometryKey = signature;
+  };
+  const zonesKey = JSON.stringify(geometry);
+  const releaseKey = JSON.stringify(release);
+  const cameraKey = JSON.stringify({ geometry: zonesKey, location: data.location });
+  if (zonesKey !== commandPlumePreviewZonesKey) {
+    commandPlumePreviewZonesKey = zonesKey;
+    commandPlumePreviewMap.getSource('command-plume-preview-zones')?.setData(geometry);
+  }
+  if (releaseKey !== commandPlumePreviewReleaseKey) {
+    commandPlumePreviewReleaseKey = releaseKey;
+    commandPlumePreviewMap.getSource('command-plume-preview-release')?.setData(release);
+  }
+  if (cameraKey !== commandPlumePreviewCameraKey) {
+    commandPlumePreviewCameraKey = cameraKey;
     commandPlumePreviewFit(data);
   }
 }
@@ -10502,7 +10535,6 @@ function renderCommandPlumePreviewMap(state) {
   if (commandPlumePreviewMapReady) {
     commandPlumePreviewAddLayers();
     commandPlumePreviewSetData(state);
-    resizeCommandPlumePreviewMap();
   }
   return true;
 }
@@ -10515,7 +10547,9 @@ function destroyCommandPlumePreviewMap() {
   commandPlumePreviewMap?.remove();
   commandPlumePreviewMap = null;
   commandPlumePreviewMapReady = false;
-  commandPlumePreviewGeometryKey = '';
+  commandPlumePreviewZonesKey = '';
+  commandPlumePreviewReleaseKey = '';
+  commandPlumePreviewCameraKey = '';
 }
 
 function resizePlumeMapAfterLayout() {
