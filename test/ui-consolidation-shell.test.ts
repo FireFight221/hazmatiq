@@ -58,7 +58,7 @@ describe('Phase 1 shared shell and page ownership contract', () => {
     expect(profileStyles).toContain('.content-area > .view[hidden]');
     expect(profileStyles).toContain('#lookup.view:not([hidden])[data-hazard-page-state="chemical-profile"]');
     expect(profileStyles).toContain('#lookup.view:not([hidden])[data-hazard-page-state="hazard-profile"]');
-    expect(pageShellStyles).toContain('.reports-page > .variant-reports');
+    expect(pageShellStyles).toContain('.reports-heading');
     expect(pageShellStyles).toContain('.reports-page > .report-center');
     expect(chemCompareScript).not.toContain("getElementById('lookup')?.classList.remove('active')");
     for (const pageId of ['plume', 'map', 'monitor', 'report']) {

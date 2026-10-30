@@ -554,6 +554,11 @@ async function initializeTacticalClock() {
   try {
     const savedLocation = await getIncidentCoordinates({ requestGps: false }).catch(() => null);
     const gps = savedLocation || await getCurrentGps();
+    const coordinatesInput = document.getElementById('incident-coordinates-input');
+    if (!savedLocation && coordinatesInput && !coordinatesInput.value.trim() && !getIncidentAddressValue()) {
+      coordinatesInput.value = `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}`;
+      setText('incident-location-status', 'Current device location acquired. Confirm this is the incident location.');
+    }
     try {
       await setTacticalClockTimeZoneFromCoordinates(gps);
     } catch {
@@ -563,12 +568,13 @@ async function initializeTacticalClock() {
   } catch {
     // The live clock remains useful with the device timezone if GPS is unavailable.
     updateNotificationCenter({ weather: 'Location needed for live weather' });
+    setText('incident-location-status', 'Device location unavailable or not permitted. Use Current GPS in Command to retry, or enter an incident address/coordinates.');
   }
 }
 
 // Start the clock before the remaining dashboard modules initialize so an
 // unrelated module error cannot leave the Notification Center time unloaded.
-initializeTacticalClock();
+// Tactical clock/GPS initialization runs after incident and location state below.
 
 function updateNotificationCenter(update = {}) {
   if (Object.prototype.hasOwnProperty.call(update, 'tactical') && tacticalAlertMessage) {
@@ -681,7 +687,8 @@ function initializeActivePage(targetId, { skipPlumeInitialization = false, conte
   if (targetId === 'weather') window.HazMatIQ.initializeWeatherPage?.(context);
   if (targetId === 'settings') window.HazMatIQ.initializeSettingsPage?.(context);
   if (targetId === 'map') {
-    window.requestAnimationFrame(() => window.requestAnimationFrame(initializeLiveMap));
+    liveMapPlanningContext = context?.planningPlan ? context : null;
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => initializeLiveMap(context)));
   }
   if (targetId === 'plume') {
     updatePlumeModeLabel();
@@ -897,7 +904,13 @@ function syncPlumeWorkspaceHeight() {
   if (!workspace?.classList.contains('active') || workspace.classList.contains('plume-map-maximized')) return;
   const top = Math.max(0, workspace.getBoundingClientRect().top);
   workspace.style.setProperty('--plume-workspace-top', `${Math.ceil(top)}px`);
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  workspace.style.setProperty('--plume-available-height', `${Math.max(160, Math.floor(viewportHeight - top - 8))}px`);
+  const toolbar = workspace.querySelector('.plume-v2-location-toolbar');
+  workspace.style.setProperty('--plume-toolbar-height', `${Math.ceil(toolbar?.getBoundingClientRect().height || 58)}px`);
 }
+window.addEventListener('resize', syncPlumeWorkspaceHeight);
+window.visualViewport?.addEventListener('resize', syncPlumeWorkspaceHeight);
 function syncPlumeMapControlsHeight() {
   const controls = document.querySelector('.plume-v2-map-controls');
   const card = controls?.closest('.plume-v2-map-card');
@@ -981,41 +994,256 @@ const preplanStoreKey = 'hazmatiq_preplan_records';
 const preplanEl = (id) => document.getElementById(`preplan-${id}`);
 function readPreplans() { try { const value = JSON.parse(localStorage.getItem(preplanStoreKey) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } }
 function setPreplanMessage(message) { setText('preplan-status-message', message); }
+let currentPreplanDraft = { id: '', attachments: [], siteImage: null };
+const preplanPipelineField = document.getElementById('preplan-pipeline-field');
+const preplanPipelineTypes = new Set(['Pipeline Incident Pre-Plan']);
+const preplanFileSizeLimit = 3 * 1024 * 1024;
+const preplanImageSizeLimit = 4 * 1024 * 1024;
+
+function formatPreplanBytes(bytes) {
+  if (!Number.isFinite(Number(bytes)) || bytes < 1024) return `${bytes || 0} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function writePreplans(records) {
+  try {
+    localStorage.setItem(preplanStoreKey, JSON.stringify(records));
+    return true;
+  } catch (error) {
+    setPreplanMessage(/quota/i.test(error?.message || '')
+      ? 'Save failed: local browser storage is full. Remove an attachment or image and try again.'
+      : 'Save failed: this browser could not write the pre-plan locally.');
+    return false;
+  }
+}
+
+function isPipelinePreplan(record) {
+  return preplanPipelineTypes.has(record?.type) || preplanPipelineTypes.has(record?.planType);
+}
+
+function syncPreplanEditorMode() {
+  const pipeline = isPipelinePreplan({ type: preplanEl('type')?.value });
+  if (preplanPipelineField) preplanPipelineField.hidden = !pipeline;
+  const title = document.getElementById('preplan-builder-title');
+  if (title) title.textContent = pipeline ? 'Build a pipeline planning pre-plan' : 'Build a response-ready pre-plan';
+  const description = title?.parentElement?.querySelector('p:last-child');
+  if (description) description.textContent = pipeline
+    ? 'Record the operator, segment, access, isolation, and response layout details for a pipeline incident.'
+    : 'Build facility, event, pipeline, and HazMat tactical pre-plans before the incident starts.';
+}
+
+function renderPreplanSiteImage() {
+  const image = currentPreplanDraft.siteImage;
+  const preview = document.getElementById('preplan-site-image-preview');
+  const previewImage = document.getElementById('preplan-site-image-preview-img');
+  const fileName = document.getElementById('preplan-site-image-file-name');
+  const state = document.getElementById('preplan-site-image-state');
+  const add = document.getElementById('preplan-site-image-btn');
+  const replace = document.getElementById('preplan-site-image-replace-btn');
+  const remove = document.getElementById('preplan-site-image-remove-btn');
+  if (!preview || !previewImage || !state) return;
+  preview.hidden = !image;
+  previewImage.src = image?.dataUrl || '';
+  if (fileName) fileName.textContent = image ? `${image.fileName} · ${formatPreplanBytes(image.size)}` : '';
+  state.textContent = image ? `${image.fileName} is attached to this pre-plan. Save to keep the association.` : 'No site image attached. PNG or JPEG up to 4 MB.';
+  if (add) add.hidden = Boolean(image);
+  if (replace) replace.hidden = !image;
+  if (remove) remove.hidden = !image;
+}
+
+function renderPreplanAttachments() {
+  const list = document.getElementById('preplan-attachments-list');
+  const empty = document.getElementById('preplan-attachments-empty');
+  if (!list || !empty) return;
+  list.replaceChildren();
+  const attachments = Array.isArray(currentPreplanDraft.attachments) ? currentPreplanDraft.attachments : [];
+  empty.hidden = attachments.length > 0;
+  attachments.forEach((attachment, index) => {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = `${attachment.fileName || 'Document'} · ${formatPreplanBytes(attachment.size)}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'ghost-btn';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', () => {
+      currentPreplanDraft.attachments.splice(index, 1);
+      renderPreplanAttachments();
+      setPreplanMessage('Document removed from the draft. Save the pre-plan to keep the change.');
+    });
+    item.append(label, remove);
+    list.append(item);
+  });
+}
+
 function collectPreplan() {
-  const existing = preplanEl('id')?.value;
+  const existingId = preplanEl('id')?.value;
+  const existing = readPreplans().find((item) => item.id === existingId) || {};
   const now = new Date().toISOString();
-  const record = { id: existing || `preplan-${Date.now()}`, createdAt: now, updatedAt: now };
+  const record = { ...existing, id: existingId || `preplan-${Date.now()}`, createdAt: existing.createdAt || now, updatedAt: now };
   preplanFields.forEach((field) => { const input = preplanEl(field); if (input) record[field] = input.value.trim(); });
+  record.pipelinePlanning = preplanEl('pipeline')?.value.trim() || existing.pipelinePlanning || '';
+  record.attachments = Array.isArray(currentPreplanDraft.attachments) ? currentPreplanDraft.attachments : [];
+  record.siteImage = currentPreplanDraft.siteImage || null;
   return record;
 }
-function openPreplan(record = null) {
+
+function openPreplan(record = null, { pipeline = false } = {}) {
   document.getElementById('preplan-builder').hidden = false;
   document.getElementById('preplan-saved-card').hidden = true;
-  preplanFields.forEach((field) => { const input = preplanEl(field); if (input) input.value = record?.[field] || (field === 'status' ? 'Draft' : ''); });
+  const draft = record || (pipeline ? { type: 'Pipeline Incident Pre-Plan' } : null);
+  currentPreplanDraft = {
+    id: draft?.id || '',
+    attachments: Array.isArray(draft?.attachments) ? draft.attachments.map((item) => ({ ...item })) : [],
+    siteImage: draft?.siteImage ? { ...draft.siteImage } : null,
+  };
+  preplanFields.forEach((field) => { const input = preplanEl(field); if (input) input.value = draft?.[field] || (field === 'status' ? 'Draft' : ''); });
+  const pipelineInput = preplanEl('pipeline');
+  if (pipelineInput) pipelineInput.value = draft?.pipelinePlanning || '';
   let hiddenId = preplanEl('id'); if (!hiddenId) { hiddenId = document.createElement('input'); hiddenId.type = 'hidden'; hiddenId.id = 'preplan-id'; document.getElementById('preplan-form')?.append(hiddenId); } hiddenId.value = record?.id || '';
+  if (pipeline) {
+    const type = preplanEl('type');
+    if (type) type.value = 'Pipeline Incident Pre-Plan';
+    const name = preplanEl('name');
+    if (name) name.placeholder = 'Pipeline, operator, or segment name';
+    setPreplanMessage('Pipeline planning template opened. Add a location, operator, product, pressure, valve, access, and isolation information.');
+  } else {
+    const name = preplanEl('name');
+    if (name) name.placeholder = 'Facility or event name';
+  }
+  syncPreplanEditorMode();
+  renderPreplanSiteImage();
+  renderPreplanAttachments();
 }
 function renderSavedPreplans() {
   const list = document.getElementById('preplan-saved-list'); if (!list) return; list.replaceChildren();
   const records = readPreplans();
   if (!records.length) { list.textContent = 'No saved pre-plans yet.'; return; }
-  records.forEach((record) => { const row = document.createElement('div'); row.className = 'preplan-saved-row'; const title = document.createElement('strong'); title.textContent = record.name || 'Untitled Pre-Plan'; const meta = document.createElement('span'); meta.textContent = `${record.type || 'Facility Pre-Plan'} · ${record.status || 'Draft'}`; const button = document.createElement('button'); button.className = 'ghost-btn'; button.type = 'button'; button.textContent = 'Edit'; button.addEventListener('click', () => openPreplan(record)); row.append(title, meta, button); list.append(row); });
+  records.forEach((record) => { const row = document.createElement('div'); row.className = 'preplan-saved-row'; const title = document.createElement('strong'); title.textContent = record.name || 'Untitled Pre-Plan'; const meta = document.createElement('span'); meta.textContent = `${record.type || 'Facility Pre-Plan'} · ${record.status || 'Draft'}${record.attachments?.length ? ` · ${record.attachments.length} file${record.attachments.length === 1 ? '' : 's'}` : ''}${record.siteImage ? ' · site image' : ''}`; const button = document.createElement('button'); button.className = 'ghost-btn'; button.type = 'button'; button.textContent = 'Edit'; button.addEventListener('click', () => openPreplan(record)); row.append(title, meta, button); list.append(row); });
 }
 document.getElementById('new-preplan-btn')?.addEventListener('click', () => openPreplan());
-document.getElementById('pipeline-preplan-btn')?.addEventListener('click', () => {
-  openPreplan();
-  const type = preplanEl('type');
-  if (type) type.value = 'Pipeline Incident Pre-Plan';
-  const name = preplanEl('name');
-  if (name) name.placeholder = 'Pipeline, operator, or segment name';
-  setPreplanMessage('Pipeline planning template opened. Add operator, product, pressure, valve, access, and isolation information.');
-});
+document.getElementById('pipeline-preplan-btn')?.addEventListener('click', () => openPreplan(null, { pipeline: true }));
 document.getElementById('open-preplans-btn')?.addEventListener('click', () => { document.getElementById('preplan-saved-card').hidden = false; document.getElementById('preplan-builder').hidden = true; renderSavedPreplans(); });
 document.getElementById('preplan-close-btn')?.addEventListener('click', () => { document.getElementById('preplan-builder').hidden = true; });
 document.getElementById('preplan-saved-close-btn')?.addEventListener('click', () => { document.getElementById('preplan-saved-card').hidden = true; });
-document.getElementById('preplan-form')?.addEventListener('submit', (event) => { event.preventDefault(); const record = collectPreplan(); const records = readPreplans(); const index = records.findIndex((item) => item.id === record.id); if (index >= 0) { record.createdAt = records[index].createdAt; records[index] = record; } else records.unshift(record); localStorage.setItem(preplanStoreKey, JSON.stringify(records)); setPreplanMessage(`Saved ${record.name || 'pre-plan'} locally.`); });
-document.getElementById('preplan-print-btn')?.addEventListener('click', () => window.print());
+document.getElementById('preplan-type')?.addEventListener('change', syncPreplanEditorMode);
+document.getElementById('preplan-form')?.addEventListener('submit', (event) => { event.preventDefault(); const record = collectPreplan(); const records = readPreplans(); const index = records.findIndex((item) => item.id === record.id); if (index >= 0) { record.createdAt = records[index].createdAt; records[index] = record; } else records.unshift(record); if (!writePreplans(records)) return; currentPreplanDraft.id = record.id; const hiddenId = preplanEl('id'); if (hiddenId) hiddenId.value = record.id; setPreplanMessage(`Saved ${record.name || 'pre-plan'} locally. Attachments and site image are associated with this plan.`); });
+document.getElementById('preplan-print-btn')?.addEventListener('click', () => { setPreplanMessage('Print preview opened. Choose “Save to PDF” in the browser print dialog to generate a PDF.'); window.print(); });
 document.getElementById('preplan-send-incident-btn')?.addEventListener('click', () => setPreplanMessage('Pre-plan summary ready to attach when an active incident is selected.'));
-document.getElementById('preplan-import-btn')?.addEventListener('click', () => setText('planning-tools-status', 'Document attachments are recorded as links or notes in the pre-plan; credentials are never stored.'));
+document.getElementById('preplan-import-btn')?.addEventListener('click', () => openPreplanAttachmentDialog());
+document.getElementById('preplan-import-editor-btn')?.addEventListener('click', () => openPreplanAttachmentDialog(currentPreplanDraft.id));
+
+function readPreplanFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => resolve({
+      id: window.crypto?.randomUUID?.() || `attachment-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      fileName: file.name,
+      mediaType: file.type || 'application/octet-stream',
+      size: file.size,
+      dataUrl: reader.result,
+      attachedAt: new Date().toISOString(),
+    }));
+    reader.addEventListener('error', () => reject(new Error(`Could not read ${file.name}.`)));
+    reader.readAsDataURL(file);
+  });
+}
+
+function openPreplanAttachmentDialog(preferredId = '') {
+  const dialog = document.getElementById('preplan-attachment-dialog');
+  const select = document.getElementById('preplan-attachment-plan');
+  const input = document.getElementById('preplan-attachment-input');
+  const status = document.getElementById('preplan-attachment-status');
+  if (!dialog || !select || !input || !status) return;
+  select.replaceChildren();
+  const newOption = document.createElement('option');
+  newOption.value = '__new__';
+  newOption.textContent = 'New draft pre-plan';
+  select.append(newOption);
+  readPreplans().forEach((record) => {
+    const option = document.createElement('option');
+    option.value = record.id;
+    option.textContent = `${record.name || 'Untitled Pre-Plan'} · ${record.type || 'Facility Pre-Plan'}`;
+    select.append(option);
+  });
+  if (preferredId && [...select.options].some((option) => option.value === preferredId)) select.value = preferredId;
+  input.value = '';
+  status.textContent = 'No documents selected.';
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+}
+
+document.getElementById('preplan-attachment-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (event.submitter?.value === 'cancel') { document.getElementById('preplan-attachment-dialog')?.close(); return; }
+  const dialog = document.getElementById('preplan-attachment-dialog');
+  const select = document.getElementById('preplan-attachment-plan');
+  const input = document.getElementById('preplan-attachment-input');
+  const status = document.getElementById('preplan-attachment-status');
+  const files = [...(input?.files || [])];
+  if (!files.length) { if (status) status.textContent = 'Choose at least one document before attaching.'; return; }
+  const oversized = files.find((file) => file.size > preplanFileSizeLimit);
+  if (oversized) { if (status) status.textContent = `${oversized.name} is larger than ${formatPreplanBytes(preplanFileSizeLimit)}. Choose a smaller file.`; return; }
+  if (status) status.textContent = 'Reading documents locally…';
+  try {
+    const records = readPreplans();
+    let record = records.find((item) => item.id === select?.value);
+    if (!record) {
+      const now = new Date().toISOString();
+      record = { id: `preplan-${Date.now()}`, name: `Attached documents ${new Date().toLocaleDateString()}`, type: 'Facility Pre-Plan', status: 'Draft', createdAt: now, updatedAt: now, attachments: [], siteImage: null };
+      records.unshift(record);
+    }
+    const attachments = await Promise.all(files.map(readPreplanFile));
+    record.attachments = [...(Array.isArray(record.attachments) ? record.attachments : []), ...attachments];
+    record.updatedAt = new Date().toISOString();
+    const saved = writePreplans(records);
+    if (!saved) return;
+    dialog?.close();
+    openPreplan(record);
+    setPreplanMessage(`${attachments.length} document${attachments.length === 1 ? '' : 's'} attached successfully to ${record.name || 'the pre-plan'}. Save the plan after any edits.`);
+  } catch (error) {
+    if (status) status.textContent = `Upload failed: ${error.message || 'the selected documents could not be read.'}`;
+  }
+});
+
+function choosePreplanSiteImage() { document.getElementById('preplan-site-image-input')?.click(); }
+document.getElementById('preplan-site-image-btn')?.addEventListener('click', choosePreplanSiteImage);
+document.getElementById('preplan-site-image-replace-btn')?.addEventListener('click', choosePreplanSiteImage);
+document.getElementById('preplan-site-image-input')?.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!['image/png', 'image/jpeg'].includes(file.type)) { setPreplanMessage('Upload failed: choose a PNG or JPEG site image.'); return; }
+  if (file.size > preplanImageSizeLimit) { setPreplanMessage(`Upload failed: site image must be ${formatPreplanBytes(preplanImageSizeLimit)} or smaller.`); return; }
+  try {
+    currentPreplanDraft.siteImage = await readPreplanFile(file);
+    renderPreplanSiteImage();
+    setPreplanMessage(`${file.name} uploaded successfully. Save the pre-plan to keep the image association.`);
+  } catch (error) { setPreplanMessage(`Upload failed: ${error.message}`); }
+});
+document.getElementById('preplan-site-image-remove-btn')?.addEventListener('click', () => { currentPreplanDraft.siteImage = null; renderPreplanSiteImage(); setPreplanMessage('Site image removed from the draft. Save the pre-plan to keep the change.'); });
+
+function getPlanningMapRecord({ pipeline = false } = {}) {
+  if (document.getElementById('preplan-builder')?.hidden === false) {
+    const draft = collectPreplan();
+    if (draft.name || draft.address || draft.facility) return draft;
+  }
+  const records = readPreplans();
+  return records.find((record) => (pipeline ? isPipelinePreplan(record) : true) && (record.address || record.facility)) || null;
+}
+
+function openPlanningMapForRecord(record, { responseLayout = false } = {}) {
+  if (!record) { setText('planning-tools-status', 'Save a pre-plan with an address or GPS coordinates before opening its Planning Map.'); return; }
+  const coordinates = parseGpsCoordinate(record.address);
+  const mapContext = { planningPlanId: record.id, planningPlan: { name: record.name || 'Pre-Plan', address: record.address || '', facility: record.facility || '', coordinates }, responseLayout };
+  showView('map', mapContext);
+}
+document.getElementById('preplans-map-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord()));
+document.getElementById('preplan-map-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: isPipelinePreplan({ type: preplanEl('type')?.value }) })));
+document.getElementById('preplan-layout-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: isPipelinePreplan({ type: preplanEl('type')?.value }) }), { responseLayout: true }));
+document.getElementById('pipeline-map-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: true })));
+document.getElementById('pipeline-layout-btn')?.addEventListener('click', () => openPlanningMapForRecord(getPlanningMapRecord({ pipeline: true }), { responseLayout: true }));
 
 document.getElementById('add-facility-preplan-btn')?.addEventListener('click', () => {
   setText('facility-preplan-status', 'Document upload, naming, and saving will be available here in a future update.');
@@ -1057,6 +1285,7 @@ const incidentContainerFieldIds = [
   'container-release-phase',
 ];
 const incidentsStorageKey = 'hazmatiq_incidents';
+const incidentDeletionMarkersStorageKey = 'hazmatiq_incident_deletion_markers';
 const activeIncidentIdStorageKey = 'hazmatiq_active_incident_id';
 const incidentSnapshotDbName = 'hazmatiq_incident_snapshots';
 const incidentSnapshotStoreName = 'map_snapshots';
@@ -1207,6 +1436,63 @@ function readIncidentMapSnapshot(incidentId) {
   });
 }
 
+function deleteIncidentMapSnapshot(incidentId) {
+  if (!window.indexedDB || !incidentId) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    try {
+      const request = window.indexedDB.open(incidentSnapshotDbName, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore(incidentSnapshotStoreName, { keyPath: 'incidentId' });
+      };
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction(incidentSnapshotStoreName, 'readwrite');
+        transaction.objectStore(incidentSnapshotStoreName).delete(incidentId);
+        transaction.oncomplete = () => { database.close(); resolve(true); };
+        transaction.onerror = () => { database.close(); resolve(false); };
+        transaction.onabort = () => { database.close(); resolve(false); };
+      };
+      request.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+function readIncidentDeletionMarkers() {
+  try {
+    const markers = JSON.parse(window.localStorage.getItem(incidentDeletionMarkersStorageKey) || '{}');
+    return markers && typeof markers === 'object' && !Array.isArray(markers) ? markers : {};
+  } catch {
+    return {};
+  }
+}
+
+function setIncidentDeletionMarker(incidentId) {
+  try {
+    const markers = readIncidentDeletionMarkers();
+    markers[incidentId] = new Date().toISOString();
+    window.localStorage.setItem(incidentDeletionMarkersStorageKey, JSON.stringify(markers));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearIncidentDeletionMarker(incidentId) {
+  try {
+    const markers = readIncidentDeletionMarkers();
+    delete markers[incidentId];
+    window.localStorage.setItem(incidentDeletionMarkersStorageKey, JSON.stringify(markers));
+  } catch {
+    // A deletion marker is best effort after a failed server deletion.
+  }
+}
+
+function isIncidentDeletionMarked(incidentId) {
+  return Boolean(incidentId && Object.prototype.hasOwnProperty.call(readIncidentDeletionMarkers(), incidentId));
+}
+
 function compactIncidentForLocalStorage(incident) {
   if (!incident || typeof incident !== 'object' || typeof incident.plumeMapImage !== 'string' || !incident.plumeMapImage) return incident;
   if (!persistIncidentMapSnapshot(incident.incidentId, incident.plumeMapImage)) return incident;
@@ -1221,14 +1507,15 @@ function compactIncidentForLocalStorage(incident) {
 function readIncidents() {
   try {
     const incidents = JSON.parse(window.localStorage.getItem(incidentsStorageKey) || '[]');
-    return Array.isArray(incidents) ? incidents : [];
+    return Array.isArray(incidents) ? incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)) : [];
   } catch {
     return [];
   }
 }
 
 function writeIncidents(incidents) {
-  const localIncidents = incidents.map(compactIncidentForLocalStorage);
+  const retainedIncidents = incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
+  const localIncidents = retainedIncidents.map(compactIncidentForLocalStorage);
   let savedLocally = false;
   try {
     window.localStorage.setItem(incidentsStorageKey, JSON.stringify(localIncidents));
@@ -1238,16 +1525,18 @@ function writeIncidents(incidents) {
     setIncidentStatus('Local storage is full. Existing incident records were preserved; this update remains available in memory and will retry backend sync.');
   }
   window.clearTimeout(incidentSyncTimer);
-  incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(incidents), 250);
+  incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(retainedIncidents), 250);
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-record-saved'));
   return savedLocally;
 }
 
 async function syncIncidentsToBackend(incidents = readIncidents()) {
+  const retainedIncidents = incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
   try {
     const response = await fetch('/api/incidents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ incidents }),
+      body: JSON.stringify({ incidents: retainedIncidents }),
     });
     if (!response.ok) throw new Error(`Incident sync failed (${response.status})`);
   } catch (error) {
@@ -1266,12 +1555,16 @@ async function restoreIncidentsFromBackend() {
     const remote = (await response.json()).incidents;
     if (!Array.isArray(remote)) return;
 
-    const merged = new Map(remote.map((incident) => [incident.incidentId, incident]));
+    const merged = new Map(remote
+      .filter((incident) => !isIncidentDeletionMarked(incident?.incidentId))
+      .map((incident) => [incident.incidentId, incident]));
     readIncidents().forEach((local) => {
       const saved = merged.get(local.incidentId);
-      if (!saved || incidentModifiedAt(local) >= incidentModifiedAt(saved)) merged.set(local.incidentId, local);
+      if (!saved || local.status === 'Completed' || (saved.status !== 'Completed' && incidentModifiedAt(local) >= incidentModifiedAt(saved))) merged.set(local.incidentId, local);
     });
     writeIncidents([...merged.values()]);
+    const pointer = window.localStorage.getItem(activeIncidentIdStorageKey);
+    if (pointer && !getActiveIncident()) clearActiveIncidentState();
     renderIncidentLists();
   } catch (error) {
     console.warn('Using incident reports saved on this device; backend restore is unavailable.', error);
@@ -1280,11 +1573,11 @@ async function restoreIncidentsFromBackend() {
 
 function getActiveIncident() {
   const activeId = window.localStorage.getItem(activeIncidentIdStorageKey);
-  return readIncidents().find((incident) => incident.incidentId === activeId) || null;
+  return readIncidents().find((incident) => incident.incidentId === activeId && incident.status !== 'Completed') || null;
 }
 
 function hasActiveIncident() {
-  return Boolean(window.localStorage.getItem(activeIncidentIdStorageKey));
+  return Boolean(getActiveIncident());
 }
 
 function openNewIncidentEntry() {
@@ -1827,10 +2120,10 @@ function updateOperationalTaskStatus(taskId, status, evidence = '') {
     updatedAt: now,
   };
   writeIncidents(incidents);
-  renderIncidentLists();
+  renderIncidentLists({ renderCommand: false });
   renderIncidentCommandSnapshot();
-  renderIncidentCommandDashboard();
-  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated'));
+  renderIncidentCommandDashboardSilently();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: incidents[index] }));
   return incidents[index];
 }
 
@@ -2157,6 +2450,8 @@ function renderCommandWeatherBrief(incident = typeof getActiveIncident === 'func
   document.getElementById('command-weather-brief-ack')?.toggleAttribute('hidden', Boolean(brief.acknowledgedAt));
 }
 
+let suppressIncidentCommandUpdateEvent = false;
+
 function renderIncidentCommandDashboard() {
   const model = buildIncidentCommandViewModel();
   const empty = document.getElementById('incident-command-empty');
@@ -2182,7 +2477,7 @@ function renderIncidentCommandDashboard() {
   const productInput = document.getElementById('incident-product');
   if (productInput && document.activeElement !== productInput) productInput.value = model.incident.chemicalName || '';
   const facilityInput = document.getElementById('incident-facility-name');
-  if (facilityInput && document.activeElement !== facilityInput) facilityInput.value = model.incident.facilityName || model.incident.selectedFacility?.name || '';
+  if (facilityInput && document.activeElement !== facilityInput && !commandFacilitySuggestions?.contains(document.activeElement) && commandFacilitySuggestions?.hidden !== false) facilityInput.value = model.incident.facilityName || model.incident.selectedFacility?.name || '';
   setText('ic-assignment-count', `${model.assignmentCount} ${model.assignmentCount === 1 ? 'assignment' : 'assignments'}`);
   setText('ic-assignment-summary', model.assignmentSummary);
   renderIncidentAssignmentEditor(model.incident);
@@ -2310,8 +2605,19 @@ function renderIncidentCommandDashboard() {
   setText('ic-detail-protective', model.protectiveActionsSummary);
   setText('ic-detail-safety', `PPE: ${model.entryTeamPpe} · Decon: ${model.deconTeamPpe} · Medical: ${model.medicalConcerns}`);
   setText('ic-detail-reports', model.completedReports.length ? `${model.completedReports.length} recent completed report${model.completedReports.length === 1 ? '' : 's'}` : 'No completed reports yet');
-  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: model.incident }));
+  if (!suppressIncidentCommandUpdateEvent) {
+    window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: model.incident }));
+  }
   resizePlumeMapAfterLayout();
+}
+
+function renderIncidentCommandDashboardSilently() {
+  suppressIncidentCommandUpdateEvent = true;
+  try {
+    renderIncidentCommandDashboard();
+  } finally {
+    suppressIncidentCommandUpdateEvent = false;
+  }
 }
 
 document.getElementById('command-weather-brief-view')?.addEventListener('click', (event) => {
@@ -2503,6 +2809,7 @@ function createIncidentRecord() {
     startedAt: now.toISOString(),
     updatedAt: now.toISOString(),
     status: 'Active',
+    ...(currentReportAuthor() ? { preparedBy: currentReportAuthor().name, preparedByUserId: currentReportAuthor().userId, preparedBySource: 'account-profile' } : {}),
     operationalMode: initialMode,
     operationalModeHistory: [{ mode: initialMode, changedAt: now.toISOString(), changedBy, source: 'commander', reason: 'Incident created' }],
     operationalChecklist: { tasks: operationalStatusTaskDefinitions.map((task) => ({ id: task.id, status: 'Not Started' })), history: [] },
@@ -2524,16 +2831,25 @@ function createIncidentRecord() {
 }
 
 function renderIncidentTimer() {
-  const timer = document.getElementById('active-incident-timer');
   const activeIncident = getActiveIncident();
-  if (timer) timer.textContent = getIncidentElapsedTime(activeIncident);
-  renderIncidentCommandDashboard();
-  renderSystemNotification();
+  const elapsed = getIncidentElapsedTime(activeIncident);
+  const timer = document.getElementById('active-incident-timer');
+  if (timer) timer.textContent = elapsed;
+  setText('ic-summary-elapsed', elapsed);
+
+  // The clock is a narrow, once-per-second update. Keep the tactical status
+  // current without rebuilding the Command dashboard or recording a new
+  // notification-history entry on every tick.
+  if (activeIncident) {
+    const tactical = `Active Incident · ${elapsed}`;
+    notificationCurrentValues.tactical = tactical;
+    if (!getPrimaryNotification() && tacticalAlertMessage) tacticalAlertMessage.textContent = tactical;
+  }
 }
 
 function startIncidentTimer() {
   renderIncidentTimer();
-  if (!incidentTimerInterval) incidentTimerInterval = window.setInterval(renderIncidentTimer, 1000);
+  if (getActiveIncident() && !incidentTimerInterval) incidentTimerInterval = window.setInterval(renderIncidentTimer, 1000);
 }
 
 function getIncidentFormData() {
@@ -2687,32 +3003,23 @@ function completeActiveIncident() {
     }])),
   };
   writeIncidents(incidents);
-  const nextActiveIncident = incidents.find((incident) => incident.status !== 'Completed' && incident.incidentId !== activeId) || null;
-  window.localStorage.removeItem(activeIncidentIdStorageKey);
+  // Completing a response must never silently activate an older drill/incident.
+  // Keep all older records available in Reports for explicit selection.
   clearActiveIncidentState();
-  if (nextActiveIncident) {
-    window.localStorage.setItem(activeIncidentIdStorageKey, nextActiveIncident.incidentId);
-    incidentWorkflowActive = true;
-    setSystemMode('incident');
-    startIncidentTimer();
-    renderIncidentLists();
-    restoreIncidentContainerData();
-    void restoreSelectedChemical();
-    setIncidentStatus(`Incident completed. Viewing incident response: ${nextActiveIncident.incidentName || 'New Incident'}.`);
-    showView('incident', { sourcePage: 'incident-complete', incidentId: nextActiveIncident.incidentId });
-  } else {
-    setSystemMode('normal');
-    renderIncidentTimer();
-    renderIncidentLists();
-    setIncidentStatus('Incident completed and its ICS forms moved to Completed Forms.');
-    showView('report');
-    document.querySelector('[data-report-tab="previous"]')?.click();
-  }
+  incidentWorkflowActive = false;
+  setSystemMode('normal');
+  renderIncidentLists();
+  renderSystemNotification();
+  setIncidentStatus('Incident completed. No active incident. Saved records remain in Reports.');
+  showView('report');
+  document.querySelector('[data-report-tab="previous"]')?.click();
   return incidents[index];
 }
 
-function renderIncidentCard(container, incident, activeId) {
+function renderIncidentCard(container, incident, activeId, { deletable = false } = {}) {
   if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'report-incident-row';
   const item = document.createElement('button');
   item.type = 'button';
   item.className = 'report-incident-item';
@@ -2724,28 +3031,46 @@ function renderIncidentCard(container, incident, activeId) {
   summary.textContent = [incident.startDate, incident.startTime, place].filter(Boolean).join(' · ');
   const status = document.createElement('span');
   status.className = 'status-pill';
-  status.textContent = incident.incidentId === activeId ? 'Active' : incident.status || 'Completed';
+  status.textContent = incident.incidentId === activeId ? 'Active' : incident.status === 'Completed' ? 'Completed' : 'Saved / Not Closed';
   details.append(name, summary);
   item.append(details, status);
   item.addEventListener('click', () => openIncidentSummary(incident.incidentId));
-  container.append(item);
+  row.append(item);
+  if (deletable) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'report-delete-incident-btn';
+    remove.dataset.deleteIncident = incident.incidentId;
+    remove.setAttribute('aria-label', `Delete completed incident ${incident.incidentName || 'report'}`);
+    remove.title = 'Delete completed incident report';
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>';
+    row.append(remove);
+  }
+  container.append(row);
 }
 
-function renderIncidentLists() {
+function renderIncidentLists({ renderCommand = true } = {}) {
   const activeId = window.localStorage.getItem(activeIncidentIdStorageKey);
   const incidents = readIncidents();
   const currentContainer = document.getElementById('current-incident-list');
   const previousContainer = document.getElementById('previous-incident-list');
+  const historyContainer = document.getElementById('incident-history-list');
+  historyContainer?.replaceChildren();
   currentContainer?.replaceChildren();
   previousContainer?.replaceChildren();
-  const current = incidents.find((incident) => incident.incidentId === activeId);
+  const current = getActiveIncident();
   if (current) renderIncidentCard(currentContainer, current, activeId);
   else if (currentContainer) currentContainer.textContent = 'No active incident. Start one from the Home Page.';
   const previous = incidents.filter((incident) => incident.status === 'Completed');
-  previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId));
+  previous.forEach((incident) => renderIncidentCard(previousContainer, incident, activeId, { deletable: true }));
   if (!previous.length && previousContainer) previousContainer.textContent = 'No completed incident forms saved yet.';
+  const otherSaved = incidents.filter((incident) => incident.incidentId !== current?.incidentId && incident.status !== 'Completed');
+  otherSaved.forEach((incident) => renderIncidentCard(historyContainer, incident, activeId));
+  document.getElementById('report-saved-open-section')?.toggleAttribute('hidden', !otherSaved.length);
+  setText('report-active-count', current ? '1 active incident' : 'No active incident');
+  setText('report-completed-count', `${previous.length} completed`);
   renderActiveIcsFormList();
-  renderIncidentCommandDashboard();
+  if (renderCommand) renderIncidentCommandDashboard();
 }
 
 function createIcsFormLink(incidentId, formId, title) {
@@ -2759,21 +3084,37 @@ function createIcsFormLink(incidentId, formId, title) {
 
 function renderActiveIcsFormList() {
   const container = document.getElementById('active-ics-form-list');
-  if (!container) return;
-  container.replaceChildren();
+  const library = document.getElementById('ics-form-library-list');
+  if (!container || !library) return;
+  container.replaceChildren(); library.replaceChildren();
   const incident = getActiveIncident();
-  if (!incident) {
-    container.textContent = 'Start an incident to create its ICS form drafts.';
-    return;
-  }
-  icsFormCatalog.forEach(([id, title]) => container.append(createIcsFormLink(incident.incidentId, id, title)));
+  document.getElementById('open-current-incident-summary-btn')?.toggleAttribute('hidden', !incident);
+  icsFormCatalog.forEach(([id, title]) => {
+    const tile = document.createElement('a');
+    const formNumber = `ICS ${id}`;
+    const description = title.replace(/^ICS\s+\S+\s+/, '');
+    tile.className = 'report-form-tile';
+    tile.href = `/api/ics-forms/${encodeURIComponent(id)}/original`;
+    tile.target = '_blank';
+    tile.rel = 'noopener';
+    tile.setAttribute('aria-label', `${formNumber} ${description} original government-issued PDF`);
+    const number = document.createElement('strong');
+    number.className = 'report-form-number';
+    number.textContent = formNumber;
+    const heading = document.createElement('span');
+    heading.className = 'report-form-title';
+    heading.textContent = description;
+    tile.append(number, heading); library.append(tile);
+    if (incident) container.append(createIcsFormLink(incident.incidentId, id, title));
+  });
+  if (!incident) container.textContent = 'No active worksheets. Start an incident from Command.';
 }
 
 function appendCompletedIcsForms(container, incident) {
   const section = document.createElement('section');
   section.className = 'report-summary-block completed-ics-forms';
   const heading = document.createElement('h3');
-  heading.textContent = 'Completed Forms';
+  heading.textContent = 'Attached ICS Forms';
   const list = document.createElement('div');
   list.className = 'incident-ics-form-list';
   icsFormCatalog.forEach(([id, title]) => list.append(createIcsFormLink(incident.incidentId, id, title)));
@@ -2781,188 +3122,19 @@ function appendCompletedIcsForms(container, incident) {
   container.append(section);
 }
 
-function appendIncidentSummarySection(container, title, entries) {
-  const applicable = entries.filter(([, value]) => Array.isArray(value) ? value.length : value !== '' && value !== null && value !== undefined);
-  if (!applicable.length) return;
-  const section = document.createElement('section');
-  section.className = 'report-summary-block';
-  const heading = document.createElement('h3');
-  heading.textContent = responderText.normalizeSectionHeading(title);
-  const list = document.createElement('dl');
-  applicable.forEach(([label, value]) => {
-    const row = document.createElement('div');
-    row.className = 'report-summary-row';
-    row.dataset.field = String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const term = document.createElement('dt');
-    term.textContent = responderText.normalizeSectionHeading(label);
-    const description = document.createElement('dd');
-    if (Array.isArray(value)) {
-      const bullets = document.createElement('ul');
-      responderText.formatResponderGuidance(value).forEach((item) => {
-        const bullet = document.createElement('li');
-        bullet.textContent = item;
-        bullets.append(bullet);
-      });
-      description.append(bullets);
-    } else {
-      description.textContent = String(value);
-    }
-    row.append(term, description);
-    list.append(row);
-  });
-  section.append(heading, list);
-  container.append(section);
-}
-
-function incidentProfileValue(value) {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => {
-      const formatted = incidentProfileValue(item);
-      return Array.isArray(formatted) ? formatted : formatted ? [formatted] : [];
-    });
-  }
-  if (value && typeof value === 'object') {
-    return Object.entries(value).flatMap(([key, item]) => {
-      const formatted = incidentProfileValue(item);
-      if (!formatted || (Array.isArray(formatted) && !formatted.length)) return [];
-      const label = titleCaseProfileLabel(key.replace(/([a-z])([A-Z0-9])/g, '$1 $2'));
-      return Array.isArray(formatted)
-        ? formatted.map((entry) => `${label}: ${entry}`)
-        : [`${label}: ${formatted}`];
-    });
-  }
-  const text = String(value ?? '').trim();
-  return hasAvailableProfileData(text) ? text : '';
-}
-
-function appendChemicalProfileToIncidentReport(container, profile) {
-  if (!profile || typeof profile !== 'object') return;
-  const header = profile.header || {};
-  appendIncidentSummarySection(container, 'Chemical Hazard Summary', [
-    ['Canonical chemical', header.name],
-    ['CAS number', header.cas],
-    ['UN/NA number', header.un],
-    ['ERG guide', header.ergGuide],
-    ['IDLH', header.idlh],
-    ['IDLH source', profile.niosh?.status === 'VERIFIED_NIOSH' && profile.niosh?.sourceRecordId
-      ? `NIOSH · ${profile.niosh.sourceRecordId}` : ''],
-    ['Primary hazard', header.hazard],
-  ]);
-  const sections = [
-    ['Chemical Properties', 'properties'],
-    ['Exposure Information', 'exposures'],
-    ['PPE / Respiratory Protection', 'ppeRespiratory'],
-    ['Detection Information', 'detectors'],
-    ['Reactivity', 'reactivity'],
-    ['Isolation Distances / ERG', 'isolationErg'],
-    ['Medical Considerations', 'medical'],
-    ['Fire', 'fire'],
-    ['Decontamination', 'decon'],
-  ];
-  sections.forEach(([title, key]) => {
-    const section = profile[key];
-    if (!section || typeof section !== 'object') return;
-    const entries = Object.entries(section).map(([field, value]) => [
-      titleCaseProfileLabel(field.replace(/([a-z])([A-Z0-9])/g, '$1 $2')),
-      incidentProfileValue(value),
-    ]);
-    appendIncidentSummarySection(container, title, entries);
-  });
-}
-
-function appendGuidedResponseTacticalReport(container, incident) {
-  const record = incident?.guidedResponseTacticalRecord;
-  if (!record) return;
-  const flow = record.tacticalDecisionFlow || {};
-  const mitigation = flow.mitigation?.specificValues || record.mitigationDecisionSupport || {};
-  const isolation = flow.verifyIsolate?.specificValues || {};
-  const ppe = flow.lifeSafety?.specificValues || {};
-  const profile = incident.chemicalProfile || {};
-  const toReportValues = (...valuesToUse) => valuesToUse
-    .flatMap((value) => {
-      if (Array.isArray(value)) return value;
-      if (value && typeof value === 'object') return incidentProfileValue(value);
-      return value;
-    })
-    .flat(Infinity)
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean);
-  const selectedMode = record.selectedTacticalMode || record.mitigationDecisionSupport?.selectedTacticalMode;
-  appendIncidentSummarySection(container, 'Tactical Decision', [
-    ['Selected tactical mode', selectedMode],
-    ['Decision source', record.mitigationDecisionSupport?.tacticalPostureSource],
-    ['Entry posture', mitigation.entryDecision || ppe.protectionLevel],
-    ['PPE / respiratory protection', toReportValues(incident.ppeSummary?.items, record.ppeRecommendation, ppe.protectionLevel)],
-    ['Safety hazards / controls', toReportValues(
-      profile.fire?.explosionHazards,
-      mitigation.vaporFireControl,
-      mitigation.nonInterventionConsiderations,
-      mitigation.spillReleaseControl,
-    )],
-    ['Isolation distances / ERG', toReportValues(
-      isolation.initialIsolation,
-      isolation.largeSpillIsolation,
-      isolation.protectiveAction,
-      profile.isolationErg,
-    )],
-    ['Public protective actions', toReportValues(incident.protectiveActionSummary, isolation.protectiveAction)],
-    ['Required verification / approval', toReportValues(mitigation.requiredVerification, record.disclaimers)],
-  ]);
-}
-
-function appendWeatherBriefsToIncidentReport(container, incident) {
-  const briefs = Array.isArray(incident?.weatherBriefs) ? incident.weatherBriefs : [];
-  if (!briefs.length) return;
-  const entries = briefs.map((brief, index) => {
-    const impacts = (brief.operationalImpacts || []).slice(0, 3).map((impact) => `${impact.title}: ${impact.summary}`);
-    const alerts = (brief.activeAlerts || []).map((alert) => `${alert.event}${alert.area ? ` · ${alert.area}` : ''}`);
-    const acknowledged = brief.acknowledgedAt
-      ? `Acknowledged ${new Date(brief.acknowledgedAt).toLocaleString()}`
-      : 'Not acknowledged';
-    return [`Weather Brief ${index + 1} · ${brief.createdAt ? new Date(brief.createdAt).toLocaleString() : 'Time unavailable'}`, [
-      `Source: ${(brief.sourceSummary || []).join(' / ') || 'Weather source unavailable'}`,
-      `Summary: ${impacts.join(' · ') || 'No prioritized operational impacts recorded.'}`,
-      `Alerts: ${alerts.join(' · ') || 'No active warnings or watches recorded.'}`,
-      acknowledged,
-    ]];
-  });
-  appendIncidentSummarySection(container, 'Weather Brief History', entries);
-}
-
 const completedReportFields = [
-  ['incidentName', 'Incident name', 'text'],
-  ['startDate', 'Start date', 'text'],
-  ['startTime', 'Start time', 'text'],
-  ['completedDate', 'Completed date', 'text'],
-  ['completedTime', 'Completed time', 'text'],
-  ['facilityName', 'Facility', 'text'],
-  ['address', 'Street address / scene location', 'text'],
-  ['city', 'City', 'text'],
-  ['state', 'State', 'text'],
-  ['zip', 'ZIP', 'text'],
-  ['latitude', 'Latitude', 'number'],
-  ['longitude', 'Longitude', 'number'],
-  ['chemicalName', 'Chemical / product', 'text'],
-  ['casNumber', 'CAS number', 'text'],
-  ['unNumber', 'UN/NA number', 'text'],
-  ['quantity', 'Released quantity / rate', 'text'],
-  ['containerType', 'Container type', 'text'],
-  ['containerSize', 'Container size', 'text'],
-  ['containerSizeUnit', 'Size unit', 'text'],
-  ['containerFillLevel', 'Fill level %', 'number'],
-  ['containerPressure', 'Pressure', 'number'],
-  ['containerPressureUnit', 'Pressure unit', 'text'],
-  ['containerCapacity', 'Capacity / range', 'text'],
-  ['containerPressureProfile', 'Pressure profile', 'text'],
-  ['containerReleaseLocation', 'Release location', 'text'],
-  ['containerReleasePhase', 'Release phase', 'text'],
-  ['weather', 'Weather / conditions', 'text'],
-  ['windSpeed', 'Wind speed (mph)', 'text'],
-  ['windDirection', 'Wind direction', 'text'],
-  ['notes', 'Scene notes', 'textarea'],
+  ['preparedBy', 'Prepared By', 'text'],
+  ['reportNarrative', 'Incident Brief', 'textarea'],
+  ['reportResponse', 'Response Summary', 'textarea'],
+  ['reportOutcome', 'Outcome & Follow-up', 'textarea'],
+  ['reportAdditionalNotes', 'Additional Notes', 'textarea'],
+  ['reportThreatZoneNotes', 'Threat Zone Observations', 'textarea'],
 ];
+let incidentSummaryEditing = false;
+let incidentSummaryRefreshTimer = null;
 
 function setIncidentSummaryEditing(editing) {
+  incidentSummaryEditing = editing;
   const edit = document.getElementById('edit-incident-summary-btn');
   const save = document.getElementById('save-incident-summary-btn');
   const cancel = document.getElementById('cancel-incident-summary-edit-btn');
@@ -2971,38 +3143,35 @@ function setIncidentSummaryEditing(editing) {
   if (cancel) cancel.hidden = !editing;
 }
 
+function currentReportAuthor() {
+  const user = window.HazMatIQ?.user;
+  return user && typeof user.name === 'string' && user.name.trim()
+    ? { name: user.name.trim(), userId: user.id || '', source: 'account-profile' } : null;
+}
+
 function renderCompletedReportEditor(incident) {
   const content = document.getElementById('incident-report-summary-content');
   if (!content) return;
+  const plume = isIncidentPlumeCurrent(incident.plumeModelResults, incident) ? incident.plumeModelResults : null;
+  const model = window.HazMatIQ.buildIncidentReportModel({ ...incident, operationalChecklist: normalizeOperationalChecklist(incident) }, plume);
+  const defaults = { preparedBy: model.preparedBy || currentReportAuthor()?.name || '', reportNarrative: model.brief,
+    reportResponse: model.response, reportOutcome: model.outcome, reportAdditionalNotes: model.notes, reportThreatZoneNotes: model.threatNotes };
   content.replaceChildren();
-  const notice = document.createElement('p');
-  notice.className = 'report-edit-notice';
-  notice.textContent = 'Incident number is reserved for First Due and remains blank.';
-  const form = document.createElement('form');
-  form.id = 'completed-report-edit-form';
-  form.className = 'completed-report-edit-grid';
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    saveCompletedReportEdits();
-  });
+  const form = document.createElement('form'); form.id = 'completed-report-edit-form'; form.className = 'incident-brief-report report-narrative-editor';
+  const notice = document.createElement('p'); notice.textContent = 'Add or correct the brief below. Unchanged automatic text continues to follow incident updates. ICS forms retain the operational details.';
+  form.append(notice);
+  form.addEventListener('submit', (event) => { event.preventDefault(); saveCompletedReportEdits(); });
   completedReportFields.forEach(([key, labelText, type]) => {
     const label = document.createElement('label');
-    if (type === 'textarea') label.className = 'report-edit-field-wide';
-    const caption = document.createElement('span');
-    caption.textContent = labelText;
+    const caption = document.createElement('span'); caption.textContent = labelText;
     const control = document.createElement(type === 'textarea' ? 'textarea' : 'input');
-    if (type === 'textarea') control.rows = 5;
-    else {
-      control.type = type;
-      if (type === 'number') control.step = 'any';
-    }
-    control.name = key;
-    control.value = incident[key] ?? '';
-    label.append(caption, control);
-    form.append(label);
+    if (type === 'textarea') control.rows = key === 'reportNarrative' ? 4 : 3;
+    else control.type = 'text';
+    control.name = key; control.value = defaults[key];
+    control.addEventListener('input', () => { control.dataset.dirty = 'true'; });
+    label.append(caption, control); form.append(label);
   });
-  content.append(notice, form);
-  setIncidentSummaryEditing(true);
+  content.append(form); setIncidentSummaryEditing(true);
 }
 
 function saveCompletedReportEdits() {
@@ -3010,127 +3179,92 @@ function saveCompletedReportEdits() {
   if (!form || !openIncidentSummaryId) return;
   const incidents = readIncidents();
   const index = incidents.findIndex((incident) => incident.incidentId === openIncidentSummaryId);
-  if (index < 0 || incidents[index].status !== 'Completed') return;
-  const values = Object.fromEntries(new FormData(form).entries());
-  incidents[index] = {
-    ...incidents[index],
-    ...values,
-    incidentNumber: '',
-    updatedAt: new Date().toISOString(),
-  };
-  writeIncidents(incidents);
-  renderIncidentLists();
-  openIncidentSummary(openIncidentSummaryId);
+  if (index < 0) return;
+  const changes = {};
+  const allowed = new Set(completedReportFields.map(([key]) => key));
+  form.querySelectorAll('[data-dirty="true"]').forEach((control) => { if (allowed.has(control.name)) changes[control.name] = control.value; });
+  const author = currentReportAuthor();
+  if (!Object.prototype.hasOwnProperty.call(changes, 'preparedBy') && !incidents[index].preparedBy && author) changes.preparedBy = author.name;
+  const now = new Date().toISOString();
+  incidents[index] = { ...incidents[index], ...changes, reportUpdatedAt: now, updatedAt: now,
+    ...(Object.prototype.hasOwnProperty.call(changes, 'preparedBy') ? { preparedBySource: changes.preparedBy === author?.name ? 'account-profile' : 'manual', preparedByUserId: changes.preparedBy === author?.name ? author.userId : '' } : {}),
+    reportEditedBy: author?.name || incidentResponderIdentity() };
+  writeIncidents(incidents); renderIncidentLists(); openIncidentSummary(openIncidentSummaryId);
 }
 
-function appendIncidentMapSnapshot(content, incident, imageData) {
-  if (!content || !incident || !imageData) return;
-  const mapSection = document.createElement('section');
-  mapSection.className = 'report-summary-block plume-map-summary';
-  const mapHeading = document.createElement('h3');
-  mapHeading.textContent = `${incident.incidentName || 'Incident'} Plume Model`;
-  const mapTimestamp = document.createElement('p');
-  mapTimestamp.className = 'muted';
-  mapTimestamp.textContent = incident.plumeUpdatedAt
-    ? `Plume model generated ${new Date(incident.plumeUpdatedAt).toLocaleString()}`
-    : 'Plume model date and time unavailable';
-  const mapImage = document.createElement('img');
-  mapImage.src = imageData;
-  mapImage.alt = 'Most recent plume model map for this incident';
-  mapSection.append(mapHeading, mapTimestamp, mapImage);
-  content.append(mapSection);
-}
-
-function openIncidentSummary(incidentId) {
+function openIncidentSummary(incidentId, { preserveScroll = false } = {}) {
   const incident = readIncidents().find((item) => item.incidentId === incidentId);
   const summary = document.getElementById('incident-report-summary');
   const content = document.getElementById('incident-report-summary-content');
   if (!incident || !summary || !content) return;
-  const chemicalContext = getIncidentChemicalContext(incident);
-  const chemicalData = selectedChemicalOperationalData({ ...chemicalContext, profile: chemicalContext.profile });
-  const currentPlume = isIncidentPlumeCurrent(incident.plumeModelResults, incident)
-    ? incident.plumeModelResults
-    : null;
-  openIncidentSummaryId = incidentId;
-  setIncidentSummaryEditing(false);
-  const editButton = document.getElementById('edit-incident-summary-btn');
-  if (editButton) editButton.hidden = incident.status !== 'Completed';
-  document.getElementById('incident-report-summary-title').textContent = incident.incidentName || 'Incident Summary';
+  const currentPlume = isIncidentPlumeCurrent(incident.plumeModelResults, incident) ? incident.plumeModelResults : null;
+  const model = window.HazMatIQ.buildIncidentReportModel({ ...incident, operationalChecklist: normalizeOperationalChecklist(incident) }, currentPlume);
+  openIncidentSummaryId = incidentId; setIncidentSummaryEditing(false);
+  document.getElementById('incident-report-summary-title').textContent = model.title;
   content.replaceChildren();
-  appendIncidentSummarySection(content, 'Incident Details', [
-    ['Incident name', incident.incidentName],
-    ['Incident ID', incident.incidentId],
-    ['Status', incident.status],
-    ['Started', [incident.startDate, incident.startTime].filter(Boolean).join(' ')],
-    ['Completed', [incident.completedDate, incident.completedTime].filter(Boolean).join(' ')],
-  ]);
-  appendIncidentSummarySection(content, 'Location', [
-    ['Facility', incident.facilityName],
-    ['Address', [incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', ')],
-    ['Facility verification', incident.facilityVerificationStatus === 'verified' ? 'Verified linked facility record' : incident.selectedFacility?.name ? 'Manual entry — not verified' : 'No facility selected'],
-    ['GPS', incident.latitude !== '' && incident.longitude !== '' ? `${incident.latitude}, ${incident.longitude}` : ''],
-  ]);
-  appendIncidentSummarySection(content, 'Chemical and Release', [
-    ['Chemical', chemicalData.chemicalName],
-    ['ChemicalID', chemicalData.selectedChemicalId],
-    ['CAS number', chemicalData.casNumber],
-    ['UN/NA number', chemicalData.unNumber],
-    ['ERG guide', chemicalData.ergGuide],
-    ['Quantity', incident.quantity],
-    ['Container type', incident.containerType],
-    ['Container size', [incident.containerSize, incident.containerSizeUnit].filter(Boolean).join(' ')],
-    ['Fill level', incident.containerFillLevel ? `${incident.containerFillLevel}%` : ''],
-    ['Pressure', [incident.containerPressure, incident.containerPressureUnit].filter(Boolean).join(' ')],
-    ['Typical capacity/range', incident.containerCapacity],
-    ['Pressure profile', incident.containerPressureProfile],
-    ['Release location', incident.containerReleaseLocation],
-    ['Release phase', incident.containerReleasePhase],
-    ['Sources', incident.chemicalSources],
-  ]);
-  appendChemicalProfileToIncidentReport(content, chemicalContext.profile);
-  const checklist = normalizeOperationalChecklist(incident);
-  appendIncidentSummarySection(content, 'Operational Mode and Status', [
-    ['Operational mode', incident.operationalMode || 'Research & Assessment'],
-    ['Mode history', (incident.operationalModeHistory || []).map((entry) => `${entry.mode} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
-    ['Checklist', checklist.tasks.map((task) => `${task.label}: ${task.status}${task.evidence ? ` · ${task.evidence}` : ''}`)],
-    ['Status history', checklist.history.map((entry) => `${entry.label}: ${entry.from} → ${entry.to} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'Local responder'}`)],
-  ]);
-  appendGuidedResponseTacticalReport(content, incident);
-  appendIncidentSummarySection(content, 'Conditions', [
-    ['Weather', incident.weather],
-    ['Wind speed (mph)', incident.windSpeed],
-    ['Wind direction', incident.windDirection],
-  ]);
-  appendWeatherBriefsToIncidentReport(content, incident);
-  appendIncidentSummarySection(content, 'PPE Requirements', [['Guidance', incident.ppeSummary?.items || []]]);
-  appendIncidentSummarySection(content, 'Medical Summary', [['Guidance', incident.medicalSummary?.items || []]]);
-  appendIncidentSummarySection(content, 'Plume Model', [
-    ['Result', currentPlume ? incident.plumeSummary?.summary : 'NOT PLOTTED'],
-    ['Source', currentPlume ? incident.plumeSummary?.source : 'Active incident has no current plume for its canonical chemical record.'],
-    ['Details', currentPlume ? incident.plumeSummary?.details || [] : []],
-  ]);
-  appendIncidentMapSnapshot(content, incident, currentPlume ? incident.plumeMapImage : '');
-  if (currentPlume && !incident.plumeMapImage && incident.plumeMapImageRef) {
-    void readIncidentMapSnapshot(incident.plumeMapImageRef).then((imageData) => {
-      if (openIncidentSummaryId === incidentId) appendIncidentMapSnapshot(content, incident, imageData);
-    });
-  }
-  appendIncidentSummarySection(content, 'Documentation Notes', [['Notes', incident.notes]]);
-  appendIncidentSummarySection(content, 'Incident Timeline', [[
-    'Recorded events',
-    (Array.isArray(incident.incidentTimeline) ? incident.incidentTimeline : []).map((entry) => `${entry.type || 'event'} · ${entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'time unavailable'} · ${entry.changedBy || 'System'}${entry.to ? ` · ${entry.to}` : ''}`),
-  ]]);
-  if (incident.status === 'Completed') appendCompletedIcsForms(content, incident);
-  document.querySelector('.report-tabs').hidden = true;
-  ['current', 'previous', 'library'].forEach((name) => {
-    const section = document.getElementById(`report-${name}-section`);
-    if (section) section.hidden = true;
+  const paper = document.createElement('article'); paper.className = 'incident-brief-report'; content.append(paper);
+  const metadata = document.createElement('div'); metadata.className = 'report-brief-metadata';
+  [['Incident Number', model.incidentNumber], ['Status', model.status], ['Started', model.started], ['Closed', model.ended], ['Location', model.location], ['Hazard IDs', model.identifiers]].forEach(([label, value]) => {
+    if (!value) return;
+    const item = document.createElement('div'); const caption = document.createElement('span'); const detail = document.createElement('strong');
+    caption.textContent = label; detail.textContent = value; item.append(caption, detail); metadata.append(item);
   });
+  paper.append(metadata);
+  const paragraph = (title, text, placeholder = '', printClass = '') => {
+    const section = document.createElement('section');
+    if (printClass) section.className = printClass;
+    const heading = document.createElement('h3'); heading.textContent = title;
+    const body = document.createElement('p'); body.textContent = text || placeholder;
+    if (!text) body.className = 'report-brief-empty'; section.append(heading, body); paper.append(section); return section;
+  };
+  paragraph('Incident Brief', model.brief, 'Add a short description of the call.', 'report-print-brief');
+  paragraph('Response Summary', model.response, 'No response narrative has been recorded. Select Edit Report to add actions taken.');
+  paragraph('Outcome & Follow-up', model.outcome, 'Add the outcome and any follow-up needed.');
+  if (model.weather) paragraph('Conditions', model.weather);
+  const plumeSection = paragraph('Plume Map & Threat Zones', model.plumeSummary,
+    currentPlume ? 'Saved plume assessment. See the recorded threat zones below.' : 'No current plume assessment is recorded for this incident.', 'report-print-plume');
+  const map = document.createElement('div'); map.className = 'report-brief-map';
+  const mapPlaceholder = document.createElement('p'); mapPlaceholder.textContent = currentPlume ? 'Map image is not available in this browser.' : 'Plume map will appear here when a current model is saved.';
+  map.append(mapPlaceholder); plumeSection.append(map);
+  const showImage = (imageData) => {
+    if (openIncidentSummaryId !== incidentId || !map.isConnected || !imageData || !/^data:image\/(?:png|jpeg);base64,/.test(imageData)) return;
+    const image = document.createElement('img'); image.alt = 'Recorded incident plume map'; image.src = imageData; map.replaceChildren(image);
+  };
+  if (currentPlume) {
+    if (incident.plumeMapImage) showImage(incident.plumeMapImage);
+    else if (incident.plumeMapImageRef) void readIncidentMapSnapshot(incident.plumeMapImageRef).then(showImage);
+    const zoneTable = document.createElement('table'); zoneTable.className = 'report-threat-table';
+    const caption = document.createElement('caption'); caption.textContent = 'Recorded Threat Zone Data'; zoneTable.append(caption);
+    const head = document.createElement('thead'); const row = document.createElement('tr');
+    ['Zone', 'Downwind Distance', 'Threshold'].forEach((text) => { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = text; row.append(cell); }); head.append(row); zoneTable.append(head);
+    const body = document.createElement('tbody');
+    model.zones.forEach((zone) => { const tr = document.createElement('tr'); [zone.name, zone.distance || 'Not recorded', zone.threshold || 'Not recorded'].forEach((text) => { const td = document.createElement('td'); td.textContent = text; tr.append(td); }); body.append(tr); });
+    zoneTable.append(body); if (model.zones.length) plumeSection.append(zoneTable);
+    const time = document.createElement('p'); time.className = 'report-brief-caption'; time.textContent = `Model saved: ${model.plumeTime || 'Time not recorded'}. Distances are modeled estimates.`; plumeSection.append(time);
+  }
+  if (model.threatNotes) { const notes = document.createElement('p'); notes.textContent = model.threatNotes; plumeSection.append(notes); }
+  if (model.notes) paragraph('Additional Notes', model.notes);
+  const author = document.createElement('footer'); author.className = 'report-prepared-by';
+  const name = document.createElement('strong'); name.textContent = `Prepared By: ${model.preparedBy || 'Not yet entered'}`;
+  const updated = document.createElement('span'); updated.textContent = model.updatedAt ? `Last updated ${new Date(model.updatedAt).toLocaleString()}` : '';
+  author.append(name, updated); paper.append(author); content.append(paper);
+  // The detailed operational record remains in the incident-owned FEMA forms.
+  const attachments = document.createElement('details'); attachments.className = 'report-ics-attachments';
+  const attachmentHeading = document.createElement('summary'); attachmentHeading.textContent = 'Attached ICS Forms'; attachments.append(attachmentHeading);
+  appendCompletedIcsForms(attachments, incident); content.append(attachments);
+  document.querySelector('.report-tabs').hidden = true;
+  ['current', 'previous', 'library'].forEach((name) => { const section = document.getElementById(`report-${name}-section`); if (section) section.hidden = true; });
   summary.hidden = false;
-  const formEditor = document.getElementById('ics-form-editor');
-  if (formEditor) formEditor.hidden = true;
-  summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('ics-form-editor').hidden = true;
+  if (!preserveScroll) summary.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+window.addEventListener('hazmatiq:incident-record-saved', () => {
+  if (!openIncidentSummaryId || incidentSummaryEditing || openIcsForm) return;
+  window.clearTimeout(incidentSummaryRefreshTimer);
+  incidentSummaryRefreshTimer = window.setTimeout(() => {
+    if (openIncidentSummaryId && !incidentSummaryEditing && !openIcsForm) openIncidentSummary(openIncidentSummaryId, { preserveScroll: true });
+  }, 800);
+});
 
 function closeIncidentSummary() {
   openIncidentSummaryId = null;
@@ -3139,9 +3273,46 @@ function closeIncidentSummary() {
   if (summary) summary.hidden = true;
   const tabs = document.querySelector('.report-tabs');
   if (tabs) tabs.hidden = false;
-  const selected = document.querySelector('[data-report-tab].primary-btn')?.dataset.reportTab || 'current';
+  const selected = document.querySelector('[data-report-tab].primary-btn')?.dataset.reportTab || 'library';
   const selectedSection = document.getElementById(`report-${selected}-section`);
   if (selectedSection) selectedSection.hidden = false;
+}
+
+function prepareCompletedIncidentDeletion(incidentId) {
+  const incident = readIncidents().find((item) => item.incidentId === incidentId);
+  const dialog = document.getElementById('delete-completed-incident-dialog');
+  const status = document.getElementById('delete-completed-incident-status');
+  if (!incident || incident.status !== 'Completed' || getActiveIncident()?.incidentId === incidentId || !dialog) return false;
+  dialog.dataset.incidentId = incidentId;
+  setText('delete-completed-incident-name', incident.incidentName || 'Untitled incident');
+  if (status) status.textContent = '';
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  return true;
+}
+
+async function deleteCompletedIncident(incidentId) {
+  const incident = readIncidents().find((item) => item.incidentId === incidentId);
+  if (!incident || incident.status !== 'Completed') return { ok: false, error: 'Only completed incident reports can be deleted.' };
+  if (getActiveIncident()?.incidentId === incidentId) return { ok: false, error: 'Active incidents are protected from deletion.' };
+  if (!setIncidentDeletionMarker(incidentId)) return { ok: false, error: 'The report could not be marked for deletion. It was kept.' };
+
+  window.clearTimeout(incidentSyncTimer);
+  incidentSyncTimer = null;
+  try {
+    const response = await fetch(`/api/incidents/${encodeURIComponent(incidentId)}`, { method: 'DELETE' });
+    if (!response.ok && response.status !== 404) throw new Error(`Server deletion failed (${response.status})`);
+    await deleteIncidentMapSnapshot(incidentId);
+    const remaining = readIncidents().filter((item) => item.incidentId !== incidentId);
+    if (openIcsForm?.incidentId === incidentId) closeOpenIcsForm({ returnToSummary: false });
+    if (openIncidentSummaryId === incidentId) closeIncidentSummary();
+    writeIncidents(remaining);
+    renderIncidentLists();
+    return { ok: true };
+  } catch (error) {
+    clearIncidentDeletionMarker(incidentId);
+    return { ok: false, error: `The report was kept because server deletion failed. ${error instanceof Error ? error.message : 'Retry when connected.'}` };
+  }
 }
 
 function formatIcsFieldLabel(name) {
@@ -3181,8 +3352,14 @@ async function openIncidentIcsForm(incidentId, formId) {
   const summary = document.getElementById('incident-report-summary');
   if (summary) summary.hidden = true;
   editor.hidden = false;
+  const selectedForm = openIcsForm;
+  const preview = document.getElementById('ics-pdf-preview');
+  if (preview) preview.removeAttribute('src');
+  const corrections = document.getElementById('ics-form-corrections');
+  if (corrections) corrections.open = false;
   fieldsContainer.replaceChildren();
-  status.textContent = 'Preparing the saved FEMA form…';
+  status.textContent = 'Preparing auto-filled worksheet…';
+  document.getElementById('ics-original-download').href = `/api/ics-forms/${encodeURIComponent(formId)}/original`;
 
   try {
     const response = await fetch(`/api/ics-forms/${encodeURIComponent(formId)}/prepare`, {
@@ -3192,7 +3369,8 @@ async function openIncidentIcsForm(incidentId, formId) {
     });
     if (!response.ok) throw new Error(`Form preparation failed (${response.status})`);
     const prepared = await response.json();
-    document.getElementById('ics-form-editor-title').textContent = prepared.title;
+    if (openIcsForm !== selectedForm) return;
+    document.getElementById('ics-form-editor-title').textContent = `${prepared.title} · ${prepared.pages} ${prepared.pages === 1 ? 'Page' : 'Pages'}`;
     document.getElementById('ics-form-editor-context').textContent = openIcsForm.completed
       ? `${incident.incidentName} · Completed form`
       : `${incident.incidentName} · Active incident form`;
@@ -3215,6 +3393,7 @@ async function openIncidentIcsForm(incidentId, formId) {
     status.textContent = openIcsForm.completed
       ? 'Archived with the completed incident. Select Edit to add missing information.'
       : 'Dashboard data is prefilled. Manual changes are saved with this active incident.';
+    await refreshIcsPdfPreview(incident, selectedForm);
     editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     console.error(error);
@@ -3231,8 +3410,7 @@ function saveOpenIcsForm() {
   const existing = incident.icsForms?.[openIcsForm.formId] || { fields: {} };
   const fields = { ...(existing.fields || {}) };
   document.querySelectorAll('#ics-form-fields input[data-dirty="true"], #ics-form-fields textarea[data-dirty="true"]').forEach((control) => {
-    if (control.value.trim()) fields[control.name] = control.value;
-    else delete fields[control.name];
+    fields[control.name] = control.value; // An intentionally cleared field must stay blank.
     delete control.dataset.dirty;
     control.dataset.source = control.value.trim() ? 'manual' : 'blank';
   });
@@ -3251,37 +3429,100 @@ function saveOpenIcsForm() {
   return incidents[index];
 }
 
+async function refreshIcsPdfPreview(incident, selection = openIcsForm) {
+  if (!selection) return;
+  const status = document.getElementById('ics-form-editor-status');
+  const requestVersion = selection.previewVersion = (selection.previewVersion || 0) + 1;
+  const payload = { ...incident };
+  if (!isIncidentPlumeCurrent(payload.plumeModelResults, payload)) delete payload.plumeMapImage;
+  if (!payload.plumeMapImage && payload.plumeMapImageRef && isIncidentPlumeCurrent(payload.plumeModelResults, payload)) {
+    payload.plumeMapImage = await readIncidentMapSnapshot(payload.plumeMapImageRef);
+  }
+  if (openIcsForm !== selection) return;
+  const response = await fetch(`/api/ics-forms/${encodeURIComponent(selection.formId)}/pdf`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`PDF generation failed (${response.status})`);
+  const blob = await response.blob();
+  if (openIcsForm !== selection || requestVersion !== selection.previewVersion) return;
+  if (openIcsFormObjectUrl) URL.revokeObjectURL(openIcsFormObjectUrl);
+  openIcsFormObjectUrl = URL.createObjectURL(blob);
+  const preview = document.getElementById('ics-pdf-preview');
+  if (preview) preview.src = `${openIcsFormObjectUrl}#view=FitH`;
+  const download = document.getElementById('ics-pdf-download');
+  if (download) {
+    download.href = openIcsFormObjectUrl;
+    download.download = `${incident.incidentName || 'incident'}-ICS-${selection.formId}.pdf`;
+    download.hidden = false;
+  }
+  if (status) status.textContent = 'Editable ICS worksheet prepared from recorded incident data. Unknown fields remain blank. Download to keep edits made in the PDF viewer; use Saved Field Corrections to save changes in EMERGENZ.';
+}
+
 async function openIcsPdf() {
   if (!openIcsForm) return;
-  const incident = openIcsForm.editing
-    ? saveOpenIcsForm()
-    : readIncidents().find((item) => item.incidentId === openIcsForm.incidentId);
+  const selection = openIcsForm;
+  const incident = selection.editing ? saveOpenIcsForm()
+    : readIncidents().find((item) => item.incidentId === selection.incidentId);
   if (!incident) return;
   const status = document.getElementById('ics-form-editor-status');
-  status.textContent = 'Generating the populated FEMA PDF…';
+  // Open synchronously so browser popup blocking cannot discard an awaited PDF.
+  const tab = window.open('', '_blank');
+  if (tab) tab.opener = null;
   try {
-    const response = await fetch(`/api/ics-forms/${encodeURIComponent(openIcsForm.formId)}/pdf`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(incident),
-    });
-    if (!response.ok) throw new Error(`PDF generation failed (${response.status})`);
-    if (openIcsFormObjectUrl) URL.revokeObjectURL(openIcsFormObjectUrl);
-    openIcsFormObjectUrl = URL.createObjectURL(await response.blob());
-    window.open(openIcsFormObjectUrl, '_blank', 'noopener');
-    status.textContent = 'The populated PDF opened in a new tab.';
+    await refreshIcsPdfPreview(incident, selection);
+    if (openIcsForm !== selection) { tab?.close(); return; }
+    if (tab) tab.location.href = openIcsFormObjectUrl;
+    else if (status) status.textContent += ' Your browser blocked a new tab; use the PDF preview or Download Editable PDF.';
   } catch (error) {
+    tab?.close();
     console.error(error);
-    status.textContent = 'The populated PDF could not be generated. Please try again.';
+    if (openIcsForm === selection && status) status.textContent = 'The populated PDF could not be generated. Your saved incident was preserved. Retry when the server is available.';
   }
 }
 
-function closeOpenIcsForm() {
+let icsPreviewRefreshTimer = null;
+async function refreshOpenIcsForm() {
+  const selection = openIcsForm;
+  if (!selection) return;
+  const incident = readIncidents().find((item) => item.incidentId === selection.incidentId);
+  if (!incident) return;
+  setText('ics-form-editor-context', `${incident.incidentName} · ${incident.status === 'Completed' ? 'Completed form' : 'Active incident form'}`);
+  selection.completed = incident.status === 'Completed';
+  if (document.querySelector('#ics-form-fields [data-dirty="true"]')) {
+    setText('ics-form-editor-status', 'Incident updated. Save your field corrections to refresh the worksheet.');
+    return;
+  }
+  try {
+    const response = await fetch(`/api/ics-forms/${selection.formId}/prepare`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(incident) });
+    if (!response.ok) throw new Error('Form refresh failed');
+    const prepared = await response.json();
+    if (openIcsForm !== selection) return;
+    const values = new Map(prepared.fields.map((field) => [field.name, field]));
+    document.querySelectorAll('#ics-form-fields input, #ics-form-fields textarea').forEach((control) => {
+      const field = values.get(control.name);
+      if (field && control.dataset.dirty !== 'true') { control.value = field.value || ''; control.dataset.source = field.source; }
+    });
+    await refreshIcsPdfPreview(incident, selection);
+  } catch {
+    if (openIcsForm === selection) setText('ics-form-editor-status', 'Saved incident retained. PDF refresh unavailable; retry Open PDF when connected.');
+  }
+}
+window.addEventListener('hazmatiq:incident-record-saved', () => {
+  if (!openIcsForm) return;
+  window.clearTimeout(icsPreviewRefreshTimer);
+  icsPreviewRefreshTimer = window.setTimeout(() => void refreshOpenIcsForm(), 800);
+});
+
+function closeOpenIcsForm({ returnToSummary = true } = {}) {
   const incidentId = openIcsForm?.incidentId;
   const completed = openIcsForm?.completed;
+  window.clearTimeout(icsPreviewRefreshTimer);
   document.getElementById('ics-form-editor').hidden = true;
+  document.getElementById('ics-pdf-preview')?.removeAttribute('src');
+  if (openIcsFormObjectUrl) URL.revokeObjectURL(openIcsFormObjectUrl);
+  openIcsFormObjectUrl = null;
   openIcsForm = null;
-  if (completed && incidentId) openIncidentSummary(incidentId);
+  if (returnToSummary && completed && incidentId) openIncidentSummary(incidentId);
   else closeIncidentSummary();
 }
 
@@ -3290,6 +3531,8 @@ window.HazMatIQ.reportsApi = {
   closeOpenIcsForm,
   getActiveIncidentId: () => window.localStorage.getItem(activeIncidentIdStorageKey),
   getIncidentById: (incidentId) => readIncidents().find((incident) => incident.incidentId === incidentId),
+  prepareCompletedIncidentDeletion,
+  deleteCompletedIncident,
   getOpenIncidentSummaryId: () => openIncidentSummaryId,
   openIncidentIcsForm,
   openIncidentSummary,
@@ -10350,7 +10593,9 @@ let commandPlumePreviewMap = null;
 let commandPlumePreviewMapReady = false;
 let commandPlumePreviewResizeObserver = null;
 let commandPlumePreviewIntersectionObserver = null;
-let commandPlumePreviewGeometryKey = '';
+let commandPlumePreviewZonesKey = '';
+let commandPlumePreviewReleaseKey = '';
+let commandPlumePreviewCameraKey = '';
 
 function commandPlumePreviewData(state) {
   const result = state?.plume?.result || {};
@@ -10389,18 +10634,27 @@ function commandPlumePreviewSetData(state) {
   if (!commandPlumePreviewMap || !commandPlumePreviewMapReady) return;
   const data = commandPlumePreviewData(state);
   const geometry = data.geometry || { type: 'FeatureCollection', features: [] };
-  commandPlumePreviewMap.getSource('command-plume-preview-zones')?.setData(geometry);
-  commandPlumePreviewMap.getSource('command-plume-preview-release')?.setData({
+  const release = {
     type: 'FeatureCollection',
     features: data.location ? [{
       type: 'Feature',
       properties: { label: 'Release point' },
       geometry: { type: 'Point', coordinates: [data.location.longitude, data.location.latitude] },
     }] : [],
-  });
-  const signature = JSON.stringify({ geometry, location: data.location });
-  if (signature !== commandPlumePreviewGeometryKey) {
-    commandPlumePreviewGeometryKey = signature;
+  };
+  const zonesKey = JSON.stringify(geometry);
+  const releaseKey = JSON.stringify(release);
+  const cameraKey = JSON.stringify({ geometry: zonesKey, location: data.location });
+  if (zonesKey !== commandPlumePreviewZonesKey) {
+    commandPlumePreviewZonesKey = zonesKey;
+    commandPlumePreviewMap.getSource('command-plume-preview-zones')?.setData(geometry);
+  }
+  if (releaseKey !== commandPlumePreviewReleaseKey) {
+    commandPlumePreviewReleaseKey = releaseKey;
+    commandPlumePreviewMap.getSource('command-plume-preview-release')?.setData(release);
+  }
+  if (cameraKey !== commandPlumePreviewCameraKey) {
+    commandPlumePreviewCameraKey = cameraKey;
     commandPlumePreviewFit(data);
   }
 }
@@ -10502,7 +10756,6 @@ function renderCommandPlumePreviewMap(state) {
   if (commandPlumePreviewMapReady) {
     commandPlumePreviewAddLayers();
     commandPlumePreviewSetData(state);
-    resizeCommandPlumePreviewMap();
   }
   return true;
 }
@@ -10515,7 +10768,9 @@ function destroyCommandPlumePreviewMap() {
   commandPlumePreviewMap?.remove();
   commandPlumePreviewMap = null;
   commandPlumePreviewMapReady = false;
-  commandPlumePreviewGeometryKey = '';
+  commandPlumePreviewZonesKey = '';
+  commandPlumePreviewReleaseKey = '';
+  commandPlumePreviewCameraKey = '';
 }
 
 function resizePlumeMapAfterLayout() {
@@ -13083,25 +13338,30 @@ function getGpsErrorMessage(error) {
   return error instanceof Error ? error.message : 'Browser GPS could not provide a valid location.';
 }
 
+let pendingDeviceGpsRequest = null;
+let recentDeviceGps = null;
 function getCurrentGps() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Browser GPS is not supported by this device.'));
+  if (recentDeviceGps && Date.now() - recentDeviceGps.receivedAt < 30000) return Promise.resolve(recentDeviceGps.location);
+  if (pendingDeviceGpsRequest) return pendingDeviceGpsRequest;
+  pendingDeviceGpsRequest = new Promise((resolve, reject) => {
+    if (window.isSecureContext === false || !navigator.geolocation) {
+      reject(new Error('Device location requires HTTPS and a browser with location support. Enter an incident address or coordinates.'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const location = normalizePlumeLocation({ lat: coords?.latitude, lon: coords?.longitude });
-        if (!location) {
-          reject(new Error('Browser GPS returned an invalid location.'));
-          return;
-        }
-        resolve({ ...location, source: 'Current device GPS', acquiredAt: new Date().toISOString() });
-      },
-      (error) => reject(new Error(getGpsErrorMessage(error))),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
-    );
-  });
+    const success = ({ coords }) => {
+      const location = normalizePlumeLocation({ lat: coords?.latitude, lon: coords?.longitude });
+      if (!location) { reject(new Error('Browser GPS returned an invalid location.')); return; }
+      const result = { ...location, accuracy: coords.accuracy, source: 'Current device GPS', acquiredAt: new Date().toISOString() };
+      recentDeviceGps = { location: result, receivedAt: Date.now() };
+      resolve(result);
+    };
+    navigator.geolocation.getCurrentPosition(success, (error) => {
+      if (error?.code === 1) { reject(new Error(getGpsErrorMessage(error))); return; }
+      navigator.geolocation.getCurrentPosition(success, (fallback) => reject(new Error(getGpsErrorMessage(fallback))),
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  }).finally(() => { pendingDeviceGpsRequest = null; });
+  return pendingDeviceGpsRequest;
 }
 
 function setText(id, value) {
@@ -16209,6 +16469,7 @@ document.getElementById('use-current-location-btn')?.addEventListener('click', a
 // ─── Tier II facilities: backed by the real /api/facilities data ───
 
 let tier2FacilitiesPromise = null;
+let facilitySearchCoverage = null;
 function getTier2Facilities(query = '') {
   const normalizedQuery = String(query || '').trim();
   const endpoint = normalizedQuery
@@ -16216,6 +16477,7 @@ function getTier2Facilities(query = '') {
     : '/api/facilities';
   const load = () => fetchJson(endpoint).then((data) => {
       if (!Array.isArray(data?.facilities)) throw new Error('Facility search returned an invalid response.');
+      facilitySearchCoverage = data.coverage || null;
       return data.facilities;
     });
   if (normalizedQuery) return load();
@@ -16600,7 +16862,9 @@ function renderCommandFacilityMatches(facilities) {
   const matches = facilities.filter((facility) => String(facility.name || '').trim());
   if (!matches.length) {
     clearCommandFacilitySuggestions();
-    setCommandFacilitySearchStatus('No facility names matched that search.', 'error');
+    setCommandFacilitySearchStatus(facilitySearchCoverage?.tier2Records === 0
+      ? 'No imported Tier II records are available on this server. A missing search result does not mean the facility has no hazards. Use manual entry or import the agency facility dataset.'
+      : 'No facility names matched that search. Try a partial name or location; missing results do not mean no hazards.', 'error');
     return;
   }
   commandFacilitySuggestions.replaceChildren(...matches.slice(0, 12).map((facility) => {
@@ -16829,9 +17093,11 @@ function filterCommandFacilities(facilities, query) {
   const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
   const normalized = normalize(query);
   if (!normalized) return [];
-  return facilities.filter((facility) =>
-    [facility.name, facility.address, ...(Array.isArray(facility.aliases) ? facility.aliases : []), facility.city, facility.state, facility.zip]
-      .some((value) => normalize(value).includes(normalized)));
+  const terms = normalized.split(' ');
+  return facilities.filter((facility) => {
+    const text = normalize([facility.name, facility.address, ...(Array.isArray(facility.aliases) ? facility.aliases : []), facility.city, facility.county, facility.state, facility.zip, facility.sourceFacilityId, facility.stateFacilityId].filter(Boolean).join(' '));
+    return terms.every((term) => text.includes(term));
+  });
 }
 
 function facilityChemicalSummary(facility) {
@@ -17021,6 +17287,7 @@ let liveMapGpsRequested = false;
 let liveMapResizeObserver = null;
 let liveMapStoredStyleApplied = false;
 let liveMapStyleRequestToken = 0;
+let liveMapPlanningContext = null;
 let pendingIncidentResourcePlacement = null;
 // Vector street style includes roads, buildings, parks, schools, hospitals, and POIs.
 const liveMapDetailedStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
@@ -18484,7 +18751,36 @@ function observeLiveMapContainer(container) {
   liveMapResizeObserver.observe(container);
 }
 
-function initializeLiveMap() {
+function focusLiveMapOnPlanningPlan(context = {}) {
+  const plan = context?.planningPlan;
+  if (!plan || !liveMapState) return;
+  const coordinates = normalizePlumeLocation(plan.coordinates || parseGpsCoordinate(plan.address));
+  const focus = (location) => {
+    if (!location || !liveMap) return;
+    liveMapState.mapCenter = [location.lon, location.lat];
+    liveMapState.zoom = Math.max(Number(liveMapState.zoom) || 14, 15);
+    liveMap.jumpTo({ center: liveMapState.mapCenter, zoom: liveMapState.zoom });
+    setText('live-map-status', `${plan.name || 'Pre-plan'} location loaded. Existing Incident, Tier II / HazMat Facility, Wildfire, and Weather Radar layers are available; no pipeline overlay is connected.`);
+    updateLiveMapReadout();
+  };
+  setText('live-map-incident-name', plan.name || 'Planning Map');
+  setText('live-map-mode', context.responseLayout ? 'Response Layout' : 'Pre-Plan Location');
+  if (coordinates) {
+    focus(coordinates);
+    return;
+  }
+  if (!plan.address) {
+    setText('live-map-status', `${plan.name || 'Pre-plan'} has no GPS coordinates. Enter latitude, longitude in the plan to center this map; existing planning layers remain available.`);
+    return;
+  }
+  setText('live-map-status', `Locating ${plan.name || 'pre-plan'} address…`);
+  void geocodePlumeAddress(plan.address).then(focus).catch(() => {
+    setText('live-map-status', `${plan.name || 'Pre-plan'} address could not be located. Enter latitude, longitude to center the map; existing planning layers remain available.`);
+  });
+}
+
+function initializeLiveMap(context = {}) {
+  const effectiveContext = context?.planningPlan ? context : (liveMapPlanningContext || {});
   if (!window.maplibregl) {
     setText('live-map-loading', 'Map library unavailable. Refresh the page and try again.');
     setText('live-map-status', 'The local MapLibre library did not load.');
@@ -18495,9 +18791,14 @@ function initializeLiveMap() {
     return;
   }
   const incident = getActiveIncident();
-  setText('live-map-incident-name', incident?.incidentName || 'Planning Map');
-  setText('live-map-mode', incident ? 'Active Incident' : 'Planning Mode');
   if (!liveMapState) liveMapState = readLiveMapState();
+  const planningCoordinates = normalizePlumeLocation(effectiveContext?.planningPlan?.coordinates || parseGpsCoordinate(effectiveContext?.planningPlan?.address));
+  if (planningCoordinates) {
+    liveMapState.mapCenter = [planningCoordinates.lon, planningCoordinates.lat];
+    liveMapState.zoom = Math.max(Number(liveMapState.zoom) || 14, 15);
+  }
+  setText('live-map-incident-name', effectiveContext?.planningPlan?.name || incident?.incidentName || 'Planning Map');
+  setText('live-map-mode', effectiveContext?.planningPlan ? (effectiveContext.responseLayout ? 'Response Layout' : 'Pre-Plan Location') : (incident ? 'Active Incident' : 'Planning Mode'));
   liveMapState.incidentId = incident?.incidentId || null;
   const container = document.getElementById('live-gis-map');
   observeLiveMapContainer(container);
@@ -18600,6 +18901,7 @@ function initializeLiveMap() {
   });
   updateLiveMapPanels();
   restoreLiveMapOverlays();
+  focusLiveMapOnPlanningPlan(effectiveContext);
   // Deferred navigation from Monitoring: page transition can precede MapLibre creation.
   const pendingMonitorFocus = window.HazMatIQ?.pendingMonitorMapFocus;
   if (pendingMonitorFocus) {
@@ -18621,7 +18923,7 @@ function initializeLiveMap() {
     logLiveMapDiagnostic();
   });
   window.setTimeout(() => liveMap.resize(), 150);
-  if (!liveMapGpsRequested) {
+  if (!liveMapGpsRequested && !effectiveContext?.planningPlan) {
     liveMapGpsRequested = true;
     setText('live-map-status', 'Locating current GPS position…');
     getCurrentGps().then((gps) => {
@@ -18956,6 +19258,7 @@ if (document.getElementById('overview')?.classList.contains('active')) activateP
 else syncCommandBarContext();
 
 // Render saved incidents only after chemical state and all control handlers are initialized.
+void initializeTacticalClock();
 startIncidentTimer();
 renderIncidentLists();
 void restoreIncidentsFromBackend();

@@ -38,30 +38,138 @@
   background: transparent;
 }
 
-.reports-page > .variant-reports {
-  min-height: 128px;
-  padding: 18px 24px;
-  align-items: center;
-  background: linear-gradient(135deg, #081f35 0%, #0d3151 58%, #123c60 100%);
-}
-
-.reports-page > .variant-reports .hazmat-page-hero-content {
-  width: min(100%, 1120px);
-  margin-inline: auto;
-  padding: 0;
-  text-align: left;
-}
-
-.reports-page > .variant-reports .hazmat-hero-title {
-  font-size: clamp(2rem, 4vw, 3.45rem);
-}
-
-.reports-page > .variant-reports .hazmat-hero-subtitle {
-  margin-top: 6px;
-  font-size: clamp(.85rem, 1.35vw, 1.05rem);
-}
+/* Reports is a compact worksheet desk. */
+.reports-heading { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:12px 4px; color:#fff; }
+.reports-heading h1 { margin:3px 0; font-size:clamp(1.5rem,2.4vw,2rem); font-family:Arial,sans-serif; }
+.reports-heading p { margin:4px 0; color:#c7d9e8; }
+.reports-auto-badge { border:1px solid #5d9f84; border-radius:20px; padding:8px 13px; color:#a5f3cb; font-size:.85rem; }
+.reports-page .report-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:0 0 22px; }
+.reports-page .report-workspace-card { display:grid; grid-template-columns:30px 1fr; align-content:start; gap:7px 12px; text-align:left; white-space:normal; min-width:0; padding:18px; border:1px solid #557b99; border-radius:10px; background:#102d45; color:#fff; box-shadow:none; }
+.reports-page .report-workspace-card span { grid-row:1 / 4; color:#fbd34d; font-size:27px; }
+.reports-page .report-workspace-card strong { font:700 1.08rem Arial,sans-serif; }
+.reports-page .report-workspace-card small { font:400 .9rem/1.45 Arial,sans-serif; color:#c7d9e8; }
+.reports-page .report-workspace-card b { color:#a9e7cf; font-size:.85rem; }
+.reports-page .report-workspace-card.primary-btn { border:2px solid #fbd34d; padding:17px; background:#173a54; }
+.reports-section-heading { display:flex; justify-content:space-between; gap:20px; align-items:start; }
+.reports-page h2 { margin:0 0 7px; font:700 1.25rem Arial,sans-serif; color:#fff; }
+.reports-section-heading p { max-width:650px; color:#c7d9e8; line-height:1.5; margin:0 0 14px; }
+.reports-page a { color:#a7d8ff; }
+.reports-page .incident-ics-form-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin-top:15px; }
+.report-form-tile { display:flex; width:100%; height:108px; box-sizing:border-box; flex-direction:column; align-items:center; justify-content:center; border:2px solid #fff; border-radius:8px; padding:13px; background:#e5e7eb; min-width:0; color:#082540; text-align:center; text-decoration:none; }
+.report-form-tile:hover, .report-form-tile:focus-visible { border-color:#fff; background:#d1d5db; color:#082540; text-decoration:none; }
+.report-form-tile strong { display:block; color:#082540; font:700 .95rem/1.25 Arial,sans-serif; margin-bottom:5px; }
+.report-form-tile .report-form-title { display:block; color:#082540; font:600 .9rem/1.3 Arial,sans-serif; overflow-wrap:anywhere; }
+.report-form-tile .ics-form-text-link { color:#082540; display:block; text-align:left; font-size:.9rem; }
+.report-form-tile a { display:inline-block; margin-top:8px; font-size:.85rem; }
+.report-form-tile small { display:block; color:#082540; margin:6px 0; }
+.report-incident-row { display:flex; align-items:stretch; gap:8px; min-width:0; }
+.report-incident-row .report-incident-item { flex:1 1 auto; min-width:0; }
+.report-delete-incident-btn { display:grid; flex:0 0 40px; place-items:center; align-self:stretch; min-height:40px; padding:8px; border:1px solid #c85a62; border-radius:8px; background:#4a1c28; color:#ffd9dc; cursor:pointer; }
+.report-delete-incident-btn:hover, .report-delete-incident-btn:focus-visible { border-color:#ff9da3; background:#6b2633; color:#fff; }
+.report-delete-incident-btn svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; }
+.report-delete-dialog { width:min(460px, calc(100vw - 28px)); border:1px solid #6c879d; border-radius:10px; padding:0; background:#0b2236; color:#fff; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+.report-delete-dialog::backdrop { background:rgba(2,12,22,.72); }
+.report-delete-dialog-content { display:grid; gap:10px; padding:22px; }
+.report-delete-dialog-content h2, .report-delete-dialog-content p { margin:0; }
+.report-delete-dialog-content strong { color:#fff; }
+.report-delete-status { min-height:1.25em; color:#ffb5ba; }
+.report-delete-actions { justify-content:flex-end; margin-top:4px; }
+.reports-page [hidden] { display:none !important; }
+@media(max-width:650px) { .reports-heading { align-items:start; flex-direction:column; } .reports-page .report-tabs { grid-template-columns:1fr; gap:9px; } .reports-page .report-workspace-card { padding:12px; } .reports-page .report-workspace-card.primary-btn { padding:11px; } .reports-section-heading { flex-direction:column; gap:5px; } }
 
 .reports-page > .report-center {
-  width: min(100%, 1120px);
-  margin: 12px auto 0;
+  width:100%;
+  margin:0;
 }
+
+@media print {
+  @page { margin: .5in; }
+  body { background:#fff !important; color:#172c3e !important; }
+  #incident-report-summary,
+  #incident-report-summary * {
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+  #incident-report-summary {
+    position:absolute;
+    inset:0;
+    width:100%;
+    margin:0;
+    padding:0;
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+  #incident-report-summary .incident-report-summary-heading,
+  #incident-report-summary .report-summary-actions,
+  #incident-report-summary .incident-brief-report > section:not(.report-print-brief):not(.report-print-plume),
+  #incident-report-summary .report-prepared-by,
+  #incident-report-summary .report-ics-attachments { display:none !important; }
+  #incident-report-summary .incident-brief-report {
+    max-width:none;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+  #incident-report-summary .report-brief-metadata,
+  #incident-report-summary .report-print-brief,
+  #incident-report-summary .report-print-brief *,
+  #incident-report-summary .report-print-plume,
+  #incident-report-summary .report-print-plume * {
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+  #incident-report-summary .report-brief-metadata { border-color:#526574; }
+  #incident-report-summary .report-print-brief,
+  #incident-report-summary .report-print-plume { break-inside:avoid; }
+  #incident-report-summary .report-brief-map {
+    min-height:0;
+    margin:10px 0;
+    padding:0;
+    border:1px solid #526574;
+    background:#fff !important;
+  }
+  #incident-report-summary .report-brief-map img { max-height:none; }
+  #incident-report-summary .report-threat-table { break-inside:avoid; color:#172c3e; }
+  #incident-report-summary .report-threat-table th,
+  #incident-report-summary .report-threat-table td {
+    border:1px solid #526574;
+    background:#fff !important;
+    color:#172c3e !important;
+  }
+}
+
+.reports-page #ics-form-editor-context { color:#fbd34d !important; }
+.reports-page .report-workspace-card[aria-pressed="true"] { border-color:#fbd34d !important; background:#173a54 !important; }
+
+/* A compact incident brief, distinct from detailed FEMA worksheets. */
+.reports-heading .reports-subtitle { color:#bfd1df; letter-spacing:.2em; font-size:.85rem; font-weight:700; }
+#incident-report-summary-title { font-family:Arial,sans-serif; font-size:1.5rem; text-transform:none; letter-spacing:0; }
+#incident-report-summary > .incident-report-summary-heading .eyebrow { color:#fbd34d; }
+.incident-brief-report { box-sizing:border-box; max-width:1000px; margin:18px auto; padding:26px 32px; background:#f7f9fc; border:1px solid #bacbda; border-radius:8px; color:#172c3e; font:16px/1.55 Arial,sans-serif; }
+.incident-brief-report h3 { margin:0 0 8px; color:#102e47; font:700 1.08rem/1.35 Arial,sans-serif; letter-spacing:0; text-transform:none; }
+.incident-brief-report p { margin:0; color:#172c3e; white-space:pre-line; overflow-wrap:anywhere; }
+.incident-brief-report > section { padding:17px 0; border-bottom:1px solid #d4dee7; }
+.report-brief-metadata { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 20px; padding-bottom:18px; border-bottom:2px solid #1e4a6c; }
+.report-brief-metadata > div { min-width:0; }
+.report-brief-metadata span { display:block; color:#4b6173; font-size:.78rem; font-weight:700; text-transform:uppercase; }
+.report-brief-metadata strong { display:block; color:#172c3e; font-size:.94rem; overflow-wrap:anywhere; }
+.incident-brief-report .report-brief-empty { color:#586b7b; font-style:italic; }
+.report-brief-map { display:flex; align-items:center; justify-content:center; min-height:180px; background:#e5edf3; border:1px solid #a5bacb; border-radius:5px; margin:12px 0; padding:10px; }
+.report-brief-map img { display:block; width:100%; max-height:430px; object-fit:contain; }
+.report-threat-table { width:100%; border-collapse:collapse; text-align:left; margin-top:12px; color:#172c3e; }
+.report-threat-table caption { text-align:left; font-weight:700; margin-bottom:5px; }
+.report-threat-table th,.report-threat-table td { text-align:left; padding:7px 9px; border:1px solid #b6c8d6; color:#172c3e; background:#f7f9fc; }
+.report-threat-table th { background:#dde8f0; }
+.incident-brief-report .report-brief-caption { font-size:.8rem; color:#4b6173; margin-top:8px; }
+.report-prepared-by { display:flex; flex-wrap:wrap; gap:6px 20px; justify-content:space-between; padding-top:18px; color:#172c3e; font-size:.9rem; }
+.report-ics-attachments { max-width:1000px; margin:16px auto; padding:14px; border:1px solid #58748c; border-radius:8px; }
+.report-ics-attachments > summary { color:#fff; cursor:pointer; font-weight:700; }
+.report-narrative-editor label { display:block; margin-top:16px; color:#172c3e; }
+.report-narrative-editor label > span { display:block; font-weight:700; margin-bottom:5px; }
+.report-narrative-editor input,.report-narrative-editor textarea { width:100%; box-sizing:border-box; color:#172c3e !important; background:#fff !important; border:1px solid #8da7ba; border-radius:4px; padding:9px; font:16px/1.5 Arial,sans-serif; }
+@media(max-width:650px) { .incident-brief-report { padding:18px; } .report-brief-metadata { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media print { .incident-brief-report { margin:0; padding:10px 0; border:0; max-width:none; background:#fff; } .incident-brief-report > section,.report-prepared-by { break-inside:avoid; } .report-ics-attachments { display:none !important; } .report-brief-map { min-height:100px; } .report-brief-map img { max-height:260px; } }
+@media print { #incident-report-summary-title, #incident-report-summary .eyebrow { color:#102e47 !important; } }

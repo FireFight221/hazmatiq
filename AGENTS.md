@@ -60,3 +60,9 @@ When working on website or software interfaces, prefer polished, high-end visual
 - The backend serves the UI directly; there is no separate frontend server.
 - The app is designed for offline use in emergency response contexts.
 - Keep the product grounded in fast operational decision support, not decorative complexity.
+
+## GitHub push workflow
+
+- For every push from this Codespace, use `env -u GITHUB_TOKEN -u GH_TOKEN git push origin development` so default environment tokens do not cause GitHub 403 errors.
+- Do not change remotes, fork, or force-push.
+- After pushing, verify that `HEAD` matches `origin/development` before reporting the push complete.

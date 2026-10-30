@@ -232,7 +232,7 @@ describe("Chemical Profile UI system", () => {
     expect(styles).toMatch(/data-field="idlh"[^}]*> strong \{[\s\S]*?color: #ff5a5f;/);
     expect(styles).toMatch(/data-field="erg-guide"[^}]*> strong \{[\s\S]*?color: #ff8a1c;/);
     expect(styles).toContain('.chemcompare-row[data-field="idlh"] .chemcompare-value-main');
-    expect(script).toContain("row.dataset.field = String(label).toLowerCase()");
+    expect(script).toContain("row.dataset.field = String(entry.label || '').toLowerCase()");
   });
 
   it("presents the Chemical Profile header as one seamless responsive summary", () => {

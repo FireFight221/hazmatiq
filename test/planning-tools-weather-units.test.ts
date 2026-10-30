@@ -19,24 +19,29 @@ describe("weather wind units", () => {
     expect(script).toContain("return speed * 2.23694;");
     expect(script).toContain("return speed * 1.15078;");
     expect(script).toContain("windSpeedUnit: 'mph'");
-    expect(script).toContain("['windSpeed', 'Wind speed (mph)', 'text']");
+    expect(script).toContain("const windSpeedMph = convertWindSpeedToMph(value('windSpeed'), sourceWindSpeedUnit);");
     expect(html).toContain("Wind speed (mph)");
   });
 });
 
 describe("Planning Tools card board", () => {
-  it("renders six equal cards including Pipeline Planning", () => {
+  it("renders four equal cards including Pipeline Planning", () => {
     const planningGrid = html.slice(
       html.indexOf('<div class="planning-tools-grid">'),
       html.indexOf('<p class="planning-tools-status muted"'),
     );
-    expect(planningGrid.match(/<section class="planning-tool-section/g)).toHaveLength(6);
-    expect(planningGrid).toContain('<span class="planning-tool-index">06</span>');
+    expect(planningGrid.match(/<section class="planning-tool-section/g)).toHaveLength(4);
+    expect(planningGrid).toContain('<span class="planning-tool-index">04</span>');
     expect(planningGrid).toContain('id="planning-pipeline-title">Pipeline Planning</h3>');
     expect(planningGrid).toContain('id="pipeline-preplan-btn"');
-    expect(planningStyles).toContain("grid-auto-rows: 320px;");
-    expect(planningStyles).toContain("height: 320px;");
-    expect(planningStyles).toContain("#planning-tools .planning-tool-scenario");
+    expect(planningGrid).toContain('planning-tool-logo-facility');
+    expect(planningGrid).toContain('planning-tool-logo-tabletop');
+    expect(planningGrid).toContain('planning-tool-logo-preplan');
+    expect(planningGrid).toContain('planning-tool-logo-pipeline');
+    expect(planningStyles).toContain('#planning-tools .planning-tool-logo');
+    expect(planningStyles).toContain("grid-auto-rows: minmax(290px, auto);");
+    expect(planningStyles).toContain(".planning-tool-subfeatures");
+    expect(planningStyles).toContain(".planning-tool-note");
   });
 
   it("returns home from either Command Dashboard HAZMATIQ logo", () => {

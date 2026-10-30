@@ -13,10 +13,12 @@
     if (!selected) return;
     const root = document.getElementById('report');
     if (!root) return;
+    reportsApi()?.closeOpenIcsForm?.({ returnToSummary: false });
     root.querySelectorAll('[data-report-tab]').forEach((tab) => {
       const active = tab === button;
       tab.classList.toggle('primary-btn', active);
       tab.classList.toggle('ghost-btn', !active);
+      tab.setAttribute('aria-pressed', String(active));
     });
     ['current', 'previous', 'library'].forEach((name) => {
       const section = document.getElementById(`report-${name}-section`);
@@ -33,6 +35,9 @@
     if (!api) return;
     if (target.matches('[data-report-tab]')) {
       selectReportTab(target);
+    } else if (target.matches('[data-delete-incident]')) {
+      event.stopPropagation();
+      api.prepareCompletedIncidentDeletion?.(target.dataset.deleteIncident);
     } else if (target.id === 'open-current-incident-summary-btn') {
       const activeId = api.getActiveIncidentId();
       if (activeId) api.openIncidentSummary(activeId);
@@ -40,7 +45,7 @@
       api.closeIncidentSummary();
     } else if (target.id === 'edit-incident-summary-btn') {
       const incident = api.getIncidentById(api.getOpenIncidentSummaryId());
-      if (incident?.status === 'Completed') api.renderCompletedReportEditor(incident);
+      if (incident) api.renderCompletedReportEditor(incident);
     } else if (target.id === 'cancel-incident-summary-edit-btn') {
       if (api.getOpenIncidentSummaryId()) api.openIncidentSummary(api.getOpenIncidentSummaryId());
     } else if (target.id === 'save-incident-summary-btn') {
@@ -55,6 +60,21 @@
       void api.openIcsPdf();
     } else if (target.id === 'back-from-ics-form-btn') {
       api.closeOpenIcsForm();
+    } else if (target.id === 'cancel-delete-completed-incident-btn') {
+      document.getElementById('delete-completed-incident-dialog')?.close();
+    } else if (target.id === 'confirm-delete-completed-incident-btn') {
+      const dialog = document.getElementById('delete-completed-incident-dialog');
+      const incidentId = dialog?.dataset.incidentId;
+      if (!dialog || !incidentId) return;
+      target.disabled = true;
+      void Promise.resolve(api.deleteCompletedIncident?.(incidentId)).then((result) => {
+        target.disabled = false;
+        if (result?.ok) dialog.close();
+        else if (result?.error) {
+          const status = document.getElementById('delete-completed-incident-status');
+          if (status) status.textContent = result.error;
+        }
+      });
     }
   }
 

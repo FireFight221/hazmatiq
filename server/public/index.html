@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EMERGENZ | Incident Intelligence + Response Planning</title>
     <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css" />
-    <link rel="stylesheet" href="styles.css?v=live-map-responsive-6" />
+    <link rel="stylesheet" href="styles.css?v=live-map-responsive-7" />
     <link rel="stylesheet" href="hero-overrides.css?v=13" />
     <link rel="stylesheet" href="hazard-id-overrides.css?v=3" />
     <link rel="stylesheet" href="global-ui-overrides.css?v=21" />
@@ -14,11 +14,11 @@
     <link rel="stylesheet" href="chemical-intel.css?v=hazard-profile-panel-31" />
     <link rel="stylesheet" href="guided-response-overrides.css?v=2" />
     <link rel="stylesheet" href="hazard-profile-page.css?v=radiological-profile-1" />
-    <link rel="stylesheet" href="page-shell.css?v=1" />
+    <link rel="stylesheet" href="page-shell.css?v=2" />
     <link rel="stylesheet" href="plume-overrides.css?v=24&canonical-grid=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=7" />
     <link rel="stylesheet" href="monitoring-console.css?v=4" />
-    <link rel="stylesheet" href="plume-layout-correction.css?v=14" />
+    <link rel="stylesheet" href="plume-layout-correction.css?v=15" />
     <link rel="stylesheet" href="dashboard-header.css?v=17" />
   </head>
   <body>
@@ -211,54 +211,61 @@
                     <label>Event / disaster add-on<textarea id="preplan-event" rows="2" placeholder="Attendance, EMS access, hospitals, communications, demobilization"></textarea></label>
                     <label>Resources / links<textarea id="preplan-resources" rows="2" placeholder="E-Plan, ERP, NPMS, facility documents (links only)"></textarea></label>
                     <label>Notes<textarea id="preplan-notes" rows="2" placeholder="Review notes and verification items"></textarea></label>
+                    <label id="preplan-pipeline-field" hidden>Pipeline operations / isolation<textarea id="preplan-pipeline" rows="3" placeholder="Operator, products, pressure, valves, control points, isolation, access, ignition control"></textarea></label>
                   </div>
-                  <div class="preplan-actions"><button class="primary-btn" type="submit">Save Pre-Plan</button><button class="ghost-btn" id="preplan-print-btn" type="button">Generate PDF / Print</button><button class="ghost-btn" id="preplan-send-incident-btn" type="button">Send to Incident Command</button><button class="ghost-btn" type="button" data-view="lookup">Open Hazard ID</button><button class="ghost-btn" type="button" data-view="map">Open Live Map</button><button class="ghost-btn" type="button" data-view="plume">Open Plume Model</button></div>
+                  <section class="preplan-site-image-panel" aria-labelledby="preplan-site-image-title">
+                    <div><p class="planning-tool-label">Map attachment</p><h3 id="preplan-site-image-title">Add Map / Site Image</h3><p id="preplan-site-image-state">No site image attached. PNG or JPEG up to 4 MB.</p></div>
+                    <div class="preplan-site-image-actions"><button class="ghost-btn" id="preplan-site-image-btn" type="button">Add Map / Site Image</button><button class="ghost-btn" id="preplan-site-image-replace-btn" type="button" hidden>Replace</button><button class="ghost-btn" id="preplan-site-image-remove-btn" type="button" hidden>Remove</button><input id="preplan-site-image-input" type="file" accept="image/png,image/jpeg" hidden /></div>
+                    <div class="preplan-site-image-preview" id="preplan-site-image-preview" hidden><img id="preplan-site-image-preview-img" alt="Selected pre-plan site image preview" /><small id="preplan-site-image-file-name"></small></div>
+                  </section>
+                  <div class="preplan-actions"><button class="primary-btn" type="submit">Save Pre-Plan</button><button class="ghost-btn" id="preplan-import-editor-btn" type="button">Import / Attach Documents</button><button class="ghost-btn" id="preplan-map-btn" type="button">Open Planning Map</button><button class="ghost-btn" id="preplan-layout-btn" type="button">Create Response Layout</button><button class="ghost-btn" id="preplan-print-btn" type="button">Generate PDF / Print</button><button class="ghost-btn" id="preplan-send-incident-btn" type="button">Send to Incident Command</button><button class="ghost-btn" type="button" data-view="lookup">Open Hazard ID</button><button class="ghost-btn" type="button" data-view="map">Open Live Map</button><button class="ghost-btn" type="button" data-view="plume">Open Plume Model</button></div>
+                  <section class="preplan-attachments-panel" aria-labelledby="preplan-attachments-title"><div><p class="planning-tool-label">Plan files</p><h3 id="preplan-attachments-title">Attached Documents</h3></div><p id="preplan-attachments-empty">No documents attached.</p><ul id="preplan-attachments-list"></ul></section>
                   <p id="preplan-status-message" class="planning-tools-status" role="status" aria-live="polite">No plan saved yet.</p>
                 </form>
               </section>
               <section class="preplan-saved-card" id="preplan-saved-card" hidden><div class="preplan-builder-heading"><h2>Saved Pre-Plans</h2><button class="ghost-btn" id="preplan-saved-close-btn" type="button">Close</button></div><div id="preplan-saved-list"></div></section>
 
+              <dialog id="preplan-attachment-dialog" class="preplan-attachment-dialog" aria-labelledby="preplan-attachment-dialog-title">
+                <form id="preplan-attachment-form" method="dialog">
+                  <div class="preplan-builder-heading"><div><p class="eyebrow">Plan files</p><h2 id="preplan-attachment-dialog-title">Import / Attach Documents</h2><p>Attach local training or field documents to an existing pre-plan, or create a new draft plan.</p></div><button class="ghost-btn" value="cancel" type="submit">Close</button></div>
+                  <label>Attach to pre-plan<select id="preplan-attachment-plan"></select></label>
+                  <label>Choose documents<input id="preplan-attachment-input" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/csv" /></label>
+                  <div class="preplan-dialog-actions"><button class="primary-btn" id="preplan-attachment-save-btn" value="default" type="submit">Attach Documents</button></div>
+                  <p id="preplan-attachment-status" class="planning-tools-status" role="status" aria-live="polite">No documents selected.</p>
+                </form>
+              </dialog>
+
               <div class="planning-tools-grid">
                 <section class="planning-tool-section planning-tool-eplan" aria-labelledby="planning-eplan-title">
-                  <div class="planning-tool-section-heading"><span class="planning-tool-index">01</span><div><p class="planning-tool-label">Facility Intelligence</p><h3 id="planning-eplan-title">E-Plan / Facility Intelligence</h3></div></div>
+                  <div class="planning-tool-section-heading"><span class="planning-tool-index">01</span><span class="planning-tool-logo planning-tool-logo-facility" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M8 42V17l16-9 16 9v25H8Z"/><path d="M16 42V27h16v15M16 20h.01M24 20h.01M32 20h.01M20 32h.01M28 32h.01"/><path d="M5 42h38"/></svg></span><div><p class="planning-tool-label">Facility Intelligence</p><h3 id="planning-eplan-title">ePlan Facility Intelligence</h3></div></div>
                   <p>Sync facility data, chemical inventories, site contacts, SDS files, maps, and Tier II information when authorized.</p>
                   <ul class="planning-tool-list"><li>E-Plan login and sync</li><li>Facility contacts, maps, and chemical documents</li><li>Import facility intelligence into an active incident</li></ul>
                   <div class="planning-tool-actions"><a class="primary-btn" href="https://erplan.net/eplan/login.htm" target="eplan-program" rel="noopener noreferrer">Login to E-Plan</a><button class="ghost-btn" type="button" data-planning-status="Facility sync is ready for an authorized E-Plan connection.">Sync Facility Data</button><button class="ghost-btn" type="button" data-planning-status="Facility profile selection will be available after a facility sync.">Open Facility Profile</button></div>
                 </section>
 
+                <section class="planning-tool-section" aria-labelledby="planning-tabletop-title">
+                  <div class="planning-tool-section-heading"><span class="planning-tool-index">02</span><span class="planning-tool-logo planning-tool-logo-tabletop" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><circle cx="24" cy="24" r="16"/><circle cx="24" cy="24" r="5"/><path d="M24 5v9M24 34v9M5 24h9M34 24h9M10.6 10.6l6.4 6.4M31 31l6.4 6.4M37.4 10.6 31 17M17 31l-6.4 6.4"/></svg></span><div><p class="planning-tool-label">Exercise Readiness</p><h3 id="planning-tabletop-title">Tabletop Readiness Exercise</h3></div></div>
+                  <p>Combine known-hazard review and scenario building into one exercise workspace.</p>
+                  <div class="planning-tool-subfeatures">
+                    <div><strong>Hazard Planning</strong><span>Identify chemical, CBRNE, radiological, and threat concerns before arrival.</span><button class="ghost-btn" type="button" data-view="lookup">Open Hazard Planning</button></div>
+                    <div><strong>Scenario Builder</strong><span>Run tabletop scenarios using the hazards and facilities already in the app.</span><button class="ghost-btn" type="button" data-planning-status="Scenario builder is ready for a tabletop exercise. Select a hazard, then record exercise decisions in the pre-plan notes.">Build Scenario</button></div>
+                  </div>
+                  <div class="planning-scenario-examples"><span>Chlorine release</span><span>Ammonia leak</span><span>Acid spill</span><span>Radiological package</span><span>Unknown powder</span><span>Railcar leak</span></div>
+                </section>
+
                 <section class="planning-tool-section" aria-labelledby="planning-preplans-title">
-                  <div class="planning-tool-section-heading"><span class="planning-tool-index">02</span><div><p class="planning-tool-label">Tactical Readiness</p><h3 id="planning-preplans-title">Pre-Incident Plans</h3></div></div>
+                  <div class="planning-tool-section-heading"><span class="planning-tool-index">03</span><span class="planning-tool-logo planning-tool-logo-preplan" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><rect x="11" y="7" width="26" height="34" rx="3"/><path d="M18 7.5h12v6H18zM17 21l3 3 6-7M17 30l3 3 6-7M17 37h13"/></svg></span><div><p class="planning-tool-label">Tactical Readiness</p><h3 id="planning-preplans-title">Pre-Incident Plans</h3></div></div>
                   <p>Build and store tactical plans for schools, industrial sites, warehouses, rail yards, hospitals, and other high-risk facilities.</p>
                   <ul class="planning-tool-list"><li>Entry points, staging, command post, and decon</li><li>Shutoffs, utilities, hydrants, and evacuation concerns</li><li>Target hazards and response notes</li></ul>
-                  <div class="planning-tool-actions"><button class="primary-btn" id="new-preplan-btn" type="button">New Pre-Plan</button><button class="ghost-btn" id="open-preplans-btn" type="button">Open Saved Plans</button><button class="ghost-btn" id="preplan-import-btn" type="button">Import / Attach Documents</button></div>
-                </section>
-
-                <section class="planning-tool-section" aria-labelledby="planning-hazards-title">
-                  <div class="planning-tool-section-heading"><span class="planning-tool-index">03</span><div><p class="planning-tool-label">Known Threats</p><h3 id="planning-hazards-title">Hazard Planning</h3></div></div>
-                  <p>Identify known chemicals, CBRNE hazards, radiological materials, and threat concerns before arrival.</p>
-                  <ul class="planning-tool-list"><li>Save hazards to a facility profile</li><li>Pre-plan PPE, decon, and plume candidates</li><li>Flag high-risk materials from E-Plan</li></ul>
-                  <div class="planning-tool-actions"><button class="primary-btn" type="button" data-view="lookup">Open Hazard Planning</button></div>
-                </section>
-
-                <section class="planning-tool-section" aria-labelledby="planning-map-title">
-                  <div class="planning-tool-section-heading"><span class="planning-tool-index">04</span><div><p class="planning-tool-label">Operational Geography</p><h3 id="planning-map-title">Map &amp; Response Layout</h3></div></div>
-                  <p>Prepare the operational map before the incident becomes chaotic.</p>
-                  <ul class="planning-tool-list"><li>Access routes, ICP, staging, and evacuation routes</li><li>Hot, warm, cold zones, and decon corridors</li><li>Sensitive receptors, schools, hospitals, and waterways</li></ul>
-                  <div class="planning-tool-actions"><button class="primary-btn" type="button" data-view="map">Open Planning Map</button><button class="ghost-btn" type="button" data-planning-status="Response layout tools are ready for a planning map.">Create Response Layout</button></div>
-                </section>
-
-                <section class="planning-tool-section planning-tool-scenario" aria-labelledby="planning-scenario-title">
-                  <div class="planning-tool-section-heading"><span class="planning-tool-index">05</span><div><p class="planning-tool-label">Tabletop Readiness</p><h3 id="planning-scenario-title">Scenario Builder</h3></div></div>
-                  <p>Run pre-incident tabletop scenarios using real facility hazards.</p>
-                  <div class="planning-scenario-examples"><span>Chlorine release</span><span>Ammonia leak</span><span>Acid spill</span><span>Radiological package</span><span>Unknown powder</span><span>Railcar leak</span></div>
-                  <div class="planning-tool-actions"><button class="primary-btn" type="button" data-planning-status="Scenario builder is queued for the facility planning workspace.">Build Scenario</button></div>
+                  <div class="planning-tool-actions"><button class="primary-btn" id="new-preplan-btn" type="button">New Pre-Plan</button><button class="ghost-btn" id="open-preplans-btn" type="button">Open Saved Plans</button><button class="ghost-btn" id="preplan-import-btn" type="button">Import / Attach Documents</button><button class="ghost-btn" id="preplans-map-btn" type="button">Open Planning Map</button></div>
                 </section>
 
                 <section class="planning-tool-section planning-tool-pipeline" aria-labelledby="planning-pipeline-title">
-                  <div class="planning-tool-section-heading"><span class="planning-tool-index">06</span><div><p class="planning-tool-label">Pipeline Intelligence</p><h3 id="planning-pipeline-title">Pipeline Planning</h3></div></div>
+                  <div class="planning-tool-section-heading"><span class="planning-tool-index">04</span><span class="planning-tool-logo planning-tool-logo-pipeline" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M7 10h13v10H7zM28 28h13v10H28zM20 15h8v18h-8z"/><path d="M13 20v8h22M24 15V8M24 40v-2"/><path d="M19 8h10M19 42h10"/></svg></span><div><p class="planning-tool-label">Pipeline Intelligence</p><h3 id="planning-pipeline-title">Pipeline Planning</h3></div></div>
                   <p>Prepare pipeline-specific response intelligence for transmission, distribution, terminal, and right-of-way incidents.</p>
                   <ul class="planning-tool-list"><li>Record operator contacts, products, pressure, and shutoff points</li><li>Map valves, control points, access routes, and sensitive receptors</li><li>Pre-plan isolation, evacuation, monitoring, and ignition-control actions</li></ul>
-                  <div class="planning-tool-actions"><button class="primary-btn" id="pipeline-preplan-btn" type="button">Build Pipeline Plan</button><button class="ghost-btn" type="button" data-view="map">Open Planning Map</button></div>
+                  <p class="planning-tool-note">Planning layers use the existing Live Map sources. No pipeline-specific overlay import is connected yet.</p>
+                  <div class="planning-tool-actions"><button class="primary-btn" id="pipeline-preplan-btn" type="button">Build Pipeline Plan</button><button class="ghost-btn" id="pipeline-map-btn" type="button">Open Planning Map</button><button class="ghost-btn" id="pipeline-layout-btn" type="button">Create Response Layout</button></div>
                 </section>
               </div>
               <p class="planning-tools-status muted" id="planning-tools-status" role="status" aria-live="polite">Select a planning capability to begin.</p>
@@ -1454,6 +1461,7 @@
           <section id="map" class="view live-map-page" data-page-root="live-map" data-page-name="Live Map">
             <header class="hazmat-page-hero emergenz-page-header hazmat-page-hero-compact live-map-tactical-header">
               <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><path d="M28 57S11 41 11 25a17 17 0 1 1 34 0c0 16-17 32-17 32Z"/><circle cx="28" cy="25" r="6"/><path d="M6 25h7m27 0h7M28 3v7"/></svg></span><div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title">LIVE MAP</h1><p class="hazmat-hero-subtitle">Operational Mapping &amp; Field Intelligence.</p></div></div>
+              <aside class="live-map-plan-context" aria-live="polite"><strong id="live-map-incident-name">Planning Map</strong><span id="live-map-mode">Planning Mode</span></aside>
             </header>
             <div class="live-map-operations" aria-label="Live Map controls">
               <div class="live-map-control-groups">
@@ -1868,55 +1876,45 @@
           </section>
 
           <section id="report" class="view reports-page" data-page-root="reports" data-page-name="Reports / ICS">
-            <header class="hazmat-page-hero emergenz-page-header variant-reports">
-              <div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><rect x="11" y="5" width="34" height="51" rx="4"/><path d="M20 5V2h16v3M19 22h18M19 31h18M19 40h11"/></svg></span><div class="emergenz-page-header-copy"><h1 class="hazmat-hero-title">Reports &amp; Forms</h1><p class="hazmat-hero-subtitle">Generate, Print, Export &amp; Archive.</p></div></div>
-            </header>
+            <header class="reports-heading"><div><h1>Reports &amp; ICS Forms</h1><p class="reports-subtitle">COMMAND WORKSHEETS</p></div><span class="reports-auto-badge">Auto-filled from saved incident data</span></header>
             <div class="panel-card report-center">
-              <div class="button-row report-tabs">
-                <button class="primary-btn" type="button" data-report-tab="current">Current Incident Forms</button>
-                <button class="ghost-btn" type="button" data-report-tab="previous">Completed Forms</button>
-                <button class="ghost-btn" type="button" data-report-tab="library">ICS Forms Library</button>
-              </div>
-
-              <section id="report-current-section" class="report-section">
-                <h3>Current Active Incident</h3>
+              <nav class="report-tabs" aria-label="Reports workspace">
+                <button class="report-workspace-card primary-btn" type="button" data-report-tab="library" aria-pressed="true"><span aria-hidden="true">▤</span><strong>ICS Forms Library</strong><small>Original government-issued fillable PDFs</small><b id="report-library-count">13 forms</b></button>
+                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="current" aria-pressed="false"><span aria-hidden="true">◷</span><strong>Active Incident Report</strong><small>Live incident brief and auto-filled ICS forms</small><b id="report-active-count">No active incident</b></button>
+                <button class="report-workspace-card ghost-btn" type="button" data-report-tab="previous" aria-pressed="false"><span aria-hidden="true">✓</span><strong>Completed Incidents</strong><small>Review closed incidents and their saved forms</small><b id="report-completed-count">0 completed</b></button>
+              </nav>
+              <section id="report-library-section" class="report-section">
+                <div class="reports-section-heading"><div><h2>ICS Forms Library</h2><p>Original FEMA fillable forms. Recorded updates flow into incident forms; manual corrections stay saved.</p></div><a href="https://training.fema.gov/emiweb/is/icsresource/icsforms/" target="_blank" rel="noopener noreferrer">FEMA originals &amp; instructions ↗</a></div>
+                <div id="ics-form-library-list" class="incident-ics-form-list"></div>
+                <p class="muted">Original FEMA layouts and pages are preserved.</p>
+              </section>
+              <section id="report-current-section" class="report-section" hidden>
+                <h2>Active Incident Report</h2><p class="muted">The incident brief and worksheets update as incident information is saved.</p>
                 <div id="current-incident-list" class="report-incident-list"></div>
                 <div id="current-incident-options" class="report-form-options" tabindex="-1">
-                  <h3>Active Incident Forms</h3>
-                  <button class="ghost-btn" id="open-current-incident-summary-btn" type="button">Incident Summary</button>
+                  <button class="ghost-btn" id="open-current-incident-summary-btn" type="button">Open / Edit Incident Brief</button>
                   <div id="active-ics-form-list" class="incident-ics-form-list"></div>
-                  <p class="muted">Available dashboard data is automatically merged into each saved FEMA form.</p>
                 </div>
               </section>
+              <section id="report-previous-section" class="report-section" hidden><h2>Completed Incidents</h2><p class="muted">Previous incident briefs and their attached ICS forms.</p><div id="previous-incident-list" class="report-incident-list"></div><details id="report-saved-open-section" hidden><summary>Other Saved Incidents</summary><div id="incident-history-list" class="report-incident-list"></div></details></section>
 
-              <section id="report-previous-section" class="report-section" hidden>
-                <h3>Completed Forms</h3>
-                <div id="previous-incident-list" class="report-incident-list"></div>
-              </section>
-
-              <section id="report-library-section" class="report-section" hidden>
-                <h3>ICS Forms Library</h3>
-                <ul class="ics-form-library">
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20201%2C%20Incident%20Briefing%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 201 Incident Briefing</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20202%2C%20Incident%20Objectives%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 202 Incident Objectives</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20203%2C%20Organization%20Assignment%20List%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 203 Organization Assignment List</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20204%2C%20Assignment%20List%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 204 Assignment List</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20205%2C%20Incident%20Radio%20Communications%20Plan%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 205 Communications Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20205A%2C%20Communications%20List%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 205A Communications List</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20206%2C%20Medical%20Plan%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 206 Medical Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20208%2C%20Safety%20Message-Plan%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 208 Safety Message / Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20208HM%2C%20Site%20Safety%20and%20Control%20Plan%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 208HM Site Safety and Control Plan</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20209%2C%20Incident%20Status%20Summary%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 209 Incident Status Summary</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20214%2C%20Activity%20Log%20%28v3.1%29.pdf" target="_blank" rel="noopener noreferrer">ICS 214 Activity Log</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20215%2C%20Operational%20Planning%20Worksheet%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 215 Operational Planning Worksheet</a></li>
-                  <li><a href="https://training.fema.gov/EMIWeb/IS/ICSResource/assets/ICS%20Forms//ICS%20Form%20215A%2C%20Incident%20Action%20Plan%20Safety%20Analysis%20%28v3%29.pdf" target="_blank" rel="noopener noreferrer">ICS 215A IAP Safety Analysis</a></li>
-                </ul>
-              </section>
+              <dialog id="delete-completed-incident-dialog" class="report-delete-dialog" aria-labelledby="delete-completed-incident-title">
+                <form method="dialog" class="report-delete-dialog-content">
+                  <p class="eyebrow">Permanent report removal</p>
+                  <h2 id="delete-completed-incident-title">Delete completed incident?</h2>
+                  <p>Delete <strong id="delete-completed-incident-name"></strong> and its saved ICS forms and plume snapshot? This cannot be undone.</p>
+                  <p id="delete-completed-incident-status" class="report-delete-status" role="status" aria-live="polite"></p>
+                  <div class="button-row report-delete-actions">
+                    <button class="ghost-btn" id="cancel-delete-completed-incident-btn" type="button">Cancel</button>
+                    <button class="danger-btn" id="confirm-delete-completed-incident-btn" type="button">Delete Report</button>
+                  </div>
+                </form>
+              </dialog>
 
               <section id="incident-report-summary" class="report-section incident-report-summary" hidden>
                 <div class="incident-report-summary-heading">
                   <div>
-                    <p class="eyebrow">HazMat incident documentation</p>
+                    <p class="eyebrow">Incident Brief</p>
                     <h2 id="incident-report-summary-title">Incident Summary</h2>
                   </div>
                   <div class="button-row report-summary-actions">
@@ -1943,12 +1941,14 @@
                   <div class="button-row report-summary-actions">
                     <button class="ghost-btn" id="back-from-ics-form-btn" type="button">Back to Forms</button>
                     <button class="primary-btn" id="edit-ics-form-btn" type="button" hidden>Edit</button>
-                    <button class="primary-btn" id="save-ics-form-btn" type="button">Save</button>
+                    <button class="primary-btn" id="save-ics-form-btn" type="button">Save Corrections</button>
                     <button class="ghost-btn" id="download-ics-form-btn" type="button">Open PDF</button>
                   </div>
                 </div>
                 <p class="muted" id="ics-form-editor-status" role="status" aria-live="polite"></p>
-                <div id="ics-form-fields" class="ics-form-fields"></div>
+                <div class="ics-pdf-actions"><a id="ics-pdf-download" class="ghost-btn" hidden>Download Editable PDF</a><a id="ics-original-download" target="_blank" rel="noopener">Original FEMA form &amp; instructions</a></div>
+                <iframe id="ics-pdf-preview" class="ics-pdf-preview" title="Auto-filled editable ICS worksheet"></iframe>
+                <details id="ics-form-corrections"><summary>Saved Field Corrections (Optional)</summary><p>These changes are saved with the incident. The preview refreshes after saving. PDF viewer edits must be downloaded to retain them.</p><div id="ics-form-fields" class="ics-form-fields"></div></details>
               </section>
             </div>
           </section>
@@ -2064,7 +2064,8 @@
     <script src="weather-radar.js"></script>
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
-    <script src="script.js?v=hazard-radiological-profile-1"></script>
+    <script src="incident-report-model.js"></script>
+     <script src="script.js?v=incident-report-brief-2"></script>
     <script src="weather-workspace.js?v=7"></script>
     <script src="settings-workspace.js?v=1"></script>
     <script src="incident-command.js"></script>

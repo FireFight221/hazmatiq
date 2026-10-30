@@ -39,7 +39,7 @@ describe('Phase 2 page module ownership contract', () => {
   it('keeps Reports-specific layout out of global overrides', () => {
     expect(globalStyles).not.toContain('.reports-page > .variant-reports');
     expect(globalStyles).not.toContain('.reports-page > .report-center');
-    expect(pageShellStyles).toContain('.reports-page > .variant-reports');
+    expect(pageShellStyles).toContain('.reports-heading');
     expect(pageShellStyles).toContain('.reports-page > .report-center');
   });
 
