@@ -7688,6 +7688,20 @@ function guidedCompactPhaseFact(fact) {
   return `${label}: ${compact}${compact.length < value.length ? ' …' : ''}`;
 }
 
+function scrollToGuidedGoal(phaseId, advance = false) {
+  window.requestAnimationFrame(() => {
+    const cards = [...document.querySelectorAll('#guided-response-content .guided-phase-card')];
+    const index = cards.findIndex((card) => card.dataset.phaseId === phaseId);
+    if (index < 0) return;
+    const target = (advance && cards.slice(index + 1).find((card) => !card.classList.contains('is-complete'))) || cards[index];
+    target.open = true;
+    const headerHeight = document.querySelector('.command-header')?.getBoundingClientRect().height || 0;
+    target.style.scrollMarginTop = `${headerHeight + 12}px`;
+    target.querySelector('summary')?.focus({ preventScroll: true });
+    target.scrollIntoView({ behavior: 'auto', block: 'start' });
+  });
+}
+
 function createGuidedPhaseCard(phase, model, profile, incident, phaseState, currentPhaseId, scenarioSummary, referenceContext = {}) {
   const record = phaseState[phase.id] || {};
   const status = guidedGoalStatus(record, phase.id, currentPhaseId);
@@ -7754,6 +7768,7 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   goalStatusSelect.addEventListener('change', () => {
     persistGuidedResponsePhaseState(phase.id, { status: goalStatusSelect.value });
     renderGuidedResponse();
+    scrollToGuidedGoal(phase.id, guidedPhaseIsAccomplished({ status: goalStatusSelect.value }));
   });
   goalStatus.append(goalStatusHeading, goalStatusNote, goalStatusSelect);
   const nextDecision = document.createElement('section'); nextDecision.className = 'guided-next-decision';
