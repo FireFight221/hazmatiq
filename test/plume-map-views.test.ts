@@ -160,8 +160,8 @@ describe("plume map views", () => {
     expect(plumeStyles).toContain('grid-template-rows: auto minmax(34px, auto);');
     expect(plumeStyles).not.toContain('.plume-weather-grid > .plume-weather-review { grid-column: 1 / -1; }');
     expect(plumeStyles).toContain('label[for="plume-surface-roughness"] { grid-column: 1; }');
-    expect(plumeStyles).toContain('.plume-weather-grid > .plume-weather-review { grid-column: 2; }');
-    expect(plumeStyles).toContain('.plume-release-grid > .plume-release-height-field {\n  grid-column: 2 / -1;\n}');
+    expect(plumeStyles).toContain('.plume-weather-grid > .plume-weather-details-field { grid-column: 2; }');
+    expect(plumeStyles).toContain('.plume-release-grid > .plume-release-height-field {\n  grid-column: 1 / 3;\n  grid-row: 3;\n}');
     expect(plumeStyles).toContain('min-height: 34px;');
     expect(plumeStyles).toContain('.plume-model-section-heading > .plume-card-accent { display: none; }');
     expect(plumeStyles).toContain('.plume-model-section-heading::after { grid-column: 3; grid-row: 1; }');

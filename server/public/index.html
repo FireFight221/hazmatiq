@@ -372,7 +372,7 @@
                     </header>
                     <div id="erg-review-tabs" class="erg-review-tabs" role="tablist" aria-label="ERG Green Pages"></div>
                     <div id="erg-review-content" class="erg-review-content"></div>
-                    <footer class="erg-review-footer"><span>Source: PHMSA ERG 2024 · Review only</span><button class="erg-review-close erg-review-close-footer" value="cancel" type="submit">Close</button></footer>
+                    <footer class="erg-review-footer"><span>Source: PHMSA ERG 2024 · Review only</span></footer>
                   </form>
                 </dialog>
 
@@ -1054,15 +1054,6 @@
                         <input id="plume-release-quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="Enter value" aria-required="true" required />
                       </div>
                     </div>
-                    <div class="plume-model-field plume-release-unit-field">
-                      <div class="plume-field-label-row">
-                        <label for="plume-release-unit">Units</label>
-                      </div>
-                      <select id="plume-release-unit" aria-label="Release quantity unit">
-                        <option value="lb-min">lb/min</option>
-                        <option value="lb-sec">lb/sec</option>
-                      </select>
-                    </div>
                     <div class="plume-model-field plume-release-duration-field plume-required-field" id="plume-puff-duration-field" hidden>
                       <div class="plume-field-label-row">
                         <label for="plume-puff-duration">Puff evaluation time (seconds) <b>Required</b></label>
@@ -1075,6 +1066,15 @@
                       </div>
                         <input id="plume-release-duration" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="Required in minutes" aria-required="true" />
                     </div>
+                    <div class="plume-model-field plume-release-unit-field">
+                      <div class="plume-field-label-row">
+                        <label for="plume-release-unit">Units</label>
+                      </div>
+                      <select id="plume-release-unit" aria-label="Release quantity unit">
+                        <option value="lb-min">lb/min</option>
+                        <option value="lb-sec">lb/sec</option>
+                      </select>
+                    </div>
                     <div class="plume-model-field plume-release-height-field">
                       <div class="plume-field-label-row">
                         <label for="plume-release-height">Height (ft AGL)</label>
@@ -1082,7 +1082,7 @@
                       <input id="plume-release-height" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0 — ground level" title="Release height in feet above ground level; defaults to zero" />
                     </div>
                     <details class="container-profile" aria-label="Editable container planning profile">
-                      <summary>Container Details</summary>
+                      <summary>CONTAINER DETAILS</summary>
                       <div class="container-bubble-grid">
                         <label class="container-bubble" for="plume-container-type"><span>Container Type</span><select id="plume-container-type"></select></label>
                         <label class="container-bubble" for="container-model-source"><span>Release Source</span><select id="container-model-source"><option>Auto-select</option><option>Direct release</option><option>Puddle</option><option>Tank</option><option>Gas pipeline</option><option>Liquid flow</option><option>Solid release</option><option>Unknown / verify</option></select></label>
@@ -1107,7 +1107,7 @@
                       <small class="container-profile-footer">Planning defaults only. Verify with SDS, shipping papers, facility inventory, or container markings.</small>
                     </details>
                     <details class="plume-input-review">
-                      <summary>Model Inputs</summary>
+                      <summary>MODEL INPUTS</summary>
                       <dl class="plume-review-list">
                         <div><dt>Chemical</dt><dd id="plume-review-chemical">No Current Data Exists</dd></div>
                         <div><dt>Release Type</dt><dd id="plume-review-release">Continuous release</dd></div>
@@ -1177,8 +1177,10 @@
                         <option value="urban">Urban / obstructed</option>
                       </select>
                     </label>
+                    <div class="plume-model-field plume-weather-details-field">
+                      <span id="plume-weather-details-label">Weather Details</span>
                     <details class="plume-input-review plume-weather-review">
-                      <summary>Weather Details <span class="plume-status-badge" id="plume-weather-badge" data-state="missing">Weather Missing</span></summary>
+                      <summary aria-labelledby="plume-weather-details-label plume-weather-badge"><span class="plume-status-badge" id="plume-weather-badge" data-state="missing">Weather Missing</span></summary>
                       <div class="plume-weather-verification" aria-label="Weather verification">
                         <small>Source <strong id="plume-weather-source-name">Best Current Live Source</strong></small>
                         <small>Status <strong id="plume-weather-source-state">Awaiting verification</strong></small>
@@ -1214,6 +1216,7 @@
                         <div><dt>Elevation</dt><dd id="plume-review-elevation">No Current Data Exists</dd></div>
                       </dl>
                     </details>
+                    </div>
                   </div>
                 </details>
                 <section class="plume-weather-at-a-glance" aria-label="Current weather and wind direction">
