@@ -30,6 +30,30 @@ function moduleApi() {
 }
 
 describe('Incident Command operational hub', () => {
+  it('keeps the new-incident modal outside hidden page roots', () => {
+    const dialogStart = html.indexOf('<dialog id="new-incident-confirm-dialog"');
+    expect(dialogStart).toBeGreaterThan(0);
+    expect(dialogStart).toBeLessThan(html.indexOf('<main class="layout">'));
+    expect(html.match(/id="new-incident-confirm-dialog"/g)).toHaveLength(1);
+  });
+
+  it('opens active-incident confirmation once without replacing the incident', () => {
+    let openCount = 0;
+    let navigations = 0;
+    const dialog = { open: false, showModal() { this.open = true; openCount += 1; } };
+    const context = {
+      getActiveIncident: () => ({ incidentName: 'Training' }),
+      document: { getElementById: () => dialog },
+      setText: () => {},
+      showView: () => { navigations += 1; },
+      beginNewIncident: () => { throw new Error('Must wait for confirmation'); },
+    };
+    const entry = script.slice(script.indexOf('function openNewIncidentEntry()'), script.indexOf('function switchActiveIncident('));
+    runInNewContext(`${entry}\nopenNewIncidentEntry(); openNewIncidentEntry();`, context);
+    expect(openCount).toBe(1);
+    expect(navigations).toBe(0);
+  });
+
   it('loads as the page-owned module and provides direct command actions', () => {
     expect(html.indexOf('<script src="incident-command.js"></script>')).toBeGreaterThan(html.indexOf('<script src="script.js'));
     expect(html).toContain('id="ic-command-actions"');

@@ -108,6 +108,15 @@
         </form>
       </dialog>
 
+      <dialog id="new-incident-confirm-dialog" class="new-incident-confirm-dialog" aria-labelledby="new-incident-confirm-title">
+        <div class="new-incident-confirm-shell">
+          <p class="eyebrow">ACTIVE INCIDENT RESPONSE</p>
+          <h2 id="new-incident-confirm-title">Start a new incident response?</h2>
+          <p id="new-incident-confirm-message">Active incident Running (Name: “Current Incident”). Do you wish to start a new Incident response?</p>
+          <div class="button-row"><button class="primary-btn" id="confirm-new-incident-btn" type="button">YES — START NEW INCIDENT</button><button class="ghost-btn" id="cancel-new-incident-btn" type="button">NO — RETURN TO CURRENT</button></div>
+        </div>
+      </dialog>
+
       <main class="layout">
         <section class="content-area">
           <section id="overview" class="view active home-page" data-page-root="home" data-page-name="Home">
@@ -449,14 +458,6 @@
               <label for="incident-command-note"><span>Tactical note</span><textarea id="incident-command-note" rows="5" required></textarea></label>
               <p id="incident-note-status" role="status" aria-live="polite"></p>
               <div class="button-row"><button class="primary-btn" id="save-incident-note-btn" type="button">Save Note</button><button class="ghost-btn" id="cancel-incident-note-btn" type="button">Cancel</button></div>
-            </dialog>
-            <dialog id="new-incident-confirm-dialog" class="new-incident-confirm-dialog" aria-labelledby="new-incident-confirm-title">
-              <div class="new-incident-confirm-shell">
-                <p class="eyebrow">ACTIVE INCIDENT RESPONSE</p>
-                <h2 id="new-incident-confirm-title">Start a new incident response?</h2>
-                <p id="new-incident-confirm-message">Active incident Running (Name: “Current Incident”). Do you wish to start a new Incident response?</p>
-                <div class="button-row"><button class="primary-btn" id="confirm-new-incident-btn" type="button">YES — START NEW INCIDENT</button><button class="ghost-btn" id="cancel-new-incident-btn" type="button">NO — RETURN TO CURRENT</button></div>
-              </div>
             </dialog>
             <section class="incident-command-snapshot" aria-labelledby="command-snapshot-title" hidden>
               <div class="command-snapshot-heading">
