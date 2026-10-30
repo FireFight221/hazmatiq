@@ -157,8 +157,9 @@
 .report-brief-metadata span { display:block; color:#4b6173; font-size:.78rem; font-weight:700; text-transform:uppercase; }
 .report-brief-metadata strong { display:block; color:#172c3e; font-size:.94rem; overflow-wrap:anywhere; }
 .incident-brief-report .report-brief-empty { color:#586b7b; font-style:italic; }
-.report-brief-map { display:flex; align-items:center; justify-content:center; min-height:180px; background:#e5edf3; border:1px solid #a5bacb; border-radius:5px; margin:12px 0; padding:10px; }
-.report-brief-map img { display:block; width:100%; max-height:430px; object-fit:contain; }
+.report-brief-map { display:flex; align-items:center; justify-content:center; min-height:180px; background:#fff; border:1px solid #a5bacb; border-radius:5px; margin:12px 0; padding:0; overflow:hidden; }
+.report-brief-map.has-image { min-height:0; }
+.report-brief-map img { display:block; width:100%; height:auto; max-height:none; object-fit:contain; }
 .report-threat-table { width:100%; border-collapse:collapse; text-align:left; margin-top:12px; color:#172c3e; }
 .report-threat-table caption { text-align:left; font-weight:700; margin-bottom:5px; }
 .report-threat-table th,.report-threat-table td { text-align:left; padding:7px 9px; border:1px solid #b6c8d6; color:#172c3e; background:#f7f9fc; }
@@ -171,5 +172,5 @@
 .report-narrative-editor label > span { display:block; font-weight:700; margin-bottom:5px; }
 .report-narrative-editor input,.report-narrative-editor textarea { width:100%; box-sizing:border-box; color:#172c3e !important; background:#fff !important; border:1px solid #8da7ba; border-radius:4px; padding:9px; font:16px/1.5 Arial,sans-serif; }
 @media(max-width:650px) { .incident-brief-report { padding:18px; } .report-brief-metadata { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media print { .incident-brief-report { margin:0; padding:10px 0; border:0; max-width:none; background:#fff; } .incident-brief-report > section,.report-prepared-by { break-inside:avoid; } .report-ics-attachments { display:none !important; } .report-brief-map { min-height:100px; } .report-brief-map img { max-height:260px; } }
+@media print { .incident-brief-report { margin:0; padding:10px 0; border:0; max-width:none; background:#fff; } .incident-brief-report > section,.report-prepared-by { break-inside:avoid; } .report-ics-attachments { display:none !important; } .report-brief-map { min-height:100px; } .report-brief-map img { width:auto; max-width:100%; max-height:260px; } }
 @media print { #incident-report-summary-title, #incident-report-summary .eyebrow { color:#102e47 !important; } }

@@ -1589,8 +1589,9 @@ function openNewIncidentEntry() {
   const dialog = document.getElementById('new-incident-confirm-dialog');
   const name = activeIncident.incidentName || 'Current Incident';
   setText('new-incident-confirm-message', `Active incident Running (Name: “${name}”). Do you wish to start a new Incident response?`);
-  if (dialog?.showModal) dialog.showModal();
-  else {
+  if (dialog?.showModal) {
+    if (!dialog.open) dialog.showModal();
+  } else {
     beginNewIncident({ createRecord: true });
     showView('incident', { sourcePage: 'new-incident-confirmed', intent: 'new-incident' });
   }
@@ -3228,7 +3229,7 @@ function openIncidentSummary(incidentId, { preserveScroll = false } = {}) {
   map.append(mapPlaceholder); plumeSection.append(map);
   const showImage = (imageData) => {
     if (openIncidentSummaryId !== incidentId || !map.isConnected || !imageData || !/^data:image\/(?:png|jpeg);base64,/.test(imageData)) return;
-    const image = document.createElement('img'); image.alt = 'Recorded incident plume map'; image.src = imageData; map.replaceChildren(image);
+    const image = document.createElement('img'); image.alt = 'Recorded incident plume map'; image.src = imageData; map.replaceChildren(image); map.classList.add('has-image');
   };
   if (currentPlume) {
     if (incident.plumeMapImage) showImage(incident.plumeMapImage);
