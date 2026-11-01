@@ -112,7 +112,7 @@ describe("plume map views", () => {
     expect(plumeUi).toContain('dialogContent.append(threatZoneCard);');
     expect(plumeShellStyles).toContain('grid-template-areas: "inputs map" !important;');
     expect(tacticalMapStyles).toContain('.plume-threat-zone-button');
-    expect(tacticalMapStyles).toContain('background: linear-gradient(180deg, #ff9f1c 0%, #f97316 52%, #f97316 100%);');
+    expect(tacticalMapStyles).toContain('background: linear-gradient(180deg, var(--gold) 0%, #f97316 52%, #f97316 100%);');
     expect(tacticalMapStyles).toContain('.plume-compass-control');
   });
 
@@ -207,7 +207,7 @@ describe("plume map views", () => {
     expect(html).toContain('data-page-name="Live Map"');
     expect(plumeUi).toContain("incident?.incidentName || 'Planning Map'");
     expect(styles).toContain('.hazmat-hero-subtitle');
-    expect(styles).toContain("color: #f6c343 !important;");
+    expect(styles).toContain("color: var(--gold) !important;");
   });
 
   it("recreates each visible threat-zone layer independently", () => {

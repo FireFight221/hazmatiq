@@ -119,7 +119,7 @@ describe("Chemical Profile UI system", () => {
   });
 
   it("uses yellow selection, matte cards, and the correctly configured PPE hero asset", () => {
-    expect(styles).toMatch(/\.chemical-profile-tab\.active\s*\{[^}]*background: #f6c343;/s);
+    expect(styles).toMatch(/\.chemical-profile-tab\.active\s*\{[^}]*background: var\(--gold-surface\);/s);
     expect(styles).toContain("Chemical Profile visual system");
     expect(styles).toContain('url("assets/hazard-id-level-b-hero-v2.png")');
   });
@@ -228,7 +228,7 @@ describe("Chemical Profile UI system", () => {
   });
 
   it("color-codes the primary hazard, IDLH, and ERG Guide summary values", () => {
-    expect(styles).toMatch(/data-field="primary-hazard"[^}]*> strong \{[\s\S]*?color: #ffd34f;/);
+    expect(styles).toMatch(/data-field="primary-hazard"[^}]*> strong \{[\s\S]*?color: var\(--gold\);/);
     expect(styles).toMatch(/data-field="idlh"[^}]*> strong \{[\s\S]*?color: #ff5a5f;/);
     expect(styles).toMatch(/data-field="erg-guide"[^}]*> strong \{[\s\S]*?color: #ff8a1c;/);
     expect(styles).toContain('.chemcompare-row[data-field="idlh"] .chemcompare-value-main');

@@ -185,9 +185,9 @@ body {
 }
 
 .app-shell > .app-header-row .app-primary-nav .app-nav-item.active {
-  background: #f6c343 !important;
+  background: var(--gold-surface) !important;
   color: #061a2e !important;
-  border-color: #f6c343 !important;
+  border-color: var(--gold) !important;
   box-shadow: none !important;
 }
 
@@ -376,8 +376,8 @@ body {
   min-width: 74px !important;
   height: 84px !important;
   padding: 2px !important;
-  color: #f5bc19 !important;
-  filter: drop-shadow(0 0 13px rgba(255, 184, 10, 0.28));
+  color: var(--gold) !important;
+  filter: drop-shadow(0 0 13px rgba(var(--gold-rgb), 0.28));
 }
 
 :is(#incident, #lookup, #map, #weather, #report, #settings, #guided-response) > .emergenz-page-header .emergenz-page-header-icon svg,
@@ -653,9 +653,9 @@ body {
 
 .app-shell > .app-header-row .app-primary-nav .app-nav-item.active,
 .app-shell > .app-header-row .app-primary-nav .app-nav-item.active:focus-visible {
-  background: #f6c343 !important;
+  background: var(--gold-surface) !important;
   color: #061a2e !important;
-  border-color: #f6c343 !important;
+  border-color: var(--gold) !important;
   box-shadow: none !important;
 }
 

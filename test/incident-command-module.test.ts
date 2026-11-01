@@ -142,7 +142,7 @@ describe('Incident Command operational hub', () => {
 
   it('keeps weather separated from a restrained Command Tools frame', () => {
     expect(incidentOverrides).toContain('#incident .incident-command-weather-bar { margin: 10px 0 10px; padding: 12px 8px 8px; }');
-    expect(incidentOverrides).toContain('border: 2px solid #ffd400; background: #082540; box-shadow: none;');
+    expect(incidentOverrides).toContain('border: 2px solid var(--gold); background: #082540; box-shadow: none;');
     expect(styles).toContain('[class*="-panel "]:not(.incident-command-tools)');
   });
 

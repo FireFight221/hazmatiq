@@ -60,7 +60,7 @@
 
 #chemical-id-results .chemical-profile-meta-item[data-field="un-na"] .chemical-profile-meta-title,
 #chemical-id-results .chemical-profile-meta-item[data-field="hazard-class"] .chemical-profile-meta-title {
-  color: #ffd34f !important;
+  color: var(--gold) !important;
 }
 
 #chemical-id-results .chemical-profile-meta-item[data-field="erg-guide"] .chemical-profile-meta-title {
@@ -68,7 +68,7 @@
 }
 
 #chemical-id-results .chemical-profile-meta-item[data-field="hazard-class"] .chemical-profile-meta-value {
-  color: #ffd34f !important;
+  color: var(--gold) !important;
   font-size: 1.08rem !important;
   font-weight: 800 !important;
   line-height: 1.25;
@@ -215,9 +215,9 @@
     display: block !important;
     min-height: 0;
     padding: 9px 11px;
-    border: 1px solid #7e6325;
+    border: 1px solid var(--gold);
     border-radius: 8px;
-    background: rgba(91, 64, 13, 0.2);
+    background: rgba(var(--gold-rgb), 0.2);
   }
 
   #lookup .hazard-profile-limitations:empty { display: none !important; }
@@ -314,7 +314,7 @@
 }
 .radiological-profile-section h3,
 .radiological-response-stage h3,
-.radiological-scenario-card h3 { margin: 0 0 8px; color: #f6c343; font-size: 1rem; font-weight: 850; }
+.radiological-scenario-card h3 { margin: 0 0 8px; color: var(--gold); font-size: 1rem; font-weight: 850; }
 .radiological-profile-fields { display: grid; gap: 7px; }
 .radiological-profile-field { display: grid; gap: 3px; min-width: 0; padding-bottom: 7px; border-bottom: 1px solid rgba(76, 133, 167, .28); }
 .radiological-profile-field:last-child { padding-bottom: 0; border-bottom: 0; }
@@ -331,15 +331,15 @@
 .radiological-guided-response,
 .radiological-scenarios { display: grid; gap: 9px; }
 .radiological-response-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
-.radiological-response-stage { display: grid; align-content: start; gap: 7px; border-top: 3px solid #d39b0c; }
+.radiological-response-stage { display: grid; align-content: start; gap: 7px; border-top: 3px solid var(--gold); }
 .radiological-response-stage header { display: flex; align-items: center; gap: 7px; }
-.radiological-response-stage header > span { color: #f6c343; font-size: .8rem; font-weight: 850; }
+.radiological-response-stage header > span { color: var(--gold); font-size: .8rem; font-weight: 850; }
 .radiological-response-stage h3 { margin: 0; color: #f8fafc; font-size: 1rem; font-weight: 850; }
 .radiological-response-stage ul { display: grid; gap: 6px; margin: 0; padding-left: 15px; }
 .radiological-response-stage li { color: #dcecf5; font-size: 1rem; line-height: 1.55; }
 .radiological-scenario-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .radiological-scenario-card { display: grid; align-content: start; gap: 6px; }
-.radiological-scenario-card > strong { color: #ffc94b; font-size: .9rem; line-height: 1.35; }
+.radiological-scenario-card > strong { color: var(--gold); font-size: .9rem; line-height: 1.35; }
 .radiological-scenario-card > p { margin: 0; color: #dcecf5; font-size: 1rem; line-height: 1.55; }
 .radiological-reference-footer { align-items: start; }
 .radiological-reference-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; min-width: min(70%, 760px); }
@@ -396,10 +396,10 @@
   border: 1px solid #2f668d;
   border-radius: 10px;
   background:
-    radial-gradient(circle at 80% 12%, rgba(246, 195, 67, .12), transparent 25%),
+    radial-gradient(circle at 80% 12%, rgba(var(--gold-rgb), .12), transparent 25%),
     linear-gradient(135deg, #0b3455, #071f36 78%);
 }
-.hazard-profile-emblem { grid-area: emblem; display: grid; width: 64px; height: 64px; place-items: center; color: #f6c343; }
+.hazard-profile-emblem { grid-area: emblem; display: grid; width: 64px; height: 64px; place-items: center; color: var(--gold); }
 .hazard-profile-emblem svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.6; }
 .hazard-profile-emblem[data-lane="RADIOLOGICAL"] svg circle:first-child { fill: currentColor; stroke: none; }
 .hazard-profile-identity { grid-area: identity; min-width: 0; }
@@ -430,7 +430,7 @@
   min-height: 0 !important;
   padding: 13px 14px;
   border: 1px solid #315f82;
-  border-left: 4px solid #d39b0c;
+  border-left: 4px solid var(--gold);
   border-radius: 8px;
   background: #082b47;
 }
@@ -438,7 +438,7 @@
 .hazard-action-ribbon-item p { margin: 0; color: #dcecf5; font-size: 1rem; line-height: 1.55; }
 .hazard-action-ribbon-item p strong { color: #fff; font-weight: 850; }
 .hazard-action-ribbon-critical { border-left-color: #d9564b; background: linear-gradient(135deg, rgba(105, 28, 31, .52), #082b47 60%); }
-.hazard-action-ribbon-warning { border-left-color: #d39b0c; }
+.hazard-action-ribbon-warning { border-left-color: var(--gold); }
 .hazard-action-ribbon-detection { border-left-color: #32c5ee; background: linear-gradient(135deg, rgba(12, 80, 105, .52), #082b47 60%); }
 .hazard-action-ribbon-ppe { border-left-color: #b07cff; background: linear-gradient(135deg, rgba(69, 39, 105, .5), #082b47 60%); }
 .hazard-action-ribbon-decon { border-left-color: #2bc7ad; background: linear-gradient(135deg, rgba(10, 91, 86, .5), #082b47 60%); }
@@ -456,7 +456,7 @@
 .hazard-profile-column-threat,
 .hazard-profile-column-medical { grid-column: 1 / -1; }
 .hazard-profile-column-heading { display: flex; align-items: center; gap: 8px; padding: 4px 2px 7px; border-bottom: 1px solid #326b94; }
-.hazard-profile-column-heading span { color: #f6c343; font-size: .8rem; font-weight: 850; }
+.hazard-profile-column-heading span { color: var(--gold); font-size: .8rem; font-weight: 850; }
 .hazard-profile-column-heading h2 { margin: 0; color: #f8fafc; font-size: 1.1rem; font-weight: 850; }
 .hazard-profile-column > div { display: grid; align-content: start; gap: 8px; }
 .hazard-profile-column-field { grid-column: 1 / -1; }
@@ -470,7 +470,7 @@
   min-height: 0 !important;
   padding: 14px;
   border: 1px solid #24577c;
-  border-left: 4px solid #d39b0c;
+  border-left: 4px solid var(--gold);
   border-radius: 8px;
   background: linear-gradient(145deg, #0a304e, #061f34);
 }
@@ -492,7 +492,7 @@
 .hazard-profile-detail-drawer { min-width: 0; border: 1px solid #24577c; border-radius: 8px; background: #062239; }
 .hazard-profile-detail-drawer > summary,
 .hazard-profile-source-drawer > summary,
-.radiological-reference-drawer > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 13px 14px; color: #f6c343; cursor: pointer; font-size: 1rem; font-weight: 850; }
+.radiological-reference-drawer > summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 13px 14px; color: var(--gold); cursor: pointer; font-size: 1rem; font-weight: 850; }
 .hazard-profile-detail-drawer > summary span,
 .hazard-profile-source-drawer > summary span,
 .radiological-reference-drawer > summary span { color: #a9c8d9; font-size: .82rem; font-weight: 500; }
@@ -551,7 +551,7 @@
   margin: 0 0 2px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(105, 169, 214, 0.42);
-  color: #f6c343;
+  color: var(--gold);
   font-size: 0.95rem;
   font-weight: 900;
   letter-spacing: 0.085em;
@@ -562,7 +562,7 @@
 #chemical-id-results .chemical-profile-section-heading > .chemical-profile-icon {
   width: 18px;
   height: 18px;
-  color: #f6c343;
+  color: var(--gold);
 }
 
 #chemical-id-results .chemical-profile-content[data-active-tab] .chemical-profile-row {
@@ -570,7 +570,7 @@
   gap: 6px;
   padding: 11px 13px 12px;
   border: 1px solid rgba(61, 125, 170, 0.62);
-  border-left: 3px solid rgba(246, 195, 67, 0.82);
+  border-left: 3px solid rgba(var(--gold-rgb), 0.82);
   border-radius: 5px;
   background: rgba(6, 31, 52, 0.74);
   box-shadow: none;
@@ -582,7 +582,7 @@
   min-width: 0;
   align-items: center;
   gap: 7px;
-  color: #f6c343;
+  color: var(--gold);
   font-size: 0.84rem;
   font-weight: 850;
   letter-spacing: 0.075em;
@@ -597,8 +597,8 @@
   width: 3px;
   height: 14px;
   border-radius: 2px;
-  background: #f6c343;
-  box-shadow: 0 0 8px rgba(246, 195, 67, 0.26);
+  background: var(--gold-surface);
+  box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.26);
 }
 
 #chemical-id-results .chemical-profile-content[data-active-tab] .chemical-profile-row > strong,
@@ -632,7 +632,7 @@
   gap: 7px 12px;
   padding: 10px 12px !important;
   border-color: rgba(61, 125, 170, 0.62);
-  border-left: 3px solid rgba(246, 195, 67, 0.82);
+  border-left: 3px solid rgba(var(--gold-rgb), 0.82);
   border-radius: 5px;
   background: rgba(6, 31, 52, 0.74);
 }
@@ -654,9 +654,9 @@
 
 #chemical-id-results .chemical-profile-medical-guidance-warning {
   padding: 8px 10px;
-  border-left: 3px solid #f6c343;
-  background: rgba(246, 195, 67, 0.09);
-  color: #f4e3aa;
+  border-left: 3px solid var(--gold);
+  background: rgba(var(--gold-rgb), 0.09);
+  color: var(--gold);
 }
 
 #chemical-id-results .chemical-profile-medical-link {
@@ -668,9 +668,9 @@
   min-height: 40px;
   margin-top: 2px;
   padding: 9px 13px;
-  border: 1px solid #f6c343;
+  border: 1px solid var(--gold);
   border-radius: 6px;
-  background: linear-gradient(180deg, #ffd968, #f6b914);
+  background: linear-gradient(180deg, var(--gold), var(--gold));
   color: #071f36;
   font-size: 0.82rem;
   font-weight: 850;
@@ -688,9 +688,9 @@
 
 #chemical-id-results .chemical-profile-medical-link:hover,
 #chemical-id-results .chemical-profile-medical-link:focus-visible {
-  background: #ffe58e;
+  background: var(--gold);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(246, 195, 67, 0.22), 0 6px 16px rgba(1, 14, 25, 0.24);
+  box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.22), 0 6px 16px rgba(1, 14, 25, 0.24);
   transform: translateY(-1px);
 }
 

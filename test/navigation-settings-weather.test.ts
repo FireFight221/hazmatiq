@@ -106,7 +106,7 @@ describe('navigation, settings, and weather workspace contract', () => {
     expect(styles).toContain('.weather-impact-critical .weather-impact-heading strong');
     expect(styles).toContain('.weather-impact-significant .weather-impact-heading strong');
     expect(styles).toContain('color: #ff4d5a !important;');
-    expect(styles).toContain('color: #f6c343 !important;');
+    expect(styles).toContain('color: var(--gold) !important;');
     expect(weatherScript).toContain('badge.textContent = impact.severity.toUpperCase()');
     expect(weatherScript).toContain('return [1, 6, 12, 24].map');
     expect(weatherScript).toContain('function createForecastGraphic');

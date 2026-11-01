@@ -19491,6 +19491,7 @@ window.HazMatIQ.weatherService = {
   selectCurrent: selectPlumeWeather,
 };
 window.HazMatIQ.applyApplicationTheme = applyApplicationTheme;
+window.HazMatIQ.brandGold = () => getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#d4af37';
 window.HazMatIQ.mapInfrastructure = {
   streetStyle: liveMapDetailedStyleUrl,
   satelliteStyle: () => clonePlumeMapStyle(plumeSatelliteMapStyle),

@@ -152,7 +152,7 @@
     if (activeTab !== 'worksheet') return;
     const incident = ctx.incident;
     const points = (ctx.assignments || []).filter((a) => validCoordinate(a.latitude) && validCoordinate(a.longitude)).map((a) => ({ name: a.personnel, lat: a.latitude, lng: a.longitude, color: '#55cf8b' }));
-    (ctx.map?.markers || []).filter((m) => ctx.map.activeLayers?.[m.layer] !== false && validCoordinate(m.lat) && validCoordinate(m.lng)).forEach((m) => points.push({ ...m, color: m.layer === 'icp' ? '#ffd143' : '#8acbff' }));
+    (ctx.map?.markers || []).filter((m) => ctx.map.activeLayers?.[m.layer] !== false && validCoordinate(m.lat) && validCoordinate(m.lng)).forEach((m) => points.push({ ...m, color: m.layer === 'icp' ? 'var(--gold)' : '#8acbff' }));
     if (validCoordinate(incident.latitude) && validCoordinate(incident.longitude)) points.unshift({ name: incident.incidentName, lat: incident.latitude, lng: incident.longitude, color: '#ff5361' });
     if (mapIncidentId && mapIncidentId !== incident.incidentId) destroyMap();
     if (!window.maplibregl || !points.length) { if (map) destroyMap(); mapStatus.textContent = 'Set an incident location or place a resource on Live Map to show this incident.'; return; }

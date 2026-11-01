@@ -196,7 +196,7 @@ describe("Guided Response workflow", () => {
     expect(script).not.toContain("guided-phase-progress");
     expect(styles).not.toContain(".guided-phase-progress");
     expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-back-btn');
-    expect(styles).toContain('background: #f6c343;');
+    expect(styles).toContain('background: var(--gold-surface);');
     expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-open-hazard-btn');
     expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-save-incident-btn');
   });
@@ -412,7 +412,7 @@ describe("Guided Response workflow", () => {
     expect(script).toContain("const rawDetails = document.createElement('details')");
     expect(script).not.toContain('rawDetails.open = true');
     expect(styles).toContain('#chemical-id-results .ppe-recommendation-status');
-    expect(styles).toContain('border: 3px solid #f6c343;');
+    expect(styles).toContain('border: 3px solid var(--gold);');
   });
 
   it("keeps PPE action first and exposes downgrade blockers as verification items", () => {

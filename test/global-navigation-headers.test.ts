@@ -60,7 +60,7 @@ describe('global navigation and page header contract', () => {
     expect(sharedHeaderStyles).toContain('border: 0 !important;');
     expect(sharedHeaderStyles).toContain('border: 2px solid rgba(143, 180, 207, 0.62) !important;');
     expect(globalStyles).not.toContain('.app-shell > .command-header .app-primary-nav');
-    expect(sharedHeaderStyles).toContain('background: #f6c343 !important;');
+    expect(sharedHeaderStyles).toContain('background: var(--gold-surface) !important;');
     expect(sharedHeaderStyles).toContain('grid-template-columns: repeat(9, minmax(0, 1fr)) !important;');
     expect(sharedHeaderStyles).toContain('--dashboard-page-gap: 8px;');
     expect(sharedHeaderStyles).toContain('margin-bottom: var(--dashboard-page-gap) !important;');

@@ -78,7 +78,7 @@ body:has(#overview) #application-header .brand-logo-command {
   visibility: visible !important;
 }
 body:has(#overview) #application-header .command-brand-home:focus-visible {
-  outline: 2px solid #ffd323 !important;
+  outline: 2px solid var(--gold) !important;
   outline-offset: -3px !important;
 }
 body:has(#overview) #application-header #app-primary-nav {

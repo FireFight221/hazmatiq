@@ -72,7 +72,7 @@
   cursor: pointer;
 }
 .workspace-drawer-home img { display: block; width: 100%; height: auto; object-fit: contain; }
-.workspace-drawer-home:focus-visible { outline: 2px solid #f6c343; outline-offset: 4px; border-radius: 6px; }
+.workspace-drawer-home:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 6px; }
 
 /* Keep the Command Dashboard compact and legible over every page. */
 .workspace-navigation-drawer {
@@ -229,7 +229,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
 
 .home-status-bar .notification-item > span,
 .home-status-bar .notification-system-heading > span {
-  color: #f6c343 !important;
+  color: var(--gold) !important;
   font-size: 0.66rem !important;
   font-weight: 950 !important;
   letter-spacing: 0.08em !important;

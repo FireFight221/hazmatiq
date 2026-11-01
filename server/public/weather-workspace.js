@@ -292,7 +292,7 @@
     if (!features.length) return;
     weatherMap.addSource(windSourceId, { type: 'geojson', data: { type: 'FeatureCollection', features } });
     weatherMap.addLayer({ id: windLineLayerId, type: 'line', source: windSourceId, filter: ['==', ['get', 'windPart'], 'shaft'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#55c9f4', 'line-width': 2.5, 'line-opacity': 0.86 } });
-    weatherMap.addLayer({ id: windArrowLayerId, type: 'line', source: windSourceId, filter: ['==', ['get', 'windPart'], 'arrowhead'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f6c343', 'line-width': 3.8, 'line-opacity': 0.98 } });
+    weatherMap.addLayer({ id: windArrowLayerId, type: 'line', source: windSourceId, filter: ['==', ['get', 'windPart'], 'arrowhead'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': (window.HazMatIQ?.brandGold?.() || '#d4af37'), 'line-width': 3.8, 'line-opacity': 0.98 } });
     const sample = weatherWindData.points[0]?.forecast?.[Math.min(weatherWindHour, Math.max(0, (weatherWindData.points[0]?.forecast?.length || 1) - 1))];
     const legend = ensureWindLegend();
     if (legend) legend.hidden = false;
@@ -643,11 +643,11 @@
     svg.setAttribute('focusable', 'false');
     const kind = forecastWeatherKind(item);
     const iconMarkup = {
-      clear: '<circle cx="82" cy="22" r="13" fill="#ffd166"/><path d="M82 3v6M82 35v6M63 22h-6M101 22h6M69 9l-4-4M95 35l4 4M95 9l4-4M69 35l-4 4" fill="none" stroke="#ffed9a" stroke-linecap="round" stroke-width="3"/><path d="M12 51h96" fill="none" stroke="#37b4d8" stroke-linecap="round" stroke-width="4"/>',
-      cloud: '<circle cx="83" cy="19" r="12" fill="#ffd166"/><path d="M20 48c0-8 6-14 14-14 2 0 4 .3 6 1 3-7 9-11 17-11 9 0 16 6 18 14 2-.6 4-.9 6-.9 8 0 14 5 15 11H20Z" fill="#62c8e5" stroke="#d7f7ff" stroke-width="2"/><path d="M13 56h94" fill="none" stroke="#2d8fb9" stroke-linecap="round" stroke-width="4"/>',
+      clear: '<circle cx="82" cy="22" r="13" fill="var(--gold)"/><path d="M82 3v6M82 35v6M63 22h-6M101 22h6M69 9l-4-4M95 35l4 4M95 9l4-4M69 35l-4 4" fill="none" stroke="var(--gold)" stroke-linecap="round" stroke-width="3"/><path d="M12 51h96" fill="none" stroke="#37b4d8" stroke-linecap="round" stroke-width="4"/>',
+      cloud: '<circle cx="83" cy="19" r="12" fill="var(--gold)"/><path d="M20 48c0-8 6-14 14-14 2 0 4 .3 6 1 3-7 9-11 17-11 9 0 16 6 18 14 2-.6 4-.9 6-.9 8 0 14 5 15 11H20Z" fill="#62c8e5" stroke="#d7f7ff" stroke-width="2"/><path d="M13 56h94" fill="none" stroke="#2d8fb9" stroke-linecap="round" stroke-width="4"/>',
       rain: '<path d="M14 42c0-8 6-14 14-14 2 0 4 .3 6 1 3-7 9-11 17-11 9 0 16 6 18 14 2-.6 4-.9 6-.9 8 0 14 5 15 11H14Z" fill="#388bb6" stroke="#d7f7ff" stroke-width="2"/><path d="M34 48l-5 11M57 48l-5 11M80 48l-5 11" fill="none" stroke="#6ee7ff" stroke-linecap="round" stroke-width="4"/><path d="M99 13v15M91.5 20.5h15" stroke="#bcefff" stroke-linecap="round" stroke-width="2"/>',
       snow: '<path d="M14 42c0-8 6-14 14-14 2 0 4 .3 6 1 3-7 9-11 17-11 9 0 16 6 18 14 2-.6 4-.9 6-.9 8 0 14 5 15 11H14Z" fill="#5b8fc0" stroke="#ecfbff" stroke-width="2"/><path d="M34 50v12M28 56h12M30 52l8 8M38 52l-8 8M62 50v12M56 56h12M58 52l8 8M66 52l-8 8" fill="none" stroke="#b8ecff" stroke-linecap="round" stroke-width="2"/>',
-      storm: '<path d="M13 40c0-8 6-14 14-14 2 0 4 .3 6 1 3-7 9-11 17-11 9 0 16 6 18 14 2-.6 4-.9 6-.9 8 0 14 5 15 11H13Z" fill="#42628f" stroke="#d7f7ff" stroke-width="2"/><path d="m61 42-9 13h8l-4 9 15-17h-9l7-5Z" fill="#ffd166" stroke="#fff1a8" stroke-linejoin="round" stroke-width="2"/><path d="M91 49l-4 10M103 49l-4 10" stroke="#69ddff" stroke-linecap="round" stroke-width="3"/>',
+      storm: '<path d="M13 40c0-8 6-14 14-14 2 0 4 .3 6 1 3-7 9-11 17-11 9 0 16 6 18 14 2-.6 4-.9 6-.9 8 0 14 5 15 11H13Z" fill="#42628f" stroke="#d7f7ff" stroke-width="2"/><path d="m61 42-9 13h8l-4 9 15-17h-9l7-5Z" fill="var(--gold)" stroke="var(--gold)" stroke-linejoin="round" stroke-width="2"/><path d="M91 49l-4 10M103 49l-4 10" stroke="#69ddff" stroke-linecap="round" stroke-width="3"/>',
       fog: '<path d="M21 29c3-7 9-11 17-11 8 0 15 5 17 13 2-.6 4-.9 6-.9 7 0 13 4 15 10H21Z" fill="#80a9c2" stroke="#ecfbff" stroke-width="2"/><path d="M13 46h94M21 55h78M33 64h55" fill="none" stroke="#d1f6ff" stroke-linecap="round" stroke-width="4"/>'
     }[kind];
     svg.innerHTML = iconMarkup;
