@@ -19,4 +19,14 @@ describe('Tactical worksheet shared facts',()=>{
   context.weather.observedAt='2026-11-01T12:05:00Z';expect(runInNewContext(`${fn}\nmergeIncidentWeatherLog(incident,weather)`,context)).toHaveLength(2);
   expect(runInNewContext(`${fn}\nmergeIncidentWeatherLog(incident,{})`,context)).toHaveLength(1);
  });
+ it('autosaves a dirty worksheet entry and refuses a delayed save after switching incidents',()=>{
+  const worksheet=readFileSync(new URL('../server/public/command-worksheet.js',import.meta.url),'utf8');
+  const helper=worksheet.slice(worksheet.indexOf('  function autosave('),worksheet.indexOf('  function field('));
+  const handlers:Record<string,()=>void>={};let current='one';let flush=()=>{};const persist=vi.fn();
+  const input={dataset:{} as Record<string,string>,addEventListener:(type:string,handler:()=>void)=>{handlers[type]=handler;}};
+  runInNewContext(`${helper}\nautosave(input,persist);`,{input,persist,context:()=>({incident:{incidentId:current}}),window:{clearTimeout:()=>{},setTimeout:(callback:()=>void)=>{flush=callback;return 1;}}});
+  handlers.input();expect(input.dataset.dirty).toBe('true');flush();expect(persist).toHaveBeenCalledTimes(1);expect(input.dataset.dirty).toBeUndefined();
+  handlers.input();current='two';flush();expect(persist).toHaveBeenCalledTimes(1);
+ });
+
 });

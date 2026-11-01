@@ -186,8 +186,8 @@
     frame = 0; const ctx = context(); const incident = ctx.incident;
     if (!incident) { destroyMap(); incidentId = ''; fields.forEach((input) => { input.value = ''; }); roles.forEach((input) => { input.value = ''; }); return; }
     const changedIncident = incidentId !== incident.incidentId; incidentId = incident.incidentId;
-    if (changedIncident) feedback.textContent = 'Entries save to this incident.';
-    fields.forEach((input, key) => { if (changedIncident || (!input.dataset.dirty && document.activeElement !== input)) input.value = key === 'startedAt' ? (incident.startedAt ? new Date(incident.startedAt).toLocaleString() : '') : incident[key] ?? ''; });
+    if (changedIncident) { feedback.textContent = 'Entries save to this incident.'; fields.forEach((input) => delete input.dataset.dirty); roles.forEach((input) => delete input.dataset.dirty); }
+    fields.forEach((input, key) => { if (changedIncident || (!input.dataset.dirty && document.activeElement !== input)) input.value = key === 'containerSize' ? [incident.containerSize, incident.containerSizeUnit].filter(Boolean).join(' ') : key === 'operationalMode' ? (/offensive|defensive|non.intervention/i.test(incident.operationalMode || '') ? incident.operationalMode : 'Assessment / Not Selected') : key === 'startedAt' ? (incident.startedAt ? new Date(incident.startedAt).toLocaleString() : '') : incident[key] ?? ''; });
     roles.forEach((input, role) => { if (changedIncident || (!input.dataset.dirty && document.activeElement !== input)) input.value = findRole(ctx.assignments, role)?.personnel || (role === 'Incident Commander' ? incident.commanderName || '' : ''); });
     api().renderIncidentAssignmentEditor(incident, editor, changedIncident);
     table(weatherBody, ['Time', 'Temp °F', 'From °', 'MPH', 'Precip'], (incident.weatherObservations?.length ? incident.weatherObservations : (incident.weatherSnapshot ? [incident.weatherSnapshot] : [])).map((weather) => [weather.observedAt ? new Date(weather.observedAt).toLocaleTimeString() : 'Not recorded', weather.temperatureF, weather.windDirDeg, weather.windSpeedMph, weather.precipitationIn]), 'No incident weather observation recorded.');

@@ -2866,7 +2866,7 @@ function getIncidentFormData() {
   const profileMatchesIncident = chemicalProfileMatchesIncident(chemicalProfile, existingIncident);
   return {
     incidentName: document.getElementById('incidentName')?.value.trim() || getActiveIncident()?.incidentName || 'New Incident',
-    incidentNumber: document.getElementById('incident-number')?.value.trim() || '',
+    incidentNumber: document.getElementById('incident-number')?.value.trim() ?? existingIncident?.incidentNumber ?? '',
     facilityName: document.getElementById('incident-facility-name')?.value.trim()
       || (!document.getElementById('facility-inventory')?.hidden ? document.getElementById('facility-name')?.textContent.trim() : '')
       || '',
