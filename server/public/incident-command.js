@@ -467,7 +467,16 @@
     const incidents = api.readIncidents();
     const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
     if (index < 0) return null;
-    incidents[index] = { ...incidents[index], [field]: value, updatedAt: new Date().toISOString() };
+    const previous = incidents[index];
+    if (previous[field] === value) return previous;
+    const now = new Date().toISOString();
+    const mirrors = { incidentName: 'incidentName', incidentNumber: 'incident-number', address: 'incident-address-input', notes: 'incident-notes', objectives: 'incident-objectives', communications: 'incident-communications', medicalPlan: 'incident-medical-plan', stagingResources: 'incident-staging-resources', commandStructure: 'incident-command-structure' };
+    const mirror = document.getElementById(mirrors[field]);
+    if (mirror) mirror.value = value;
+    incidents[index] = {
+      ...previous, [field]: value, updatedAt: now,
+      incidentTimeline: [...(previous.incidentTimeline || []), { type: 'command-field-updated', label: field, changedAt: now, changedBy: api.incidentResponderIdentity?.() || 'Local responder', source: 'commander' }],
+    };
     api.writeIncidents(incidents);
     api.renderIncidentLists?.();
     setActiveIncidentState(incidents[index]);

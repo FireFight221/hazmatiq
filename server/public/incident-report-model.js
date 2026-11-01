@@ -12,10 +12,16 @@
     const started = join([incident.startDate, incident.startTime], ' ');
     const ended = join([incident.completedDate, incident.completedTime], ' ');
     const chemical = known(incident.chemicalName);
-    const brief = chemical ? `The reported incident involved ${chemical}${known(incident.quantity) ? `; recorded quantity / rate: ${known(incident.quantity)}` : ''}.` : '';
+    const originalBrief = chemical ? `The reported incident involved ${chemical}${known(incident.quantity) ? `; recorded quantity / rate: ${known(incident.quantity)}` : ''}.` : '';
+    const extraFacts = [incident.amountReleased && `Reported release: ${incident.amountReleased} ${incident.releaseQuantityUnit || ''}`.trim(), incident.amountRemaining && `Remaining: ${incident.amountRemaining} ${incident.releaseQuantityUnit || ''}`.trim(), incident.patientCount !== undefined && incident.patientCount !== '' && `Recorded patients: ${incident.patientCount}`, incident.responsibleParty && `Responsible party: ${incident.responsibleParty}`].filter(Boolean);
+    const brief = [originalBrief, extraFacts.join('. ')].filter(Boolean).join(' ');
+    const phaseRecords = Object.entries(incident.guidedResponsePhaseState || {});
+    const completedPhases = phaseRecords.filter(([, phase]) => !phase.reassessmentRequired && /^(accomplished|complete)$/i.test(phase.status || '')).map(([id]) => incident.operationalActionPlan?.phases?.find((phase) => phase.phaseId === id)?.title || id.replace(/-/g, ' '));
+    const completedChecks = phaseRecords.flatMap(([, phase]) => Object.values(phase.actionChecks || {})).filter((check) => check.confirmed === true).map((check) => check.label);
     const tasks = incident.operationalChecklist?.tasks || [];
     const confirmed = tasks.filter((item) => item.status === 'Complete').map((item) => known(item.label || item.evidence)).filter(Boolean);
-    const response = confirmed.length ? `Recorded completed actions: ${join(confirmed, '; ')}.` : '';
+    const completed = completedPhases.length ? completedPhases : [...confirmed, ...completedChecks];
+    const response = completed.length ? `Recorded completed ${completedPhases.length ? 'phases' : 'actions'}: ${join(completed, '; ')}.` : '';
     const outcome = incident.status === 'Completed' ? `The incident was closed${ended ? ` on ${ended}` : ''}.` : 'The incident remains open.';
     const plume = currentPlume?.plumeResult || currentPlume;
     const output = plume?.output || currentPlume?.plumeOutput || {};

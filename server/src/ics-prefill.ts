@@ -54,6 +54,30 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
   const index = row ? Number(row[1]) - 1 : /_(\d+)$/.test(fieldName) ? Number(/_(\d+)$/.exec(fieldName)![1]) - 1 : 0;
   const a = assignments[index];
   const summary = assignments.map((a) => [a.role, a.personnel, a.unit, a.responsibility, a.locationStatus, a.status].map(text).filter(Boolean).join(' | ')).join('\n');
+  const periodPart = (value: unknown, part: number) => text(value).split('T')[part] || '';
+  if (n === 'datefrom' && incident.operationalPeriodStart) return periodPart(incident.operationalPeriodStart, 0);
+  if (n === 'timefrom' && incident.operationalPeriodStart) return periodPart(incident.operationalPeriodStart, 1);
+  if (n === 'dateto' && incident.operationalPeriodEnd) return periodPart(incident.operationalPeriodEnd, 0);
+  if (n === 'timeto' && incident.operationalPeriodEnd) return periodPart(incident.operationalPeriodEnd, 1);
+  if (formId === '203' && /^3incidentcommandersandcommandstaffrow[23]$/.test(n)) {
+    const commanders = assignments.filter((a) => /^(incident commander|ic|unified command)$/i.test(text(a.role)));
+    return text(commanders[index - 1]?.personnel) || (index === 1 ? text(incident.commanderName) : '');
+  }
+  if (formId === '203' && /^divisiongroup(?:identifier|name)\d+$/.test(n)) {
+    const groupIndex = Number(/(\d+)$/.exec(n)?.[1] || 1) - 1;
+    const groups = assignments.filter((a) => /hazmat|entry|decon|medical|rehab|division|group/i.test(text(a.role)));
+    return text(n.includes('identifier') ? groups[groupIndex]?.role : groups[groupIndex]?.personnel);
+  }
+  const channels = [
+    { role: 'Command', channel: text(incident.commandChannel) },
+    { role: 'Tactical', channel: text(incident.tacticalChannel) },
+    { role: 'Medical / Decon', channel: text(incident.medicalChannel) },
+  ].filter((entry) => entry.channel);
+  if (formId === '205' && channels.length) {
+    if (/^channelnametrunkedradiosystemtalkgrouprow/.test(n)) return channels[index]?.channel || text(a?.radioChannel);
+    if (/^functionrow/.test(n)) return channels[index]?.role || text(a?.role);
+  }
+  if (formId === '201' && n.startsWith('9currentorganization')) return [incident.commanderName && `Incident Commander: ${text(incident.commanderName)}`, summary].filter(Boolean).join('\n');
   if (formId === '204' && n === '6workassignments' && phases.length) return [summary, `Planned tasks:\n${planTasks}`].filter(Boolean).join('\n');
   if (formId === '215' && /^workassignment\d+/.test(n)) {
     // FEMA names row two "Work Assignment 2.1"; its resource table is not an activity log.

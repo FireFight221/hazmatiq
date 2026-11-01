@@ -788,3 +788,8 @@
 #guided-response .guided-fact-trace details p { margin: 0; padding: 0 9px 9px; color: #bad0e0; font-size: .68rem; line-height: 1.35; }
 
 /* Operational Guidance phase styles are owned by styles.css. */
+
+#guided-response .guided-shared-checks { display: grid; gap: 8px; margin: 12px; padding-top: 10px; border-top: 1px solid #b5cad7; color: #173e57; }
+#guided-response .guided-shared-checks h4 { margin: 0; color: #173e57; font-weight: 850; }
+#guided-response .guided-shared-checks label { display: flex; align-items: flex-start; gap: 9px; color: #173e57; font-weight: 750; }
+#guided-response .guided-shared-checks input { width: 21px; height: 21px; min-height: 21px; flex: 0 0 21px; margin: 0; accent-color: #237b47; }

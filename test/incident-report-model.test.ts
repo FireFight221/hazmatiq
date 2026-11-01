@@ -20,4 +20,9 @@ describe('Concise incident brief',()=>{
   expect(report.zones[0]).toEqual({name:'AEGL-3',distance:'250 m',threshold:'1100 ppm'}); expect(build({}).zones).toEqual([]);
  });
  it('retains the report author without inventing a signature',()=>{expect(build({preparedBy:'Wade Simmons'}).preparedBy).toBe('Wade Simmons');expect(build({commanderName:'Other Person'}).preparedBy).toBe('');});
+ it('carries recorded worksheet facts and explicitly confirmed response checks into the incident brief',()=>{
+  const incident={chemicalName:'Ammonia',amountReleased:'20',releaseQuantityUnit:'lb',patientCount:'0',responsibleParty:'Facility Manager',guidedResponsePhaseState:{'identify-isolate-notify':{status:'Not Started',actionChecks:{'isolate-access':{confirmed:true,label:'Isolate / Control Access'}}}}};
+  const report=build(incident);expect(report.brief).toContain('20 lb');expect(report.brief).toContain('Recorded patients: 0');expect(report.brief).toContain('Facility Manager');expect(report.response).toContain('Isolate / Control Access');expect(report.response).not.toContain('phase');
+ });
+
 });

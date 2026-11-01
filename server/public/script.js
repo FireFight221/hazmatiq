@@ -2493,6 +2493,8 @@ function renderIncidentCommandDashboard() {
   setText('ic-assignment-summary', model.assignmentSummary);
   renderIncidentAssignmentEditor(model.incident);
   [
+    ['incident-number', 'incidentNumber'],
+    ['incident-notes', 'notes'],
     ['incident-objectives', 'objectives'],
     ['incident-command-structure', 'commandStructure'],
     ['incident-communications', 'communications'],
@@ -2846,6 +2848,13 @@ function startIncidentTimer() {
   if (getActiveIncident() && !incidentTimerInterval) incidentTimerInterval = window.setInterval(renderIncidentTimer, 1000);
 }
 
+function mergeIncidentWeatherLog(incident, weather) {
+  const rows = Array.isArray(incident?.weatherObservations) ? incident.weatherObservations : [];
+  if (!weather?.observedAt) return rows;
+  if (rows.some((row) => row.observedAt === weather.observedAt && row.source === weather.source)) return rows;
+  return [...rows, { ...weather }];
+}
+
 function getIncidentFormData() {
   const coordinates = parseGpsCoordinate(document.getElementById('incident-coordinates-input')?.value);
   const containerSelect = document.getElementById('plume-container-type');
@@ -2868,6 +2877,8 @@ function getIncidentFormData() {
     latitude: coordinates?.lat ?? '',
     longitude: coordinates?.lon ?? '',
     weather: latestPlumeWeather?.conditions || '',
+    weatherSnapshot: latestPlumeWeather || existingIncident?.weatherSnapshot || null,
+    weatherObservations: mergeIncidentWeatherLog(existingIncident, latestPlumeWeather),
     weatherSource: document.getElementById('plume-weather-source-name')?.textContent?.trim() || noCurrentDataText,
     weatherObservationTime: document.getElementById('plume-weather-observation-time')?.textContent?.trim() || noCurrentDataText,
     weatherSourceStatus: document.getElementById('plume-weather-source')?.value === 'manual'
@@ -7166,6 +7177,32 @@ function guidedPhaseIsAccomplished(record) {
   return !record?.reassessmentRequired && ['complete', 'accomplished'].includes(String(record?.status || '').trim().toLowerCase());
 }
 
+const guidedTacticalCheckDefinitions = Object.freeze([
+  { id: 'establish-command', phaseId: 'identify-isolate-notify', label: 'Establish Command' },
+  { id: 'assign-safety', phaseId: 'zones-resources', label: 'Assign Safety Officer' },
+  { id: 'isolate-access', phaseId: 'identify-isolate-notify', label: 'Isolate / Control Access' },
+  { id: 'notify-hazmat', phaseId: 'identify-isolate-notify', label: 'Notify HazMat Team' },
+  { id: 'confirm-product', phaseId: 'identify-isolate-notify', label: 'Confirm Product Identity' },
+  { id: 'control-zones', phaseId: 'zones-resources', label: 'Establish Control Zones' },
+  { id: 'emergency-decon', phaseId: 'zones-resources', label: 'Emergency Decon Ready' },
+  { id: 'medical-monitoring', phaseId: 'zones-resources', label: 'Medical Monitoring Ready' },
+  { id: 'technical-decon', phaseId: 'withdraw-decon-rehab', label: 'Technical Decon Ready' },
+  { id: 'verify-entry', phaseId: 'recon-assessment', label: 'Verify Entry Plan' },
+  { id: 'notify-hospitals', phaseId: 'withdraw-decon-rehab', label: 'Notify Receiving Hospitals' },
+  { id: 'responsible-party', phaseId: 'notifications-documentation', label: 'Document Responsible Party' },
+]);
+
+function persistGuidedActionCheck(checkId, confirmed) {
+  const definition = guidedTacticalCheckDefinitions.find((check) => check.id === checkId);
+  const incident = getActiveIncident();
+  if (!definition || !incident) return null;
+  const state = readGuidedResponsePhaseState(incident);
+  const entry = { confirmed: Boolean(confirmed), label: definition.label, changedAt: new Date().toISOString(), changedBy: incidentResponderIdentity() };
+  return persistGuidedResponsePhaseState(definition.phaseId, {
+    actionChecks: { ...(state[definition.phaseId]?.actionChecks || {}), [checkId]: entry },
+  }, { actionCheck: entry });
+}
+
 function buildIncidentActionPlan(incident, phaseState = readGuidedResponsePhaseState(incident)) {
   const strategy = normalizeOperationalStrategy(incident?.operationalMode);
   const phases = guidedPhaseDefinitions.map((definition) => {
@@ -7203,13 +7240,15 @@ function persistGuidedResponsePhaseState(phaseId, patch = {}, options = {}) {
       incidents[index] = {
         ...incidents[index],
         guidedResponsePhaseState: next,
+        commanderName: Object.values(next).flatMap((phase) => phase.assignments || []).find((assignment) => /^(incident commander|ic|unified command)$/i.test(assignment.role || ''))?.personnel
+          || (Object.values(current).flatMap((phase) => phase.assignments || []).some((assignment) => /^(incident commander|ic|unified command)$/i.test(assignment.role || '')) ? '' : incidents[index].commanderName),
         operationalActionPlan: buildIncidentActionPlan(incidents[index], next),
         guidedResponseAssignments: Object.entries(next).flatMap(([phaseId, phase]) => (Array.isArray(phase?.assignments) ? phase.assignments : []).map((assignment) => ({ ...assignment, phaseId }))),
         guidedResponseAssignmentHistory: options.assignmentHistoryEntry
           ? [...(Array.isArray(incidents[index].guidedResponseAssignmentHistory) ? incidents[index].guidedResponseAssignmentHistory : []), options.assignmentHistoryEntry]
           : incidents[index].guidedResponseAssignmentHistory,
         incidentTimeline: [...(Array.isArray(incidents[index].incidentTimeline) ? incidents[index].incidentTimeline : []), ...(options.planOnly ? [] : [{
-          type: 'guided-response-phase', phaseId, status: guidedGoalStatus(nextEntry), label: `${guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.title || phaseId}: ${guidedGoalStatus(nextEntry)}`, changedAt: now,
+          type: 'guided-response-phase', phaseId, status: guidedGoalStatus(nextEntry), label: options.actionCheck ? `${options.actionCheck.label}: ${options.actionCheck.confirmed ? 'Completed' : 'Reopened'}` : `${guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.title || phaseId}: ${guidedGoalStatus(nextEntry)}`, changedAt: now,
           changedBy: nextEntry.changedBy, source: 'commander', evidence: nextEntry.evidence || '',
         }]), ...(options.assignmentHistoryEntry ? [{
           type: 'guided-response-assignment', phaseId, action: options.assignmentHistoryEntry.action,
@@ -7337,7 +7376,7 @@ function persistGuidedPhaseAssignment(phaseId, assignment) {
 function persistIncidentAssignment(assignment, previousPhaseId = '') {
   const incident = getActiveIncident();
   if (!incident) return { ok: false, error: 'No active incident is selected.' };
-  const required = [assignment.personnel, assignment.unit, assignment.responsibility].map((value) => String(value || '').trim());
+  const required = (assignment.kind === 'command-role' ? [assignment.personnel, assignment.responsibility] : [assignment.personnel, assignment.unit, assignment.responsibility]).map((value) => String(value || '').trim());
   if (required.some((value) => !value)) return { ok: false, error: 'Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.' };
   const targetPhaseId = assignment.phaseId || previousPhaseId || guidedPhaseDefinitions[0]?.id;
   if (!targetPhaseId) return { ok: false, error: 'Select a response phase for this assignment.' };
@@ -7613,7 +7652,7 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     form.addEventListener('submit', (event) => { event.preventDefault(); saveButton.click(); });
     const grid = document.createElement('div'); grid.className = 'guided-assignment-grid';
     const controls = {};
-    const fields = [['Personnel / team', 'personnel', 'Assigned person or team'], ['Unit / resource', 'unit', 'Unit, apparatus, or resource'], ['Supervisor', 'supervisor', 'Supervisor or group leader'], ['Responsibility', 'responsibility', 'Confirmed responsibility for this incident']];
+    const fields = [['Role / ICS position', 'role', 'Entry Team, Safety Officer, Operations Section Chief…'], ['Personnel / team', 'personnel', 'Assigned person or team'], ['Unit / resource', 'unit', 'Unit, apparatus, or resource'], ['Supervisor', 'supervisor', 'Supervisor or group leader'], ['Responsibility', 'responsibility', 'Confirmed responsibility for this incident']];
     fields.forEach(([label, key, placeholder]) => {
       const field = document.createElement('label'); field.textContent = label;
       const input = document.createElement('input'); input.type = 'text'; input.value = assignment[key] || ''; input.placeholder = placeholder; controls[key] = input; field.append(input); grid.append(field);
@@ -7791,6 +7830,18 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   goalInput.addEventListener('change', savePlanEdit); taskInput.addEventListener('change', savePlanEdit);
   const conditions = document.createElement('details'); conditions.className = 'guided-conditions'; const conditionsHeading = document.createElement('summary'); conditionsHeading.textContent = 'Conditions & Considerations';
   conditions.append(conditionsHeading, createGuidedPhaseList(phase.conditions));
+  const checks = guidedTacticalCheckDefinitions.filter((check) => check.phaseId === phase.id);
+  if (checks.length && incident) {
+    const checkPanel = document.createElement('div'); checkPanel.className = 'guided-shared-checks';
+    const checkHeading = document.createElement('h4'); checkHeading.textContent = 'Tactical Worksheet Checks'; checkPanel.append(checkHeading);
+    checks.forEach((check) => {
+      const label = document.createElement('label');
+      const input = document.createElement('input'); input.type = 'checkbox'; input.checked = record.actionChecks?.[check.id]?.confirmed === true;
+      input.addEventListener('change', () => persistGuidedActionCheck(check.id, input.checked));
+      label.append(input, document.createTextNode(check.label)); checkPanel.append(label);
+    });
+    conditions.append(checkPanel);
+  }
   if (phase.id === 'zones-resources') {
     const readiness = document.createElement('details'); readiness.className = 'guided-readiness-detail';
     const readinessSummary = document.createElement('summary'); readinessSummary.textContent = 'PPE, decon, medical, and monitoring readiness';
@@ -17479,6 +17530,7 @@ function saveLiveMapState(message = 'Map saved on this device.') {
   liveMapState.lastUpdated = new Date().toISOString();
   window.localStorage.setItem(liveMapStorageKey, JSON.stringify(liveMapState));
   setText('live-map-status', message);
+  window.dispatchEvent(new CustomEvent('hazmatiq:live-map-updated'));
 }
 
 function updateLiveMapPanels() {
@@ -19394,6 +19446,26 @@ window.HazMatIQ.hazardProfileLegacy = {
 window.HazMatIQ.showChemicalSelectionPrompt = showChemicalSelectionPrompt;
 
 window.HazMatIQ.incidentCommandLegacy = {
+  incidentResponderIdentity,
+  persistIncidentAssignment,
+  removeIncidentAssignment,
+  renderIncidentAssignmentEditor,
+  persistGuidedResponsePhaseState,
+  persistGuidedActionCheck,
+  openIncidentIcsForm,
+  getWorksheetContext: () => {
+    const incident = getActiveIncident();
+    const phaseState = incident ? readGuidedResponsePhaseState(incident) : {};
+    const map = liveMapState || readLiveMapState();
+    return {
+      incident,
+      assignments: guidedIncidentAssignments(incident),
+      checks: guidedTacticalCheckDefinitions.map((check) => ({ ...check, confirmed: phaseState[check.phaseId]?.actionChecks?.[check.id]?.confirmed === true })),
+      phases: guidedPhaseDefinitions.map((phase) => ({ id: phase.id, number: phase.number, title: phase.title, status: guidedGoalStatus(phaseState[phase.id]) })),
+      map: map.incidentId === incident?.incidentId ? map : null,
+      plume: incident && isIncidentPlumeCurrent(incident.plumeModelResults, incident) ? plumeRecordPayload(incident.plumeModelResults) : null,
+    };
+  },
   getActiveIncident,
   readIncidents,
   readIncidentMapSnapshot,

@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="hazard-id-overrides.css?v=3" />
     <link rel="stylesheet" href="global-ui-overrides.css?v=21" />
     <link rel="stylesheet" href="incident-overrides.css?v=6" />
+    <link rel="stylesheet" href="command-worksheet.css?v=1" />
     <link rel="stylesheet" href="preplan-overrides.css?v=1" />
     <link rel="stylesheet" href="chemical-intel.css?v=hazard-profile-panel-31" />
     <link rel="stylesheet" href="guided-response-overrides.css?v=3" />
@@ -298,6 +299,11 @@
               </div>
 
               <div id="incident-command-active">
+                <div class="command-workspace-tabs" role="tablist" aria-label="Command workspace">
+                  <button id="command-overview-tab" type="button" role="tab" aria-selected="true" aria-controls="command-overview-panel" data-command-workspace="overview">Command Overview</button>
+                  <button id="command-worksheet-tab" type="button" role="tab" aria-selected="false" aria-controls="command-worksheet-panel" data-command-workspace="worksheet" tabindex="-1">Tactical Worksheet / ICS Chart</button>
+                </div>
+                <div id="command-overview-panel" role="tabpanel" aria-labelledby="command-overview-tab">
                 <section class="incident-command-flow" aria-labelledby="incident-command-flow-title">
                   <div class="incident-command-flow-title">
                     <svg class="incident-command-flow-title-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M11 6h26v36H11z"/><path d="m17 16 3 3 7-8M17 26l3 3 7-8M17 36h13"/></svg>
@@ -450,6 +456,10 @@
                   </div>
                 </section>
                 <div id="ic-command-actions" hidden aria-hidden="true">Command Actions</div>
+                </div>
+                <section id="command-worksheet-panel" role="tabpanel" aria-labelledby="command-worksheet-tab" hidden>
+                  <div id="command-tactical-worksheet"></div>
+                </section>
               </div>
             </section>
 
@@ -2073,6 +2083,7 @@
     <script src="weather-workspace.js?v=7"></script>
     <script src="settings-workspace.js?v=1"></script>
     <script src="incident-command.js"></script>
+    <script src="command-worksheet.js?v=1"></script>
     <script src="hazard-profile.js?v=hazard-radiological-routing-1"></script>
     <script src="reports.js"></script>
     <script src="chem-compare.js?v=chemcompare-4"></script>

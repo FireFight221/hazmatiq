@@ -94,4 +94,18 @@ describe('Editable incident ICS worksheets', () => {
     expect(incidentActivity(incident)).toEqual([]);
   });
 
+  it('fills the actual FEMA organization, communications, and preparer fields from shared worksheet entries', async () => {
+    const incident = { ...sample, preparedBy:'Report Author', operationalPeriodStart:'2026-11-01T08:00', commandChannel:'CMD 1', tacticalChannel:'TAC 2', guidedResponseAssignments:[{assignmentId:'ic',role:'Incident Commander',personnel:'Chief One',status:'Confirmed'}, {assignmentId:'safety',role:'Safety Officer',personnel:'Safety One',status:'Confirmed'}, {assignmentId:'ops',role:'Operations Section Chief',personnel:'Operations One',status:'Confirmed'}, {assignmentId:'entry',role:'Entry Team Leader',personnel:'Entry Leader',status:'Confirmed'}] };
+    const pdf = await createIcsTemplate('203','ICS 203',readFileSync(new URL('../assets/ics-forms/ics-203.pdf',import.meta.url)));
+    const filled = await PDFDocument.load(await fillIcsPdf(pdf,'203',incident,(name)=>value('203',name,incident)));
+    expect(filled.getForm().getTextField('3 Incident Commanders and Command StaffRow2').getText()).toBe('Chief One');
+    expect(filled.getForm().getTextField('Safety Officer_3').getText()).toBe('Safety One');
+    expect(filled.getForm().getTextField('Operations Section Chief 1').getText()).toBe('Operations One');
+    expect(recordedIcsValue('203','DivisionGroup Name 1',incident)).toBe('Entry Leader');
+    expect(recordedIcsValue('205','Channel NameTrunked Radio System TalkgroupRow2',incident)).toBe('TAC 2');
+    expect(recordedIcsValue('202','Date From',incident)).toBe('2026-11-01');
+    expect(recordedIcsValue('201','6 Prepared by Name',incident)).toBe('Report Author');
+    expect(recordedIcsValue('201','Signature',incident)).toBe('');
+  });
+
 });

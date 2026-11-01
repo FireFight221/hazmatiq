@@ -402,6 +402,10 @@ function automaticIcsValue(fieldName: string, incident: Record<string, unknown>,
   if (normalized.startsWith("5situationsummary")) {
     return [
       incident.notes,
+      incident.responsibleParty && `Responsible party: ${textValue(incident.responsibleParty)}`,
+      incident.amountReleased && `Reported release: ${textValue(incident.amountReleased)} ${textValue(incident.releaseQuantityUnit)}`,
+      incident.amountRemaining && `Remaining: ${textValue(incident.amountRemaining)} ${textValue(incident.releaseQuantityUnit)}`,
+      incident.patientCount !== undefined && incident.patientCount !== '' && `Recorded patients: ${textValue(incident.patientCount)}`,
       chemicalSafetyForIcs(incident),
       incidentContainerSummary(incident, true),
       incident.address,

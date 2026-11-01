@@ -61,4 +61,25 @@ describe('Shared operational plan state', () => {
     expect(plan.phases[3]).toMatchObject({ goal: 'Control the observed release.', objectives: ['Perform the assigned control task.', 'Report monitoring results.'], status: 'Not Started' });
     expect(app.incident().incidentTimeline).toHaveLength(before);
   });
+  it('records a named command role once and keeps the commander in sync after edits', () => {
+    const app = setup();
+    app.run("persistIncidentAssignment({assignmentId:'command',kind:'command-role',phaseId:'identify-isolate-notify',role:'Incident Commander',personnel:'Chief One',responsibility:'Incident Commander',status:'Confirmed'});");
+    expect(app.incident().commanderName).toBe('Chief One');
+    app.run("persistIncidentAssignment({...guidedIncidentAssignments()[0],personnel:'Chief Two'});");
+    expect(app.incident().commanderName).toBe('Chief Two');
+    expect(app.run('guidedIncidentAssignments()')).toHaveLength(1);
+    app.run("removeIncidentAssignment('command','identify-isolate-notify');");
+    expect(app.incident().commanderName).toBe('');
+  });
+  it('shares explicit worksheet checks without treating a populated field or check as a completed phase', () => {
+    const app = setup({commanderName:'Chief One'});
+    expect(app.run("readGuidedResponsePhaseState(getActiveIncident())['identify-isolate-notify']?.actionChecks")).toBeUndefined();
+    app.run("persistGuidedActionCheck('establish-command',true);");
+    expect(app.run("readGuidedResponsePhaseState(getActiveIncident())['identify-isolate-notify'].actionChecks['establish-command'].confirmed")).toBe(true);
+    expect(app.run("guidedGoalStatus(readGuidedResponsePhaseState(getActiveIncident())['identify-isolate-notify'])")).toBe('Not Started');
+    expect((app.incident().incidentTimeline as Array<{label:string}>).at(-1)?.label).toContain('Establish Command: Completed');
+    app.run("persistGuidedActionCheck('establish-command',false);");
+    expect(app.run("readGuidedResponsePhaseState(getActiveIncident())['identify-isolate-notify'].actionChecks['establish-command'].confirmed")).toBe(false);
+  });
+
 });
