@@ -2484,7 +2484,7 @@ h1 { font-weight: 800; }
 
 .guided-response-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   align-items: start;
 }
@@ -2494,8 +2494,8 @@ h1 { font-weight: 800; }
 }
 
 .guided-command-actions {
-  position: sticky;
-  top: 12px;
+  position: static;
+  top: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2519,14 +2519,15 @@ h1 { font-weight: 800; }
 }
 
 .guided-command-actions .guided-response-actions {
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: stretch;
   gap: 8px;
 }
 
 .guided-command-actions .guided-response-actions button {
-  width: 100%;
-  flex: 0 0 auto;
+  width: auto;
+  flex: 1 1 150px;
   color: #082540;
   background: #e7eef3;
   border-color: #c3d1da;

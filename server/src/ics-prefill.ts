@@ -40,12 +40,33 @@ export function incidentActivity(incident: RecordValue): Array<{ time: string; d
 }
 export function recordedIcsValue(formId: string, fieldName: string, incident: RecordValue): string | undefined {
   const n = normalize(fieldName);
+  const plan = (incident.operationalActionPlan || {}) as RecordValue;
+  const phases = (Array.isArray(plan.phases) ? plan.phases : []).filter((phase): phase is RecordValue => Boolean(phase && typeof phase === 'object'));
+  const lines = (value: unknown) => (Array.isArray(value) ? value : []).map(text).filter(Boolean);
+  const goals = phases.map((phase) => `${text(phase.number)}. ${text(phase.goal)}`).join('\n');
+  const planTasks = phases.map((phase) => `${text(phase.number)}. ${text(phase.title)} [${text(phase.status) || 'Not Started'}]\n${lines(phase.objectives).map((task, index) => `  ${index + 1}. ${task}`).join('\n')}`).join('\n');
+  if (phases.length && ((formId === '202' && n === '3objectives') || (formId === '201' && n === '7currentandplannedobjectives'))) {
+    return [text(incident.objectives), `Planned response objectives (${text(plan.strategy)}):\n${goals}`].filter(Boolean).join('\n');
+  }
   const assignments = incidentAssignments(incident);
   const role = (pattern: RegExp) => assignments.filter((a) => pattern.test(text(a.role))).map((a) => text(a.personnel)).filter(Boolean).join(' / ');
   const row = /row[\s,]*(\d+)/i.exec(fieldName);
   const index = row ? Number(row[1]) - 1 : /_(\d+)$/.test(fieldName) ? Number(/_(\d+)$/.exec(fieldName)![1]) - 1 : 0;
   const a = assignments[index];
   const summary = assignments.map((a) => [a.role, a.personnel, a.unit, a.responsibility, a.locationStatus, a.status].map(text).filter(Boolean).join(' | ')).join('\n');
+  if (formId === '204' && n === '6workassignments' && phases.length) return [summary, `Planned tasks:\n${planTasks}`].filter(Boolean).join('\n');
+  if (formId === '215' && /^workassignment\d+/.test(n)) {
+    // FEMA names row two "Work Assignment 2.1"; its resource table is not an activity log.
+    const planIndex = Number(/work\s*assignment\s*(\d+)/i.exec(fieldName)?.[1] || 1) - 1;
+    const assignment = assignments[planIndex];
+    const phase = phases.find((phase) => phase.phaseId === assignment?.phaseId) || phases[planIndex];
+    return [assignment?.role, assignment?.responsibility, phase && `Planned: ${lines(phase.objectives).join('; ')}`].map(text).filter(Boolean).join(' | ');
+  }
+  if (formId === '215A' && phases.length) {
+    const phase = phases[index];
+    if (/^6hazardsrisksrow/.test(n)) return text(phase?.hazards); // Only a recorded hazard description belongs here.
+    if (/^7mitigationsrow/.test(n)) return lines(phase?.stop).join('\n');
+  }
   if (formId === '209') {
     if (n.startsWith('4incidentcommanders')) return [incident.commanderName, incident.agencyName].map(text).filter(Boolean).join(' | ');
     if (n === '16state') return text(incident.state);
@@ -72,7 +93,6 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
     if (/^functionrow/.test(n)) return text(a?.role);
     if (/^remarksrow/.test(n) && index === 0) return text(incident.communications);
   }
-  if (formId === '215' && /^workassignment\d+$/.test(n)) return [a?.role, a?.responsibility].map(text).filter(Boolean).join(' | ');
   if (formId === '215' && /^reportinglocation\d+$/.test(n)) return text(a?.locationStatus);
   if (formId === '215' && /^6resources\d+$/.test(n)) return summary;
   if (/signature/.test(n)) return ''; // No automatic signatures or approvals.

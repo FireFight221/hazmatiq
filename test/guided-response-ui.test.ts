@@ -126,7 +126,7 @@ describe("Guided Response workflow", () => {
     expect(script).toContain("strategyPhaseDefinition(phase, context.strategy, context)");
     expect(script).toContain("Confirm the hazard, protect the public, and define the defensive perimeter.");
     expect(script).toContain("persistOperationalModeChange(select.value)");
-    expect(script).toContain("createGuidedPhaseList(guidedObjectiveEntries(phase), noCurrentDataText, true)");
+    expect(script).toContain("createGuidedPhaseList(Array.isArray(record.planObjectives) ? record.planObjectives : guidedObjectiveEntries(phase), noCurrentDataText, true)");
     expect(script).toContain("const guidedObjectiveIds = Object.freeze({");
     expect(script).toContain("function createGuidedReferenceSection(phase, sources, { profile, strategy, gapKeys = new Set() } = {})");
     expect(script).toContain("heading.textContent = 'References & Sources'");
@@ -175,12 +175,12 @@ describe("Guided Response workflow", () => {
     ]) expect(script).toContain(`'${iconId}': [`);
   });
 
-  it("keeps Operational Guidance left and Command Actions in one vertical side column", () => {
+  it("keeps the command toolbar above the two-column action-plan workspace", () => {
     expect(guidedHtml).toContain('class="guided-response-workspace"');
-    expect(guidedHtml).toMatch(/class="guided-response-workspace"[\s\S]*id="guided-response-content"[\s\S]*class="panel-card guided-command-actions"/);
+    expect(guidedHtml).toMatch(/class="guided-response-workspace"[\s\S]*class="panel-card guided-command-actions"[\s\S]*id="guided-response-content"/);
     expect(guidedHtml.match(/class="panel-card guided-command-actions"/g)).toHaveLength(1);
     expect(styles).toContain('.guided-response-workspace {');
-    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr);');
     expect(styles).toContain('.guided-command-actions .guided-response-actions {');
     expect(styles).toContain('flex-direction: column;');
   });
@@ -219,7 +219,7 @@ describe("Guided Response workflow", () => {
   it("requires explicit assignment activation and keeps assignment history/location semantics", () => {
     expect(script).toContain("saveButton.textContent = 'Update Assignment';");
     expect(script).toContain("Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.");
-    expect(script).toContain("function renderIncidentAssignmentEditor(incident)");
+    expect(script).toContain("function renderIncidentAssignmentEditor(incident, editor =");
     expect(html).toContain('id="ic-manage-assignments-btn"');
     expect(script).toContain("locationStatus: assignment.locationStatus || 'Location not set'");
     expect(script).toContain("type: 'guided-response-assignment'");
@@ -299,7 +299,7 @@ describe("Guided Response workflow", () => {
   it("places the critical action bar before the responsive command-flow grid", () => {
     expect(script).toContain("const criticalActionBar = createGuidedCriticalActionBar(guidedResponse)");
     expect(script).toContain("const flow = createGuidedCommandFlow(guidedResponse, {");
-    expect(script).toContain("container.append(chemicalStrip, criticalActionBar, strategyControl, mobileSticky, flow)");
+    expect(script).toContain("container.append(chemicalStrip, criticalActionBar, mobileSticky, workspace)");
     expect(script).toContain("flow.className = 'panel-card guided-command-flow'");
     expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
   });
@@ -344,7 +344,7 @@ describe("Guided Response workflow", () => {
     const card = script.slice(script.indexOf("function createGuidedPhaseCard"), script.indexOf("// Legacy source-contract markers"));
     expect(card).toContain("decisionGrid.append(nextDecision);");
     expect(card).not.toContain("decisionGrid.append(goalStatus, nextDecision)");
-    expect(card).toContain("goalStatusNote.textContent = 'Commander-selected phase state; this styling does not assign incident severity.'");
+    expect(card).toContain("goalStatusNote.textContent = 'Shared with the Command Dashboard.'");
     expect(card).toContain("footer.append(notesHeading, activity, progress, goalStatus, action)");
     expect(styles).toContain("background: #fff3f2;");
     expect(styles).toContain("border-left: 5px solid #b42318;");
@@ -355,7 +355,7 @@ describe("Guided Response workflow", () => {
   it("consolidates decontamination and medical source notes into one phase reference section", () => {
     const card = script.slice(script.indexOf("function createGuidedPhaseCard"), script.indexOf("// Legacy source-contract markers"));
     expect(card).not.toContain("Source-backed decon and medical direction");
-    expect(card).toContain("DECONTAMINATION & MEDICAL / REHAB GUIDANCE");
+    expect(card).toContain("Decontamination & Medical / Rehab Guidance");
     expect(script).toContain("function guidedCompactPhaseFact(fact)");
     expect(card).toContain("const deconFacts = (model.decon?.criticalFacts || []).filter");
     expect(card).toContain("const medicalFacts = (model.medical?.criticalFacts || []).filter");

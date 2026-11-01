@@ -89,7 +89,7 @@ describe('Command phase progress', () => {
       guidedPhaseDefinitions: definitions,
       document: { createElement: node, getElementById: (id: string) => new Map([['ic-guided-priorities', priorities], ['ic-guided-recommendations', recommendations], ['ic-guided-progress', progress]]).get(id) },
     };
-    const code = ['guidedPhaseIsAccomplished', 'guidedGoalStatus', 'renderIncidentGuidedResponse'].map(declaration).join('\n');
+    const code = ['readGuidedResponsePhaseState', 'guidedPhaseIsAccomplished', 'guidedGoalStatus', 'renderIncidentGuidedResponse'].map(declaration).join('\n');
     runInNewContext(`${code}\nrenderIncidentGuidedResponse(model)`, context);
     expect(priorities.children.map((item) => item.children[0].textContent)).toEqual(['Not Started', 'Not Started']);
     context.model.incident.guidedResponsePhaseState = { first: { status: 'Accomplished' } };

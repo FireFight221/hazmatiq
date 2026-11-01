@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="incident-overrides.css?v=6" />
     <link rel="stylesheet" href="preplan-overrides.css?v=1" />
     <link rel="stylesheet" href="chemical-intel.css?v=hazard-profile-panel-31" />
-    <link rel="stylesheet" href="guided-response-overrides.css?v=2" />
+    <link rel="stylesheet" href="guided-response-overrides.css?v=3" />
     <link rel="stylesheet" href="hazard-profile-page.css?v=radiological-profile-1" />
     <link rel="stylesheet" href="page-shell.css?v=2" />
     <link rel="stylesheet" href="plume-overrides.css?v=24&canonical-grid=1" />
@@ -415,11 +415,11 @@
                     <div class="incident-command-guided-content">
                       <section>
                         <h3>Response Phase</h3>
-                        <p class="incident-command-guided-state-note">Guided phase decisions and Command Status confirmations are saved independently.</p>
+                        <p class="incident-command-guided-state-note">Goal status and team assignments are shared with Guided Response.</p>
                         <ul id="ic-guided-priorities" class="incident-command-guided-list"></ul>
                       </section>
                       <section>
-                        <h3 id="ic-guided-status-heading" aria-label="Commander Status &amp; Confirmation">Command Status</h3>
+                        <h3 id="ic-guided-status-heading" aria-label="Response Phase Goal Status">Phase Goal Status</h3>
                         <div id="ic-guided-status-list" class="incident-command-status-list" aria-labelledby="ic-guided-status-heading"></div>
                       </section>
                       <section>
@@ -960,7 +960,6 @@
               </div>
             </header>
             <div class="guided-response-workspace">
-              <div id="guided-response-content" class="guided-response-content"></div>
               <section class="panel-card guided-command-actions" aria-labelledby="guided-command-actions-title">
                 <div>
                   <h3 id="guided-command-actions-title">Command Actions</h3>
@@ -976,6 +975,7 @@
                 <p class="guided-response-action-status" id="guided-response-action-status" role="status" aria-live="polite"></p>
                 <span id="guided-save-chemical-btn" hidden aria-hidden="true"></span>
               </section>
+              <div id="guided-response-content" class="guided-response-content"></div>
             </div>
             <aside class="guided-response-disclaimers" aria-label="Guided response decision support notice">
               <p><strong>TACTICAL DECISION SUPPORT</strong> Use source guidance, field monitoring, responder conditions, and agency SOPs to establish the operational plan. <span hidden>Missing, outdated, unsupported, or unverified values must be treated as No Current Data Exists.</span> Missing or unverified values remain <strong>No Current Data Exists</strong>.</p>
@@ -1280,7 +1280,7 @@
                         <button class="plume-layer-button active" type="button" data-plume-map-view="satellite" aria-pressed="true">Satellite</button>
                         <button class="plume-layer-button" type="button" data-plume-map-view="street" aria-pressed="false">Street</button>
                         <button class="plume-layer-button" type="button" data-plume-map-view="terrain3d" aria-pressed="false">3D Terrain</button>
-                        <button class="plume-layer-button" type="button" data-plume-map-view="plume3d" aria-pressed="false">3D Plume</button>
+                        <button class="plume-layer-button" type="button" data-plume-map-view="plume3d" aria-pressed="false" disabled title="Planned for a later release">3D Plume — Coming Later</button>
                       </div>
                       <div class="plume-map-layer-controls" role="group" aria-label="Map layers and overlays">
                         <span class="plume-map-control-label">LAYERS</span>

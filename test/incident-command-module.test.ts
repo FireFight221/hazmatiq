@@ -99,13 +99,13 @@ describe('Incident Command operational hub', () => {
   });
 
   it('centers the dashboard card icons and preserves Command Status controls across timer renders', () => {
-    expect(html).toContain('<h3 id="ic-guided-status-heading" aria-label="Commander Status &amp; Confirmation">Command Status</h3>');
+    expect(html).toContain('<h3 id="ic-guided-status-heading" aria-label="Response Phase Goal Status">Phase Goal Status</h3>');
     expect(html).toContain('aria-labelledby="ic-guided-status-heading"');
     expect(incidentOverrides).toContain('grid-template-columns: auto minmax(0, 1fr) auto;');
     expect(incidentOverrides).toContain('width: 26px; height: 26px;');
     expect(incidentOverrides).toContain('width: 26px;');
-    expect(script).toContain('const statusRenderKey = model.operationalChecklist.tasks.map');
-    expect(script).toContain('statusList.dataset.renderKey === statusRenderKey');
+    expect(script).toContain('const statusRenderKey = `${model.incident.incidentId}:` + guidedPhaseDefinitions.map');
+    expect(script).toContain('statusList.dataset.renderKey !== statusRenderKey');
     expect(script).toContain('control.append(select);');
     expect(script).toContain('row.append(identity, control, badge);');
     expect(script).not.toContain('System signal only; commander confirmation is required.');
@@ -193,12 +193,12 @@ describe('Incident Command operational hub', () => {
     expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1fr);');
   });
 
-  it('binds commander status controls to canonical checklist IDs and requires visible completion evidence', () => {
+  it('uses shared phase status controls while preserving legacy checklist evidence', () => {
     expect(script).toContain("const operationalStatusOptions = Object.freeze(['Not Started', 'In Progress', 'Complete', 'Not Applicable']);");
-    expect(script).toContain('model.operationalChecklist.tasks.forEach((task) =>');
-    expect(script).toContain("select.dataset.taskId = task.id;");
+    expect(script).toContain('guidedPhaseDefinitions.forEach((phase) =>');
+    expect(script).toContain("row.dataset.phaseId = phase.id;");
     expect(script).toContain("if (status === 'Complete' && !confirmation) return null;");
-    expect(script).toContain('Complete requires commander evidence. The status was not changed.');
+    expect(script).toContain('persistGuidedResponsePhaseState(phase.id, { status: select.value });');
     expect(script).toContain("{ id: 'medical-rehab', label: 'Medical and rehab'");
     expect(script).not.toContain("medical: 'documentation'");
     expect(script).not.toContain("model.operationalChecklist.tasks.find((candidate) => candidate.id === item.id)");

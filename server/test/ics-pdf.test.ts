@@ -81,4 +81,17 @@ describe('Editable incident ICS worksheets', () => {
     expect(recordedIcsValue('214', 'Notable ActivitiesRow1', incident)).toContain('Entry Team 2');
     expect(recordedIcsValue('201', 'Signature', incident)).toBe('');
   });
+  it('maps the saved action plan to IAP fields without claiming planned tactics were completed', () => {
+    const incident = { operationalActionPlan: { strategy: 'Defensive', phases: [{ phaseId: 'mitigation-strategy', number: 4, title: 'Select and Execute a Strategy', goal: 'Limit the release spread.', objectives: ['Maintain the perimeter.', 'Report readings.'], stop: ['Withdraw for worsening readings.'], status: 'Not Started' }] }, guidedResponseAssignments: [{ assignmentId: 'entry', phaseId: 'mitigation-strategy', personnel: 'Team 1', unit: 'HM1', role: 'Monitoring', responsibility: 'Monitor perimeter', status: 'Planned' }] };
+    expect(recordedIcsValue('202', '3 Objectives', incident)).toContain('Limit the release spread.');
+    expect(recordedIcsValue('201', '7 Current and Planned Objectives', incident)).toContain('Planned response objectives');
+    expect(recordedIcsValue('204', '6 Work Assignments', incident)).toContain('Report readings.');
+    expect(recordedIcsValue('204', '6 Work Assignments', incident)).toContain('[Not Started]');
+    expect(recordedIcsValue('215', 'Work Assignment 1', incident)).toContain('Monitor perimeter');
+    expect(recordedIcsValue('215A', '7 MitigationsRow1', incident)).toContain('Withdraw for worsening readings.');
+    expect(recordedIcsValue('215A', '6 HazardsRisksRow1', incident)).toBe('');
+    expect(recordedIcsValue('201', 'Signature', incident)).toBe('');
+    expect(incidentActivity(incident)).toEqual([]);
+  });
+
 });
