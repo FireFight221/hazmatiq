@@ -2346,6 +2346,8 @@ function renderIncidentGuidedResponse(model) {
     'recon-assessment': 'Recon',
     'mitigation-strategy': 'Tactical',
     'withdraw-decon-rehab': 'Decon / Rehab',
+    'verify-recovery': 'Verify / Transfer',
+    'notifications-documentation': 'Document / Close',
   };
   const priorityItems = phaseDefinitions.map((phase) => [
     { ...phase, label: compactPhaseLabels[phase.id] || phase.title, target: 'guided-response' },
@@ -2531,7 +2533,7 @@ function renderIncidentCommandDashboard() {
       row.className = 'incident-command-status-row';
       row.dataset.phaseId = phase.id;
       const identity = document.createElement('strong');
-      identity.textContent = `${phase.number}. ${phase.title}`;
+      identity.textContent = `${phase.number}. ${['Identify / Notify', 'Zone Prep', 'Recon', 'Tactical', 'Decon / Rehab', 'Verify / Transfer', 'Document / Close'][phase.number - 1] || phase.title}`;
       const control = document.createElement('label');
       control.className = 'incident-command-status-control';
       const select = document.createElement('select');
