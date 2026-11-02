@@ -61,6 +61,15 @@ describe('Shared operational plan state', () => {
     expect(plan.phases[3]).toMatchObject({ goal: 'Control the observed release.', objectives: ['Perform the assigned control task.', 'Report monitoring results.'], status: 'Not Started' });
     expect(app.incident().incidentTimeline).toHaveLength(before);
   });
+  it('persists multiple Step 4 equipment selections without marking the phase complete', () => {
+    const app = setup();
+    app.run("persistGuidedResponsePhaseState('mitigation-strategy', {equipmentSelections:[{equipmentId:'3m-p110-chemical-pad',quantity:'2'},{equipmentId:'3m-p200-chemical-boom',quantity:'1'}]});");
+    expect(app.run("readGuidedResponsePhaseState(getActiveIncident())['mitigation-strategy'].equipmentSelections")).toEqual([
+      { equipmentId: '3m-p110-chemical-pad', quantity: '2' },
+      { equipmentId: '3m-p200-chemical-boom', quantity: '1' },
+    ]);
+    expect(app.run("guidedGoalStatus(readGuidedResponsePhaseState(getActiveIncident())['mitigation-strategy'])")).toBe('Not Started');
+  });
   it('records a named command role once and keeps the commander in sync after edits', () => {
     const app = setup();
     app.run("persistIncidentAssignment({assignmentId:'command',kind:'command-role',phaseId:'identify-isolate-notify',role:'Incident Commander',personnel:'Chief One',responsibility:'Incident Commander',status:'Confirmed'});");

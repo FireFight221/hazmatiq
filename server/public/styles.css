@@ -8592,9 +8592,7 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-scba-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 #guided-response .guided-scba-grid label { display: grid; gap: 5px; min-width: 0; color: #173e57; font-size: 1rem; font-weight: 750; line-height: 1.35; }
 #guided-response .guided-scba-grid input,
-#guided-response .guided-phase-evidence,
-#guided-response .guided-equipment-grid select,
-#guided-response .guided-equipment-grid input { min-height: 42px; width: 100%; max-width: 100%; padding: 8px 10px; border: 1px solid #7794a7; border-radius: 5px; background: #fff; color: #102f46; font: inherit; font-size: 1rem; line-height: 1.35; }
+#guided-response .guided-phase-evidence { min-height: 42px; width: 100%; max-width: 100%; padding: 8px 10px; border: 1px solid #7794a7; border-radius: 5px; background: #fff; color: #102f46; font: inherit; font-size: 1rem; line-height: 1.35; }
 #guided-response .guided-scba-grid input:focus-visible,
 #guided-response .guided-phase-evidence:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 #guided-response .guided-phase-body > section:nth-of-type(4) { border-color: #d89a96; background: #fff8f7; }
@@ -8640,11 +8638,6 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-scba-management { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c1d3df; }
 #guided-response .guided-scba-management h5 { margin: 0 0 7px; color: #173e57; font-size: 1.15rem; font-weight: 850; line-height: 1.3; }
 #guided-response .guided-scba-status { margin: 10px 0 0; color: var(--gold-ink); font-size: 1rem; font-weight: 750; line-height: 1.5; }
-#guided-response .guided-equipment-compatibility { display: grid; gap: 10px; padding: 14px; border: 1px solid #d3b5e2; border-left: 5px solid #7653b3; border-radius: 7px; background: #faf7fd; }
-#guided-response .guided-equipment-compatibility h4 { margin: 0; color: #4b3b5d; font-size: 1.15rem; line-height: 1.3; }
-#guided-response .guided-equipment-compatibility > p { margin: 0; color: #4c3b60; font-size: 1.05rem; line-height: 1.5; }
-#guided-response .guided-equipment-status { margin: 0; color: var(--gold-ink); font-size: 1rem; font-weight: 800; line-height: 1.5; }
-#guided-response .guided-equipment-compatibility small { color: #6a5874; font-size: .95rem; line-height: 1.45; }
 #guided-response .guided-phase-icon { display: grid; width: 28px; height: 32px; place-items: center; color: #1e6c94; }
 #guided-response .guided-phase-icon svg { width: 28px; height: 32px; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
 #guided-response .guided-phase-card.is-current .guided-phase-icon,

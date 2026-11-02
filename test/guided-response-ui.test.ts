@@ -226,6 +226,22 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain('.guided-phase-decision-grid');
   });
 
+  it('uses one compact Step 4 plan editor and the shared spill-control inventory', () => {
+    expect(script).toContain("function createGuidedStepFourEquipment(incident, phaseState)");
+    for (const id of ['oil-technics-sobo100-pad', 'oil-technics-env510-boom', '3m-p110-chemical-pad', '3m-p200-chemical-boom']) {
+      expect(script).toContain(`id: '${id}'`);
+    }
+    expect(script).toContain("productType: 'adsorbent'");
+    expect(script).toContain("productType: 'absorbent'");
+    expect(script).toContain("editButton.textContent = 'Edit Plan'");
+    expect(script).not.toContain("editSummary.textContent = 'Edit Goal / Tasks'");
+    expect(script).toContain("conditionsHeading.textContent = phase.id === 'mitigation-strategy' ? 'CRITICAL CONDITIONS / WITHDRAWAL'");
+    expect(script).toContain("phase.id === 'mitigation-strategy' ? 'KNOWN INCIDENT FACTS'");
+    expect(styles).toContain('.guided-equipment-selection-grid');
+    expect(styles).toContain('.guided-equipment-advanced');
+    expect(styles).toContain('.guided-step-four-critical');
+  });
+
   it("requires explicit assignment activation and keeps assignment history/location semantics", () => {
     expect(script).toContain("saveButton.textContent = 'Update Assignment';");
     expect(script).toContain("Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.");

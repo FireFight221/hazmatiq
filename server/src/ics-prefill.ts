@@ -38,6 +38,20 @@ export function incidentActivity(incident: RecordValue): Array<{ time: string; d
     detail: [item.type, item.label || item.message || item.action, item.from && `from ${text(item.from)}`, item.to && `to ${text(item.to)}`, item.evidence, item.changedBy].map(text).filter(Boolean).join(' | '),
   }));
 }
+
+function incidentEquipmentSummary(incident: RecordValue): string {
+  const inventory = Array.isArray(incident.equipmentInventory) ? incident.equipmentInventory : [];
+  return inventory
+    .filter((item): item is RecordValue => Boolean(item && typeof item === 'object'))
+    .map((item) => {
+      const name = [text(item.categoryLabel), text(item.manufacturer), text(item.productName)].filter(Boolean).join(' · ');
+      const type = [text(item.productType), text(item.form)].filter(Boolean).join(' / ');
+      const quantity = `available: ${text(item.availableQuantity) || 'Not recorded'}; assigned: ${text(item.assignedQuantity) || 'Not recorded'}`;
+      const compatibility = text(item.compatibilityStatus) || 'Compatibility not verified';
+      return [name || 'Equipment product not specified', type, quantity, compatibility].filter(Boolean).join(' | ');
+    })
+    .join('\n');
+}
 export function recordedIcsValue(formId: string, fieldName: string, incident: RecordValue): string | undefined {
   const n = normalize(fieldName);
   const plan = (incident.operationalActionPlan || {}) as RecordValue;
@@ -49,6 +63,7 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
     return [text(incident.objectives), `Planned response objectives (${text(plan.strategy)}):\n${goals}`].filter(Boolean).join('\n');
   }
   const assignments = incidentAssignments(incident);
+  const equipment = incidentEquipmentSummary(incident);
   const role = (pattern: RegExp) => assignments.filter((a) => pattern.test(text(a.role))).map((a) => text(a.personnel)).filter(Boolean).join(' / ');
   const row = /row[\s,]*(\d+)/i.exec(fieldName);
   const index = row ? Number(row[1]) - 1 : /_(\d+)$/.test(fieldName) ? Number(/_(\d+)$/.exec(fieldName)![1]) - 1 : 0;
@@ -78,13 +93,13 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
     if (/^functionrow/.test(n)) return channels[index]?.role || text(a?.role);
   }
   if (formId === '201' && n.startsWith('9currentorganization')) return [incident.commanderName && `Incident Commander: ${text(incident.commanderName)}`, summary].filter(Boolean).join('\n');
-  if (formId === '204' && n === '6workassignments' && phases.length) return [summary, `Planned tasks:\n${planTasks}`].filter(Boolean).join('\n');
+  if (formId === '204' && n === '6workassignments' && phases.length) return [summary, equipment && `Spill-control equipment inventory:\n${equipment}`, `Planned tasks:\n${planTasks}`].filter(Boolean).join('\n');
   if (formId === '215' && /^workassignment\d+/.test(n)) {
     // FEMA names row two "Work Assignment 2.1"; its resource table is not an activity log.
     const planIndex = Number(/work\s*assignment\s*(\d+)/i.exec(fieldName)?.[1] || 1) - 1;
     const assignment = assignments[planIndex];
     const phase = phases.find((phase) => phase.phaseId === assignment?.phaseId) || phases[planIndex];
-    return [assignment?.role, assignment?.responsibility, phase && `Planned: ${lines(phase.objectives).join('; ')}`].map(text).filter(Boolean).join(' | ');
+    return [equipment, assignment?.role, assignment?.responsibility, phase && `Planned: ${lines(phase.objectives).join('; ')}`, assignment?.status].map(text).filter(Boolean).join(' | ');
   }
   if (formId === '215A' && phases.length) {
     const phase = phases[index];

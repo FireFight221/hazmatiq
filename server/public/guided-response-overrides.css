@@ -54,18 +54,89 @@
 #guided-response .guided-support-card input,
 #guided-response .guided-support-card select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 42px; padding: 8px; background: #fff; color: #102f46; border: 1px solid #8daabf; border-radius: 5px; font: 1rem Arial, sans-serif; }
 #guided-response .guided-support-card .guided-assignment-actions { display: flex; gap: 8px; margin-top: 10px; }
+#guided-response .guided-support-card .guided-assignment-equipment-field { min-width: 0; margin: 8px 0 0; padding: 8px; border: 1px solid #8daabf; border-radius: 6px; background: #f7fafc; }
+#guided-response .guided-support-card .guided-assignment-equipment-field legend { padding: 0 4px; color: #173e57; font-size: .78rem; font-weight: 900; }
+#guided-response .guided-role-assignment .guided-assignment-equipment-field { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 8px; border: 1px solid #8daabf; border-radius: 6px; background: #f7fafc; }
+#guided-response .guided-role-assignment .guided-assignment-equipment-field legend { padding: 0 4px; color: #173e57; font-size: .78rem; font-weight: 900; }
+#guided-response .guided-support-card .guided-equipment-selection-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+#guided-response .guided-support-card .guided-equipment-selection { display: grid; grid-template-columns: auto minmax(0, 1fr) 58px; gap: 5px 7px; align-items: center; min-width: 0; padding: 6px; border: 1px solid #c6d6df; border-radius: 5px; background: #fff; color: #173e57; }
+#guided-response .guided-support-card .guided-equipment-selection > input[type="checkbox"] { width: 18px; min-height: 18px; margin: 0; accent-color: var(--gold); }
+#guided-response .guided-support-card .guided-equipment-selection > input[type="number"] { width: 58px; min-height: 30px; padding: 4px 5px; }
+#guided-response .guided-support-card .guided-equipment-selection > span { min-width: 0; color: #173e57; font-size: .78rem; line-height: 1.25; overflow-wrap: anywhere; }
+#guided-response .guided-support-card .guided-equipment-selection > small { grid-column: 2 / -1; color: #486577; font-size: .7rem; line-height: 1.25; overflow-wrap: anywhere; }
 #guided-response .guided-phase-body { padding-top: 12px; }
 #guided-response .guided-phase-body > details { border: 1px solid #bacfdb; border-radius: 6px; background: #f5f9fb; color: #173e57; }
 #guided-response .guided-phase-body > details > summary { padding: 11px 12px; color: #173e57; font: 800 1rem/1.4 Arial, sans-serif; cursor: pointer; }
 #guided-response .guided-phase-body > details > .guided-phase-list,
 #guided-response .guided-phase-body > details > p { margin: 0 12px 12px; }
-#guided-response .guided-plan-edit label { display: grid; gap: 6px; margin: 0 12px 12px; color: #173e57; font-weight: 800; }
-#guided-response .guided-plan-edit input,
-#guided-response .guided-plan-edit textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; border: 1px solid #7b9eb4; border-radius: 5px; background: #fff; color: #102f46; font: 1rem/1.45 Arial, sans-serif; }
-#guided-response .guided-equipment-compatibility .guided-equipment-grid { display: grid; gap: 8px; padding: 0 12px 12px; }
-#guided-response .guided-equipment-compatibility > button,
-#guided-response .guided-equipment-compatibility > small { margin: 0 12px 12px; }
-#guided-response .guided-equipment-compatibility > small { display: block; color: #284c63; }
+
+/* Step 4 is an execution plan: keep the decision path compact and keep all
+   equipment selections on the same incident-backed inventory. */
+#guided-response .guided-step-four-facts,
+#guided-response .guided-step-four-action-plan,
+#guided-response .guided-step-four-equipment,
+#guided-response .guided-step-four-critical {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #b9ccd7;
+  border-radius: 7px;
+  background: #f7fafc;
+  color: #173e57;
+}
+#guided-response .guided-step-four-facts h3,
+#guided-response .guided-step-four-action-plan h3,
+#guided-response .guided-step-four-equipment h3,
+#guided-response .guided-step-four-critical h3 {
+  margin: 0 0 7px;
+  color: #173e57;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: .03em;
+}
+#guided-response .guided-step-four-facts .guided-scenario-grid { padding: 0; gap: 6px 10px; }
+#guided-response .guided-step-four-facts .guided-phase-product-guidance { margin: 8px 0 0; font-size: .9rem; }
+#guided-response .guided-step-four-action-plan { background: #fff; border-left: 5px solid var(--gold); }
+#guided-response .guided-step-four-action-plan .guided-phase-list { gap: 5px; margin: 0; font-size: .98rem; line-height: 1.35; }
+#guided-response .guided-plan-edit { display: grid; gap: 8px; }
+#guided-response .guided-edit-plan-button { justify-self: start; min-height: 36px; padding: 6px 11px; border-color: var(--gold); color: #173e57; background: #fff8dc; font-weight: 900; }
+#guided-response .guided-plan-edit-fields { display: grid; gap: 8px; padding: 9px; border: 1px solid #b9ccd7; border-radius: 6px; background: #fff; }
+#guided-response .guided-plan-edit-fields label { display: grid; gap: 5px; color: #173e57; font-weight: 800; }
+#guided-response .guided-plan-edit-fields input,
+#guided-response .guided-plan-edit-fields textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px; border: 1px solid #7b9eb4; border-radius: 5px; background: #fff; color: #102f46; font: inherit; }
+#guided-response .guided-step-four-equipment { background: #fff; }
+#guided-response .guided-step-four-equipment > p { margin: 0 0 8px; color: #294a5e; font-size: .9rem; line-height: 1.4; }
+#guided-response .guided-equipment-selection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#guided-response .guided-equipment-selection { display: grid; grid-template-columns: auto minmax(0, 1fr) 72px; gap: 5px 7px; align-items: center; min-width: 0; padding: 7px; border: 1px solid #c6d6df; border-radius: 5px; background: #f7fafc; color: #173e57; }
+#guided-response .guided-equipment-selection input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; accent-color: var(--gold); }
+#guided-response .guided-equipment-selection input[type="number"] { min-height: 30px; width: 72px; padding: 4px 6px; border: 1px solid #7b9eb4; border-radius: 4px; color: #102f46; background: #fff; }
+#guided-response .guided-equipment-selection > span { min-width: 0; font-size: .84rem; font-weight: 800; overflow-wrap: anywhere; }
+#guided-response .guided-equipment-selection > small { grid-column: 2 / -1; color: #486577; font-size: .74rem; line-height: 1.25; overflow-wrap: anywhere; }
+#guided-response .guided-step-four-team { margin-top: 9px; padding-top: 8px; border-top: 1px solid #d9e3e8; }
+#guided-response .guided-step-four-team > strong { color: #173e57; font-size: .92rem; }
+#guided-response .guided-step-four-team ul { margin: 5px 0 0; padding-left: 1.25rem; color: #294a5e; font-size: .88rem; line-height: 1.35; }
+#guided-response .guided-equipment-advanced { margin-top: 9px; border-top: 1px solid #d9e3e8; }
+#guided-response .guided-equipment-advanced > summary { padding: 8px 0 2px; color: #173e57; font-weight: 850; cursor: pointer; }
+#guided-response .guided-equipment-advanced-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 8px; }
+#guided-response .guided-equipment-spec { display: grid; gap: 5px; min-width: 0; padding: 8px; border: 1px solid #c6d6df; border-radius: 5px; background: #f7fafc; }
+#guided-response .guided-equipment-spec strong { color: #173e57; font-size: .88rem; overflow-wrap: anywhere; }
+#guided-response .guided-equipment-spec p { margin: 0; color: #486577; font-size: .76rem; line-height: 1.3; overflow-wrap: anywhere; }
+#guided-response .guided-equipment-spec a { color: #075d8d; font-size: .78rem; font-weight: 850; overflow-wrap: anywhere; }
+#guided-response .guided-equipment-quantity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#guided-response .guided-equipment-quantity-grid label { display: grid; gap: 3px; color: #486577; font-size: .72rem; font-weight: 850; }
+#guided-response .guided-equipment-quantity-grid input { min-height: 30px; padding: 4px 6px; border: 1px solid #7b9eb4; border-radius: 4px; color: #102f46; background: #fff; }
+#guided-response .guided-step-four-critical { border-color: #d89a96; background: #fff8f7; }
+#guided-response .guided-step-four-critical-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#guided-response .guided-step-four-critical-grid > div { min-width: 0; }
+#guided-response .guided-step-four-critical-grid strong { color: #8f1d1d; font-size: .86rem; }
+#guided-response .guided-step-four-critical-grid .guided-phase-list { margin-top: 4px; padding-left: 1.35rem; color: #5f1b1b; font-size: .9rem; line-height: 1.35; }
+#guided-response .guided-step-four-critical-grid .guided-phase-list li::marker { color: #b42318; }
+#guided-response .guided-step-four-equipment + .guided-reference-disclosure { margin-top: 0; }
+
+@media (max-width: 700px) {
+  #guided-response .guided-equipment-selection-grid,
+  #guided-response .guided-equipment-advanced-grid,
+  #guided-response .guided-step-four-critical-grid { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 980px) {
   #guided-response .guided-action-workspace { grid-template-columns: minmax(0, 1fr); }
   #guided-response .guided-incident-support { grid-template-columns: repeat(2, minmax(0, 1fr)); }

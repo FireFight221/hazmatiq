@@ -2779,6 +2779,7 @@ function createIncidentRecord() {
     operationalMode: initialMode,
     operationalModeHistory: [{ mode: initialMode, changedAt: now.toISOString(), changedBy, source: 'commander', reason: 'Incident created' }],
     operationalChecklist: { tasks: operationalStatusTaskDefinitions.map((task) => ({ id: task.id, status: 'Not Started' })), history: [] },
+    equipmentInventory: defaultSpillControlEquipmentInventory(),
     incidentTimeline: [{ type: 'incident-created', changedAt: now.toISOString(), changedBy, source: 'system' }],
     icsForms: Object.fromEntries(icsFormCatalog.map(([id]) => [id, { fields: {}, createdAt: now.toISOString() }])),
   };
@@ -7090,7 +7091,8 @@ function guidedScenarioSummary(incident, profile, savedPlumeResult) {
   return [
     ['Identity / confidence', value(profile?.header?.name, incident?.chemicalName)],
     ['Container', value(incident?.containerType, incident?.containerProfileId)],
-    ['Size / quantity', value(incident?.containerSize && `${incident.containerSize} ${incident.containerSizeUnit || ''}`, incident?.quantity, savedPlumeResult?.release?.quantity)],
+    ['Container size / capacity', value(incident?.containerSize && `${incident.containerSize} ${incident.containerSizeUnit || ''}`, incident?.containerCapacity && `${incident.containerCapacity} ${incident.containerSizeUnit || ''}`)],
+    ['Released quantity', value(incident?.quantity, incident?.amountReleased, savedPlumeResult?.release?.quantity)],
     ['Release / leak', value(incident?.containerReleasePhase, incident?.containerReleaseLocation, incident?.releaseStatus, incident?.activeLeak ? 'Active leak' : '')],
     ['Fire / exposure', value(incident?.fireStatus, incident?.firePresent ? 'Fire present' : '', incident?.measuredLel && `Measured LEL ${incident.measuredLel}`)],
     ['Weather / monitoring', value(weather.windSpeed && `${weather.windSpeed} wind`, weather.windDirection && `from ${weather.windDirection}`, incident?.monitoringStatus)],
@@ -7168,6 +7170,124 @@ const guidedTacticalCheckDefinitions = Object.freeze([
   { id: 'notify-hospitals', phaseId: 'withdraw-decon-rehab', label: 'Notify Receiving Hospitals' },
   { id: 'responsible-party', phaseId: 'notifications-documentation', label: 'Document Responsible Party' },
 ]);
+
+// Shared incident equipment inventory. Product scope and compatibility stay
+// explicit: a category label is never treated as proof of chemical suitability.
+const spillControlEquipmentCatalog = Object.freeze([
+  {
+    id: 'oil-technics-sobo100-pad',
+    category: 'petroleum-oil-only',
+    categoryLabel: 'Petroleum / oil-only spill-control pad',
+    productName: 'SOBO100 standard pad',
+    productType: 'adsorbent',
+    form: 'pad',
+    manufacturer: 'Oil Technics',
+    productMaterial: 'SOBO100 standard oil-only pad; material specification not stated on the product page.',
+    compatibilityReference: 'Adsorbs oil and petroleum-based liquids while repelling water. Not a sodium hydroxide product; do not use for aqueous caustic releases.',
+    compatibilityStatus: 'Verified for oil-only scope; sodium hydroxide not suitable',
+    sourceUrl: 'https://www.oiltechnics.com/products/spill-response-and-absorbents/absorbents/oil-only/standard-pads/',
+    sodiumHydroxide: { status: 'not-suitable', reason: 'Oil-only product; repels water-based liquids.' },
+    availableQuantity: '',
+    assignedQuantity: '',
+  },
+  {
+    id: 'oil-technics-env510-boom',
+    category: 'petroleum-oil-only',
+    categoryLabel: 'Petroleum / oil-only spill-control boom',
+    productName: 'ENV510 marine / bilge boom',
+    productType: 'adsorbent',
+    form: 'boom',
+    manufacturer: 'Oil Technics',
+    productMaterial: 'ENV510 marine / bilge boom; inner sleeve, rope, and outer sleeve; fill material specification not stated on the product page.',
+    compatibilityReference: 'Adsorbs oil and petroleum-based liquids while repelling water. Not a sodium hydroxide product; do not use for aqueous caustic releases.',
+    compatibilityStatus: 'Verified for oil-only scope; sodium hydroxide not suitable',
+    sourceUrl: 'https://www.oiltechnics.com/products/spill-response-and-absorbents/absorbents/oil-only/absorbent-marine-and-bilge-booms/',
+    sodiumHydroxide: { status: 'not-suitable', reason: 'Oil-only product; repels water-based liquids.' },
+    availableQuantity: '',
+    assignedQuantity: '',
+  },
+  {
+    id: '3m-p110-chemical-pad',
+    category: 'acid-base-chemical',
+    categoryLabel: 'Acid/base chemical spill-control pad',
+    productName: 'P-110 chemical sorbent pad',
+    productType: 'absorbent',
+    form: 'pad',
+    manufacturer: '3M',
+    productMaterial: 'Chemical Sorbent Pad P-110; inert synthetic fibers principally polypropylene per the 3M chemical sorbents reference.',
+    compatibilityReference: '3M lists chemical sorbents for most aggressive and non-aggressive liquids. Sodium hydroxide: 30% has Good absorption and Good compatibility at 20°C and 60°C; 40% has No absorption at 20°C and 60°C. Test before use above 60°C and verify the exact product/application.',
+    compatibilityStatus: 'Verified with concentration and temperature limits; product/application check required',
+    sourceUrl: 'https://www.3m.com/3M/en_US/p/d/v000057371/',
+    compatibilitySourceUrl: 'https://multimedia.3m.com/mws/media/851509O/chemical-sorbents-compatibility-brochure-pdf.pdf?fn=3.+Chemical+Compatibility+brochu',
+    sodiumHydroxide: { status: 'verified-with-limits', concentration: '30% Good absorption; 40% No absorption', temperature: '20°C and 60°C listed Good compatibility; test above 60°C', reason: '3M chemical sorbent compatibility chart.' },
+    availableQuantity: '',
+    assignedQuantity: '',
+  },
+  {
+    id: '3m-p200-chemical-boom',
+    category: 'acid-base-chemical',
+    categoryLabel: 'Acid/base chemical spill-control boom',
+    productName: 'P-200 chemical sorbent mini-boom',
+    productType: 'absorbent',
+    form: 'boom',
+    manufacturer: '3M',
+    productMaterial: 'Chemical Sorbent Mini-Boom P-200; synthetic chemical sorbent in a scrim; exact fill composition is not stated on the product page.',
+    compatibilityReference: '3M lists chemical sorbent mini-booms for most aggressive and non-aggressive liquids. Sodium hydroxide: 30% has Good absorption and Good compatibility at 20°C and 60°C; 40% has No absorption at 20°C and 60°C. Test before use above 60°C and verify the exact product/application.',
+    compatibilityStatus: 'Verified with concentration and temperature limits; product/application check required',
+    sourceUrl: 'https://www.3m.com/3M/en_US/p/d/v000057372/',
+    compatibilitySourceUrl: 'https://multimedia.3m.com/mws/media/851509O/chemical-sorbents-compatibility-brochure-pdf.pdf?fn=3.+Chemical+Compatibility+brochu',
+    sodiumHydroxide: { status: 'verified-with-limits', concentration: '30% Good absorption; 40% No absorption', temperature: '20°C and 60°C listed Good compatibility; test above 60°C', reason: '3M chemical sorbent compatibility chart.' },
+    availableQuantity: '',
+    assignedQuantity: '',
+  },
+]);
+
+function defaultSpillControlEquipmentInventory() {
+  return spillControlEquipmentCatalog.map((item) => ({ ...item }));
+}
+
+function incidentEquipmentInventory(incident = getActiveIncident()) {
+  const saved = Array.isArray(incident?.equipmentInventory) ? incident.equipmentInventory : [];
+  const savedById = new Map(saved.filter((item) => item && typeof item === 'object' && item.id).map((item) => [item.id, item]));
+  const catalog = spillControlEquipmentCatalog.map((item) => ({ ...item, ...(savedById.get(item.id) || {}) }));
+  const custom = saved.filter((item) => item && typeof item === 'object' && item.id && !spillControlEquipmentCatalog.some((catalogItem) => catalogItem.id === item.id));
+  return [...catalog, ...custom];
+}
+
+function equipmentSelectionEntries(value) {
+  return (Array.isArray(value) ? value : []).map((item) => {
+    if (typeof item === 'string') return { equipmentId: item, quantity: '' };
+    return { equipmentId: item?.equipmentId || item?.id || '', quantity: item?.quantity ?? '' };
+  }).filter((item) => item.equipmentId);
+}
+
+function equipmentInventoryLabel(entry) {
+  return [entry.manufacturer, entry.productName || entry.productMaterial || 'Product not specified'].filter(Boolean).join(' · ');
+}
+
+function persistIncidentEquipmentInventory(inventory) {
+  const incident = getActiveIncident();
+  if (!incident) return false;
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === incident.incidentId);
+  if (index < 0) return false;
+  const now = new Date().toISOString();
+  incidents[index] = { ...incidents[index], equipmentInventory: inventory, updatedAt: now };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  renderIncidentCommandSnapshot();
+  renderIncidentCommandDashboard();
+  window.dispatchEvent(new CustomEvent('hazmatiq:equipment-inventory-updated', { detail: { inventory } }));
+  return true;
+}
+
+function equipmentCompatibilityForIncident(entry, incident = getActiveIncident()) {
+  const chemicalName = String(incident?.chemicalName || '').toLowerCase();
+  if (!/sodium hydroxide|caustic soda/.test(chemicalName)) return entry.compatibilityStatus || 'Product-specific verification required';
+  if (entry.sodiumHydroxide?.status === 'not-suitable') return 'Not suitable for sodium hydroxide — oil-only scope';
+  if (entry.sodiumHydroxide?.status === 'verified-with-limits') return `Sodium hydroxide limits: ${entry.sodiumHydroxide.concentration}; ${entry.sodiumHydroxide.temperature}`;
+  return 'Sodium hydroxide compatibility not verified for this product.';
+}
 
 function persistGuidedActionCheck(checkId, confirmed) {
   const definition = guidedTacticalCheckDefinitions.find((check) => check.id === checkId);
@@ -7270,48 +7390,69 @@ function createGuidedPhaseList(items, empty = noCurrentDataText, ordered = false
   return list;
 }
 
-function createGuidedEquipmentCompatibility(profile, incident, phaseState) {
-  const section = document.createElement('details');
-  section.className = 'guided-equipment-compatibility';
-  const heading = document.createElement('summary');
-  heading.textContent = 'Equipment & Resources';
+function createGuidedStepFourEquipment(incident, phaseState) {
+  const section = document.createElement('section');
+  section.className = 'guided-step-four-equipment';
+  const heading = document.createElement('h3'); heading.textContent = 'EQUIPMENT & TEAM';
   const note = document.createElement('p');
-  note.textContent = 'Record the selected equipment, container fit, pressure range, and compatible gasket/material.';
-  const grid = document.createElement('div');
-  grid.className = 'guided-equipment-grid';
-  const choice = document.createElement('label');
-  choice.textContent = 'Selected equipment';
-  const select = document.createElement('select');
-  select.setAttribute('aria-label', 'Selected containment equipment');
-  [['', 'No containment equipment selected'], ['a-kit', 'A Kit'], ['cromwell-plug-patch', 'Cromwell Plug & Patch Kit'], ['agency-approved', 'Other agency-approved containment equipment']].forEach(([value, label]) => {
-    const option = document.createElement('option'); option.value = value; option.textContent = label; select.append(option);
-  });
-  select.value = phaseState?.equipment?.selection || '';
-  const currentEquipment = () => {
-    const current = getActiveIncident();
-    const state = readGuidedResponsePhaseState(current, getIncidentChemicalContext(current)?.chemical || activeChemical);
-    return state['mitigation-strategy']?.equipment || {};
+  note.textContent = 'Select only product-specific spill-control equipment that has been checked for the observed chemical and conditions. These products absorb or adsorb; they are not neutralizers.';
+  const selected = new Map(equipmentSelectionEntries(phaseState?.equipmentSelections).map((item) => [item.equipmentId, item]));
+  const grid = document.createElement('div'); grid.className = 'guided-equipment-selection-grid';
+  const saveSelections = () => {
+    const equipmentSelections = [...grid.querySelectorAll('.guided-equipment-selection')].flatMap((row) => {
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      const quantity = row.querySelector('input[type="number"]');
+      return checkbox?.checked ? [{ equipmentId: checkbox.value, quantity: quantity?.value.trim() || '' }] : [];
+    });
+    persistGuidedResponsePhaseState('mitigation-strategy', { equipmentSelections });
   };
-  select.addEventListener('change', () => {
-    persistGuidedResponsePhaseState('mitigation-strategy', { equipment: { ...currentEquipment(), selection: select.value, compatibility: 'Needs verification' } });
-    verify.disabled = !select.value;
-    status.textContent = 'Equipment compatibility has not been recorded.';
+  incidentEquipmentInventory(incident).forEach((entry) => {
+    const label = document.createElement('label'); label.className = 'guided-equipment-selection';
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = entry.id; checkbox.checked = selected.has(entry.id);
+    checkbox.setAttribute('aria-label', `${entry.categoryLabel}: ${equipmentInventoryLabel(entry)}`);
+    const name = document.createElement('span'); name.textContent = `${entry.categoryLabel} · ${equipmentInventoryLabel(entry)}`;
+    const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0'; quantity.step = '1'; quantity.placeholder = 'Qty'; quantity.value = selected.get(entry.id)?.quantity || ''; quantity.disabled = !checkbox.checked;
+    quantity.setAttribute('aria-label', `${equipmentInventoryLabel(entry)} planned quantity`);
+    const status = document.createElement('small'); status.textContent = equipmentCompatibilityForIncident(entry, incident);
+    checkbox.addEventListener('change', () => { quantity.disabled = !checkbox.checked; saveSelections(); });
+    quantity.addEventListener('change', saveSelections);
+    label.append(checkbox, name, quantity, status); grid.append(label);
   });
-  choice.append(select); grid.append(choice);
-  [['Actual dimensions / configuration', incident?.containerSize ? `${incident.containerSize} ${incident.containerSizeUnit || ''}`.trim() : '', 'e.g., cylinder diameter, length, valve/neck configuration'], ['Pressure / condition', [incident?.containerPressure, incident?.containerPressureUnit, incident?.containerPressureCondition].filter(Boolean).join(' · '), 'Use observed gauge/specification or record unknown'], ['Gasket / material compatibility', '', 'Record manufacturer/specification confirmation']].forEach(([label, value, placeholder]) => {
-    const field = document.createElement('label'); field.textContent = label;
-    const input = document.createElement('input'); input.type = 'text'; input.value = phaseState?.equipment?.[label] || value || ''; input.placeholder = placeholder;
-    input.addEventListener('change', () => persistGuidedResponsePhaseState('mitigation-strategy', { equipment: { ...currentEquipment(), [label]: input.value.trim(), selection: select.value } }));
-    field.append(input); grid.append(field);
+  const team = document.createElement('div'); team.className = 'guided-step-four-team';
+  const teamHeading = document.createElement('strong'); teamHeading.textContent = 'Assigned team'; team.append(teamHeading);
+  const assignments = guidedIncidentAssignments(incident).filter((assignment) => assignment.phaseId === 'mitigation-strategy');
+  const teamList = document.createElement('ul');
+  (assignments.length ? assignments : [{ personnel: 'No team recorded', unit: 'Assignment remains unconfirmed', responsibility: '' }]).forEach((assignment) => {
+    const item = document.createElement('li');
+    item.textContent = [assignment.personnel, assignment.unit, assignment.role || assignment.responsibility, assignment.status].filter(Boolean).join(' · ');
+    teamList.append(item);
   });
-  const status = document.createElement('p'); status.className = 'guided-equipment-status';
-  status.textContent = phaseState?.equipment?.compatibility === 'Verified'
-    ? 'Compatibility recorded as verified by the commander; retain the supporting kit specification / agency procedure in the incident record.'
-    : 'Equipment compatibility has not been recorded.';
-  const verify = document.createElement('button'); verify.type = 'button'; verify.className = 'ghost-btn'; verify.textContent = 'Record compatibility verified'; verify.disabled = !select.value;
-  verify.addEventListener('click', () => { persistGuidedResponsePhaseState('mitigation-strategy', { equipment: { ...currentEquipment(), selection: select.value, compatibility: 'Verified', verifiedAt: new Date().toISOString() } }); status.textContent = 'Compatibility recorded as verified by the commander; retain the supporting kit specification / agency procedure in the incident record.'; });
-  const source = document.createElement('small'); source.textContent = 'Record the kit specification or agency procedure in the phase notes.';
-  section.append(heading, note, grid, status, verify, source);
+  team.append(teamList);
+  const advanced = document.createElement('details'); advanced.className = 'guided-equipment-advanced';
+  const advancedSummary = document.createElement('summary'); advancedSummary.textContent = 'Advanced equipment specifications (optional)'; advanced.append(advancedSummary);
+  const advancedGrid = document.createElement('div'); advancedGrid.className = 'guided-equipment-advanced-grid';
+  incidentEquipmentInventory(incident).forEach((entry) => {
+    const item = document.createElement('article'); item.className = 'guided-equipment-spec';
+    const title = document.createElement('strong'); title.textContent = equipmentInventoryLabel(entry);
+    const metadata = document.createElement('p'); metadata.textContent = `${entry.productType || 'Product type not recorded'} · ${entry.form || 'Form not recorded'} · ${entry.categoryLabel}`;
+    const reference = document.createElement('p'); reference.textContent = entry.compatibilityReference || 'Compatibility reference not recorded.';
+    const fields = document.createElement('div'); fields.className = 'guided-equipment-quantity-grid';
+    [['Available quantity', 'availableQuantity'], ['Assigned quantity', 'assignedQuantity']].forEach(([labelText, key]) => {
+      const field = document.createElement('label'); field.textContent = labelText;
+      const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.step = '1'; input.placeholder = 'Not recorded'; input.value = entry[key] ?? '';
+      input.addEventListener('change', () => {
+        const next = incidentEquipmentInventory(getActiveIncident()).map((candidate) => candidate.id === entry.id ? { ...candidate, [key]: input.value.trim() } : candidate);
+        persistIncidentEquipmentInventory(next);
+      });
+      field.append(input); fields.append(field);
+    });
+    item.append(title, metadata, reference, fields);
+    if (entry.sourceUrl) { const source = document.createElement('a'); source.href = entry.sourceUrl; source.target = '_blank'; source.rel = 'noreferrer'; source.textContent = 'Manufacturer reference'; item.append(source); }
+    if (entry.compatibilitySourceUrl) { const source = document.createElement('a'); source.href = entry.compatibilitySourceUrl; source.target = '_blank'; source.rel = 'noreferrer'; source.textContent = 'Compatibility reference'; item.append(source); }
+    advancedGrid.append(item);
+  });
+  advanced.append(advancedGrid);
+  section.append(heading, note, grid, team, advanced);
   return section;
 }
 
@@ -7468,6 +7609,28 @@ function createGuidedRoleAssignment(phase, incident, record) {
   statusControlRow.className = 'guided-assignment-control';
   statusControlRow.append(statusSelect);
   statusField.append(statusControlRow); grid.append(statusField);
+  const equipmentField = document.createElement('fieldset');
+  equipmentField.className = 'guided-assignment-equipment-field';
+  const equipmentLegend = document.createElement('legend'); equipmentLegend.textContent = 'Spill-control equipment (multiple selections allowed)'; equipmentField.append(equipmentLegend);
+  const equipmentGrid = document.createElement('div'); equipmentGrid.className = 'guided-equipment-selection-grid';
+  const selectedEquipment = new Map(equipmentSelectionEntries(assignment.equipmentSelections || assignment.equipmentIds).map((selection) => [selection.equipmentId, selection]));
+  incidentEquipmentInventory(incident).forEach((entry) => {
+    const label = document.createElement('label'); label.className = 'guided-equipment-selection';
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = entry.id; checkbox.checked = selectedEquipment.has(entry.id);
+    checkbox.setAttribute('aria-label', `${entry.categoryLabel}: ${equipmentInventoryLabel(entry)}`);
+    const name = document.createElement('span'); name.textContent = `${entry.categoryLabel} · ${equipmentInventoryLabel(entry)}`;
+    const quantity = document.createElement('input'); quantity.type = 'number'; quantity.min = '0'; quantity.step = '1'; quantity.placeholder = 'Qty'; quantity.value = selectedEquipment.get(entry.id)?.quantity || ''; quantity.disabled = !checkbox.checked;
+    quantity.setAttribute('aria-label', `${equipmentInventoryLabel(entry)} assigned quantity`);
+    checkbox.addEventListener('change', () => { quantity.disabled = !checkbox.checked; });
+    const status = document.createElement('small'); status.textContent = equipmentCompatibilityForIncident(entry, incident);
+    label.append(checkbox, name, quantity, status); equipmentGrid.append(label);
+  });
+  equipmentField.append(equipmentGrid); grid.append(equipmentField);
+  const readEquipmentSelections = () => [...equipmentGrid.querySelectorAll('.guided-equipment-selection')].flatMap((row) => {
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    const quantity = row.querySelector('input[type="number"]');
+    return checkbox?.checked ? [{ equipmentId: checkbox.value, quantity: quantity?.value.trim() || '' }] : [];
+  });
   const feedback = document.createElement('p');
   feedback.className = 'guided-assignment-feedback';
   feedback.setAttribute('role', 'status');
@@ -7476,6 +7639,7 @@ function createGuidedRoleAssignment(phase, incident, record) {
       ...assignment,
       assignmentId,
       ...Object.fromEntries(Object.entries(controls).map(([name, control]) => [name, control.value.trim()])),
+      equipmentSelections: readEquipmentSelections(),
       status: statusSelect.value === 'Suggested' ? 'Confirmed' : statusSelect.value,
     });
     if (!result.ok) {
@@ -7599,6 +7763,11 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     addDetail('Supervisor', assignment.supervisor);
     addDetail('Notes', assignment.notes || assignment.note);
     addDetail('Location', assignment.locationStatus || 'Location not set');
+    const selectedEquipment = equipmentSelectionEntries(assignment.equipmentSelections || assignment.equipmentIds)
+      .map((selection) => incidentEquipmentInventory(incident).find((entry) => entry.id === selection.equipmentId))
+      .filter(Boolean)
+      .map(equipmentInventoryLabel);
+    addDetail('Spill-control equipment', selectedEquipment.length ? selectedEquipment.join(' · ') : 'Not selected');
     addDetail('Last changed', assignment.updatedAt ? new Date(assignment.updatedAt).toLocaleString() : 'Not available');
     const more = document.createElement('details');
     more.className = 'incident-assignment-more';
@@ -7650,12 +7819,43 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     const statusSelect = document.createElement('select');
     [['Suggested', 'Suggested — not assigned'], ['Planned', 'Planned — awaiting confirmation'], ['Confirmed', 'Confirmed — actual assignment']].forEach(([value, label]) => { const option = document.createElement('option'); option.value = value; option.textContent = label; statusSelect.append(option); });
     statusSelect.value = assignment.status || 'Suggested'; statusField.append(statusSelect); grid.append(statusField);
+    const equipmentField = document.createElement('fieldset');
+    equipmentField.className = 'guided-assignment-equipment-field';
+    const equipmentLegend = document.createElement('legend');
+    equipmentLegend.textContent = 'Spill-control equipment (multiple selections allowed)';
+    equipmentField.append(equipmentLegend);
+    const selectedEquipment = new Map(equipmentSelectionEntries(assignment.equipmentSelections || assignment.equipmentIds).map((selection) => [selection.equipmentId, selection]));
+    const equipmentGrid = document.createElement('div');
+    equipmentGrid.className = 'guided-equipment-selection-grid';
+    incidentEquipmentInventory(incident).forEach((entry) => {
+      const label = document.createElement('label');
+      label.className = 'guided-equipment-selection';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.value = entry.id; checkbox.checked = selectedEquipment.has(entry.id);
+      checkbox.setAttribute('aria-label', `${entry.categoryLabel}: ${equipmentInventoryLabel(entry)}`);
+      const name = document.createElement('span');
+      name.textContent = `${entry.categoryLabel} · ${equipmentInventoryLabel(entry)}`;
+      const quantity = document.createElement('input');
+      quantity.type = 'number'; quantity.min = '0'; quantity.step = '1'; quantity.placeholder = 'Qty';
+      quantity.value = selectedEquipment.get(entry.id)?.quantity || '';
+      quantity.disabled = !checkbox.checked;
+      quantity.setAttribute('aria-label', `${equipmentInventoryLabel(entry)} assigned quantity`);
+      checkbox.addEventListener('change', () => { quantity.disabled = !checkbox.checked; });
+      const status = document.createElement('small'); status.textContent = equipmentCompatibilityForIncident(entry, incident);
+      label.append(checkbox, name, quantity, status); equipmentGrid.append(label);
+    });
+    equipmentField.append(equipmentGrid); grid.append(equipmentField);
     const actions = document.createElement('div'); actions.className = 'guided-assignment-actions';
     const saveButton = document.createElement('button'); saveButton.type = 'button'; saveButton.className = 'ghost-btn guided-assignment-action'; saveButton.textContent = assignment.assignmentId ? 'Update' : 'Assign';
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ghost-btn'; cancel.textContent = 'Cancel'; cancel.addEventListener('click', () => renderIncidentAssignmentEditor(getActiveIncident(), editor, true));
     const feedback = document.createElement('p'); feedback.className = 'guided-assignment-feedback'; feedback.setAttribute('role', 'status');
     saveButton.addEventListener('click', () => {
-      const result = persistIncidentAssignment({ ...assignment, ...Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, input.value.trim()])), phaseId: phaseSelect.value, status: statusSelect.value }, assignment.phaseId);
+      const equipmentSelections = [...equipmentGrid.querySelectorAll('.guided-equipment-selection')].flatMap((row) => {
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        const quantity = row.querySelector('input[type="number"]');
+        return checkbox?.checked ? [{ equipmentId: checkbox.value, quantity: quantity?.value.trim() || '' }] : [];
+      });
+      const result = persistIncidentAssignment({ ...assignment, ...Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, input.value.trim()])), equipmentSelections, phaseId: phaseSelect.value, status: statusSelect.value }, assignment.phaseId);
       if (!result.ok) { feedback.dataset.state = 'error'; feedback.textContent = result.error; return; }
       renderIncidentAssignmentEditor(getActiveIncident(), editor, true);
     });
@@ -7773,8 +7973,10 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   summary.append(number, icon, title, state);
   const body = document.createElement('div'); body.className = 'guided-phase-body';
   const goal = document.createElement('div'); goal.className = 'guided-phase-goal'; goal.textContent = `GOAL: ${record.planGoal || phase.objective}`;
-  const scenario = document.createElement('details'); scenario.className = 'guided-phase-scenario';
-  const scenarioHeading = document.createElement('summary'); scenarioHeading.textContent = 'Scenario-specific guidance and recorded facts'; scenario.append(scenarioHeading);
+  const scenario = document.createElement(phase.id === 'mitigation-strategy' ? 'section' : 'details');
+  scenario.className = phase.id === 'mitigation-strategy' ? 'guided-step-four-facts' : 'guided-phase-scenario';
+  const scenarioHeading = document.createElement(phase.id === 'mitigation-strategy' ? 'h3' : 'summary');
+  scenarioHeading.textContent = phase.id === 'mitigation-strategy' ? 'KNOWN INCIDENT FACTS' : 'Scenario-specific guidance and recorded facts'; scenario.append(scenarioHeading);
   const scenarioGrid = document.createElement('div'); scenarioGrid.className = 'guided-scenario-grid';
   scenarioSummary.forEach(([label, value]) => { const item = document.createElement('div'); const term = document.createElement('span'); term.textContent = label; const detail = document.createElement('strong'); detail.textContent = guidedDisplayValue(value); item.append(term, detail); scenarioGrid.append(item); });
   scenario.append(scenarioGrid);
@@ -7788,16 +7990,19 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   else if (phase.id === 'withdraw-decon-rehab') productGuidance.textContent = model.operationalRecommendations?.decon?.why || model.decon?.why || 'No product-specific decontamination rationale is available from the current source set.';
   else if (phase.id === 'identify-isolate-notify' || phase.id === 'notifications-documentation') productGuidance.textContent = model.operationalRecommendations?.notify?.why || model.isolation?.why || 'Notification and protective-action requirements remain condition-based and jurisdiction-specific.';
   else productGuidance.textContent = stage?.why || 'No additional product-specific guidance is available from the current source set.';
-  const objectives = document.createElement('section'); const objectivesHeading = document.createElement('h3'); objectivesHeading.textContent = 'OBJECTIVES';
+  const objectives = document.createElement('section'); objectives.className = phase.id === 'mitigation-strategy' ? 'guided-step-four-action-plan' : '';
+  const objectivesHeading = document.createElement('h3'); objectivesHeading.textContent = phase.id === 'mitigation-strategy' ? 'ACTION PLAN' : 'OBJECTIVES';
   objectives.append(objectivesHeading, createGuidedPhaseList(Array.isArray(record.planObjectives) ? record.planObjectives : guidedObjectiveEntries(phase), noCurrentDataText, true));
   const guidance = document.createElement('p'); guidance.className = 'guided-phase-product-guidance'; guidance.textContent = productGuidance.textContent; scenario.append(guidance);
-  const editPlan = document.createElement('details'); editPlan.className = 'guided-plan-edit';
-  const editSummary = document.createElement('summary'); editSummary.textContent = 'Edit Goal / Tasks';
+  const editPlan = document.createElement('div'); editPlan.className = 'guided-plan-edit';
+  const editButton = document.createElement('button'); editButton.type = 'button'; editButton.className = 'ghost-btn guided-edit-plan-button'; editButton.textContent = 'Edit Plan';
+  const editFields = document.createElement('div'); editFields.className = 'guided-plan-edit-fields'; editFields.hidden = true;
   const goalLabel = document.createElement('label'); goalLabel.textContent = 'Goal';
   const goalInput = document.createElement('input'); goalInput.value = record.planGoal || phase.objective; goalInput.setAttribute('aria-label', `Phase ${phase.number} plan goal`); goalLabel.append(goalInput);
   const taskLabel = document.createElement('label'); taskLabel.textContent = 'Planned Tasks — One Per Line';
   const taskInput = document.createElement('textarea'); taskInput.rows = 4; taskInput.value = (record.planObjectives || phase.steps).join('\n'); taskInput.setAttribute('aria-label', `Phase ${phase.number} planned tasks`); taskLabel.append(taskInput);
-  editPlan.append(editSummary, goalLabel, taskLabel);
+  editFields.append(goalLabel, taskLabel); editPlan.append(editButton, editFields);
+  editButton.addEventListener('click', () => { editFields.hidden = !editFields.hidden; if (!editFields.hidden) goalInput.focus(); });
   const planPatch = () => {
     const tasks = taskInput.value.split('\n').map((line) => line.trim()).filter(Boolean);
     return {
@@ -7813,8 +8018,16 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
     renderGuidedIncidentSupport();
   };
   goalInput.addEventListener('change', savePlanEdit); taskInput.addEventListener('change', savePlanEdit);
-  const conditions = document.createElement('details'); conditions.className = 'guided-conditions'; const conditionsHeading = document.createElement('summary'); conditionsHeading.textContent = 'Conditions & Considerations';
-  conditions.append(conditionsHeading, createGuidedPhaseList(phase.conditions));
+  const conditions = phase.id === 'mitigation-strategy' ? document.createElement('section') : document.createElement('details');
+  conditions.className = phase.id === 'mitigation-strategy' ? 'guided-step-four-critical' : 'guided-conditions';
+  const conditionsHeading = document.createElement(phase.id === 'mitigation-strategy' ? 'h3' : 'summary');
+  conditionsHeading.textContent = phase.id === 'mitigation-strategy' ? 'CRITICAL CONDITIONS / WITHDRAWAL' : 'Conditions & Considerations';
+  if (phase.id === 'mitigation-strategy') {
+    const criticalGrid = document.createElement('div'); criticalGrid.className = 'guided-step-four-critical-grid';
+    const requirements = document.createElement('div'); const requirementsHeading = document.createElement('strong'); requirementsHeading.textContent = 'Critical conditions'; requirements.append(requirementsHeading, createGuidedPhaseList(phase.conditions));
+    const withdrawal = document.createElement('div'); const withdrawalHeading = document.createElement('strong'); withdrawalHeading.textContent = 'Withdrawal triggers'; withdrawal.append(withdrawalHeading, createGuidedPhaseList(phase.stop));
+    criticalGrid.append(requirements, withdrawal); conditions.append(conditionsHeading, criticalGrid);
+  } else conditions.append(conditionsHeading, createGuidedPhaseList(phase.conditions));
   const checks = guidedTacticalCheckDefinitions.filter((check) => check.phaseId === phase.id);
   if (checks.length && incident) {
     const checkPanel = document.createElement('div'); checkPanel.className = 'guided-shared-checks';
@@ -7842,7 +8055,8 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
     ]));
     readiness.append(readinessSummary, readinessBody); conditions.append(readiness);
   }
-  const stop = document.createElement('section'); const stopHeading = document.createElement('h3'); stopHeading.textContent = 'STOP / WITHDRAW / REASSESS'; stop.append(stopHeading, createGuidedPhaseList(phase.stop));
+  const stop = phase.id === 'mitigation-strategy' ? null : document.createElement('section');
+  if (stop) { const stopHeading = document.createElement('h3'); stopHeading.textContent = 'STOP / WITHDRAW / REASSESS'; stop.append(stopHeading, createGuidedPhaseList(phase.stop)); }
   const goalStatus = document.createElement('section'); goalStatus.className = 'guided-goal-status';
   const goalStatusHeading = document.createElement('h3'); goalStatusHeading.textContent = 'Goal Status';
   const goalStatusNote = document.createElement('small');
@@ -7866,7 +8080,8 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   nextDecision.append(nextDecisionHeading, nextDecisionText);
   const decisionGrid = document.createElement('div'); decisionGrid.className = 'guided-phase-decision-grid';
   decisionGrid.append(nextDecision);
-  body.append(goal, objectives, editPlan, conditions, stop, decisionGrid, scenario);
+  const stepFourEquipment = phase.id === 'mitigation-strategy' ? createGuidedStepFourEquipment(incident, record) : null;
+  body.append(goal, ...(phase.id === 'mitigation-strategy' ? [scenario] : []), objectives, editPlan, ...(stepFourEquipment ? [stepFourEquipment] : []), conditions, ...(stop ? [stop] : []), decisionGrid, ...(phase.id === 'mitigation-strategy' ? [] : [scenario]));
   if (phase.id === 'withdraw-decon-rehab') {
     const care = document.createElement('details'); care.className = 'guided-operational-guidance';
     const careHeading = document.createElement('summary'); careHeading.textContent = 'Decontamination & Medical / Rehab Guidance';
@@ -7877,7 +8092,6 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
       ...medicalFacts.map(guidedCompactPhaseFact),
     ])); body.append(care);
   }
-  if (phase.id === 'mitigation-strategy') body.append(createGuidedEquipmentCompatibility(profile, incident, record));
   const references = document.createElement('details'); references.className = 'guided-reference-disclosure';
   const referencesSummary = document.createElement('summary'); referencesSummary.textContent = 'References & Sources';
   references.append(referencesSummary, createGuidedReferenceSection(phase, phaseSources, {
@@ -19480,6 +19694,9 @@ window.HazMatIQ.showChemicalSelectionPrompt = showChemicalSelectionPrompt;
 
 window.HazMatIQ.incidentCommandLegacy = {
   incidentResponderIdentity,
+  spillControlEquipmentCatalog,
+  incidentEquipmentInventory,
+  persistIncidentEquipmentInventory,
   persistIncidentAssignment,
   removeIncidentAssignment,
   renderIncidentAssignmentEditor,
@@ -19493,6 +19710,7 @@ window.HazMatIQ.incidentCommandLegacy = {
     return {
       incident,
       assignments: guidedIncidentAssignments(incident),
+      equipmentInventory: incidentEquipmentInventory(incident),
       checks: guidedTacticalCheckDefinitions.map((check) => ({ ...check, confirmed: phaseState[check.phaseId]?.actionChecks?.[check.id]?.confirmed === true })),
       phases: guidedPhaseDefinitions.map((phase) => ({ id: phase.id, number: phase.number, title: phase.title, status: guidedGoalStatus(phaseState[phase.id]) })),
       map: map.incidentId === incident?.incidentId ? map : null,
