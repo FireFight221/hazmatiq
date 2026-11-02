@@ -294,7 +294,13 @@
     }
     map.resize();
     if (!map.isStyleLoaded()) return;
-    const geometry = ctx.plume?.output?.geoJson || ctx.plume?.output?.geometry || ctx.plume?.plumeOutput?.geometry;
+    const plumeGeometries = [
+      ctx.plume?.output?.geoJson || ctx.plume?.output?.geometry || ctx.plume?.plumeOutput?.geometry,
+      ctx.plume?.output?.isolationGeometry || ctx.plume?.output?.isolationOverlay?.geometry,
+    ].filter((value) => value?.type === 'FeatureCollection');
+    const geometry = plumeGeometries.length
+      ? { type: 'FeatureCollection', features: plumeGeometries.flatMap((value) => value.features || []) }
+      : null;
     const key = JSON.stringify([points, geometry]); if (key === mapKey) return; mapKey = key;
     mapMarkers.forEach((marker) => marker.remove());
     mapMarkers = points.map((point) => {

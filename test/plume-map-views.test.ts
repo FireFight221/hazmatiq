@@ -340,9 +340,13 @@ describe("plume map views", () => {
     expect(html).toContain('id="plume-erg-period"');
     expect(plumeUi).toContain("function ergOverlayToGeoJson(result, origin)");
     expect(plumeUi).toContain("overlayMode: 'erg-protective-action'");
+    expect(plumeUi).toContain("overlayMode: 'erg-initial-isolation'");
     expect(plumeUi).toContain("color: '#ff7a00'");
-    expect(plumeUi).toContain('ERG Initial Isolation / Protective Action Overlay — not a modeled plume.');
-    expect(plumeUi).toContain('Bright orange: ERG Initial Isolation / Protective Action guide area — not a toxic concentration zone');
+    expect(plumeUi).toContain('ERG Initial Isolation / Protective Action Overlay — not a modeled plume or AEGL zone.');
+    expect(plumeUi).toContain('Bright orange circle: ERG Initial Isolation. Any protective-action guide area is separate; neither is a toxic concentration zone.');
+    expect(plumeUi).toContain('function renderErgOverlay(geojson, label)');
+    expect(plumeUi).toContain('isolationGeometry: currentErgIsolationGeoJson');
+    expect(plumeUi).toContain('Not populated from an ERG initial-isolation or protective-action distance.');
     expect(plumeUi).toContain('No Current Data Exists');
     expect(plumeUi).toContain('No approved AEGL / LOC or ERG isolation/protective-action distance is available.');
   });

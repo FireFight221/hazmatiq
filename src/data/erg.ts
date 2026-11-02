@@ -27,6 +27,51 @@ export interface ErgEntry {
   tih?: boolean; // toxic by inhalation
 }
 
+export interface ErgGuideInitialIsolation {
+  un: string;
+  name: string;
+  guide: string;
+  distanceM: number;
+  condition: "liquid" | "solid";
+  reference: string;
+  source: string;
+  sourceUrl: string;
+}
+
+// Guide 154 provides an immediate precautionary measure for non-highlighted
+// corrosives instead of a Table 1 green-table distance. Keep these entries
+// separate from ERG_TABLE_1 so a guide-text distance is never presented as a
+// Table 1 value. The sodium hydroxide records intentionally remain form
+// specific: UN 1823 is solid and UN 1824 is solution/liquid.
+export const ERG_GUIDE_INITIAL_ISOLATION: readonly ErgGuideInitialIsolation[] = [
+  {
+    un: "1823",
+    name: "Sodium hydroxide, solid",
+    guide: "154",
+    distanceM: 25,
+    condition: "solid",
+    reference: "ERG 2024 Guide 154, Evacuation — Immediate precautionary measure",
+    source: "PHMSA Emergency Response Guidebook 2024 Guide 154",
+    sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
+  },
+  {
+    un: "1824",
+    name: "Sodium hydroxide, solution",
+    guide: "154",
+    distanceM: 50,
+    condition: "liquid",
+    reference: "ERG 2024 Guide 154, Evacuation — Immediate precautionary measure",
+    source: "PHMSA Emergency Response Guidebook 2024 Guide 154",
+    sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
+  },
+];
+
+export function lookupErgGuideInitialIsolation(un: string, guide = ""): ErgGuideInitialIsolation | undefined {
+  const normalizedGuide = String(guide).replace(/P$/i, "");
+  return ERG_GUIDE_INITIAL_ISOLATION.find((entry) => entry.un === String(un).trim()
+    && (!normalizedGuide || entry.guide === normalizedGuide));
+}
+
 export interface ErgAdditionalTable {
   table: 2 | 3;
   title: string;

@@ -38,7 +38,7 @@ import { PLUME_MODEL_MODES, plumeModelModeLabel } from "../../src/lib/model/plum
 import { selectPlumeModelFamily } from "../../src/lib/model/plumeModelSelector.js";
 import { validatePlumeWeather } from "../../src/lib/model/plumeWeatherValidation.js";
 import { validateSourceStrength } from "../../src/lib/model/sourceStrengthValidation.js";
-import { ERG_TABLE_1, getErgAdditionalTables, getErgContainerDistances } from "../../src/data/erg.js";
+import { ERG_TABLE_1, getErgAdditionalTables, getErgContainerDistances, lookupErgGuideInitialIsolation } from "../../src/data/erg.js";
 import { molecularWeightOf } from "../../src/data/molecular-weight.js";
 import { searchStarterHazards } from "../../src/lib/hazard-id/hazardSearch.js";
 import { starterHazardProfile } from "../../src/lib/hazard-id/hazardProfileAdapter.js";
@@ -72,6 +72,15 @@ function parsedStringList(value: unknown): string[] {
   }
 }
 
+function normalizedTransportList(value: unknown): string[] {
+  const parsed = parsedStringList(value);
+  if (parsed.length) return parsed.map((item) => item.replace(/^(?:UN|NA)\s*/i, "").trim());
+  return String(value ?? "")
+    .split(/[,;/|]/)
+    .map((item) => item.replace(/^(?:UN|NA)\s*/i, "").trim())
+    .filter(Boolean);
+}
+
 function parsedSourceNames(value: unknown): string[] {
   try {
     const parsed = JSON.parse(String(value ?? "[]"));
@@ -97,6 +106,85 @@ function resolveCanonicalChemical(
     if (transportMatch) return transportMatch;
   }
   return null;
+}
+
+function resolveErgOverlayDistance({
+  ergRows,
+  canonicalUns,
+  guide,
+  spillSize,
+  period,
+}: {
+  ergRows: Array<{ un: string; name: string; guide: string; [key: string]: unknown }>;
+  canonicalUns: string[];
+  guide: string;
+  spillSize: "small" | "large";
+  period: "day" | "night";
+}) {
+  const normalizedGuide = String(guide || "").replace(/P$/i, "");
+  const ergRow = ergRows.find((row) => row.guide.replace(/P$/i, "") === normalizedGuide) ?? ergRows[0];
+  const initialField = `${spillSize}Initial${period === "day" ? "Day" : "Night"}Ft` as const;
+  const protectiveField = `${spillSize}Protective${period === "day" ? "Day" : "Night"}Mi` as const;
+  const tableInitialFt = Number(ergRow?.[initialField]);
+  const protectiveActionMi = Number(ergRow?.[protectiveField]);
+  if (ergRow && (tableInitialFt > 0 || protectiveActionMi > 0)) {
+    return {
+      un: ergRow.un,
+      guide: ergRow.guide,
+      materialName: ergRow.name,
+      spillSize,
+      period,
+      initialIsolationFt: tableInitialFt,
+      initialIsolationMeters: tableInitialFt > 0 ? tableInitialFt * 0.3048 : null,
+      initialIsolationDistance: tableInitialFt > 0 ? {
+        value: tableInitialFt,
+        units: "ft",
+        basis: "ERG 2024 Table 1",
+        reference: "ERG 2024 Table 1 — Initial Isolation and Protective Action Distances",
+      } : null,
+      protectiveActionMi: protectiveActionMi > 0 ? protectiveActionMi : 0,
+      source: "PHMSA Emergency Response Guidebook 2024 Table 1",
+      sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
+      reference: "ERG 2024 Table 1 — Initial Isolation and Protective Action Distances",
+      provenanceStatus: "PHMSA ERG 2024 Table 1 source",
+      limitations: [
+        "This is an ERG initial-isolation/protective-action guide overlay, not a dispersion model or toxic concentration contour.",
+        "Verify the UN/NA identification, spill size, day/night condition, wind direction, current ERG, field observations, monitoring, agency SOPs, and Incident Command.",
+      ],
+    };
+  }
+
+  // Some Guide 154 materials are indexed in the ERG but are not highlighted
+  // in Table 1. Use only an explicitly sourced guide-text distance for the
+  // exact UN/form; never borrow a distance from another sodium hydroxide form.
+  const guideDistance = canonicalUns
+    .map((un) => lookupErgGuideInitialIsolation(un, normalizedGuide))
+    .find(Boolean);
+  if (!guideDistance) return null;
+  return {
+    un: guideDistance.un,
+    guide: guideDistance.guide,
+    materialName: guideDistance.name,
+    spillSize,
+    period,
+    initialIsolationFt: guideDistance.distanceM * 3.28084,
+    initialIsolationMeters: guideDistance.distanceM,
+    initialIsolationDistance: {
+      value: guideDistance.distanceM,
+      units: "m",
+      basis: "ERG 2024 Guide text",
+      reference: guideDistance.reference,
+    },
+    protectiveActionMi: 0,
+    source: guideDistance.source,
+    sourceUrl: guideDistance.sourceUrl,
+    reference: guideDistance.reference,
+    provenanceStatus: "PHMSA ERG 2024 Guide 154 source",
+    limitations: [
+      "This is an ERG immediate-precautionary-distance guide overlay, not a dispersion model or toxic concentration contour.",
+      "Guide 154 distinguishes the solid and solution forms; verify the UN/NA identity, formulation, field observations, monitoring, agency SOPs, and Incident Command.",
+    ],
+  };
 }
 
 function plumeBlockedFields(display = "Cannot Plot — Missing Required Data") {
@@ -704,6 +792,17 @@ app.get("/api/plume/availability", async (c) => {
       modelModeLabel: plumeModelModeLabel(PLUME_MODEL_MODES.NO_CURRENT_DATA_EXISTS),
     }, 422);
   }
+  const requestedUn = String(c.req.query("unNumber") || "").replace(/^(?:UN|NA)\s*/i, "").trim();
+  if (requestedUn && !normalizedTransportList(companionProfile.header.un).includes(requestedUn)) {
+    return c.json({
+      mode: "no-distance-data",
+      error: `The selected UN/NA ${requestedUn} does not match the verified Chemical Companion master form; unresolved transport forms cannot drive chemical-specific plume guidance.`,
+      display: "No Current Data Exists",
+      modelMode: PLUME_MODEL_MODES.NO_CURRENT_DATA_EXISTS,
+      modelModeLabel: plumeModelModeLabel(PLUME_MODEL_MODES.NO_CURRENT_DATA_EXISTS),
+      endpointStatus: "The selected transport form is not linked to this verified master profile.",
+    });
+  }
 
   const db = getDb();
   const chemicalRows = await db.select().from(schema.chemicals);
@@ -731,7 +830,8 @@ app.get("/api/plume/availability", async (c) => {
   const ergRow = ergRows.find((row) => row.guide.replace(/P$/i, "") === canonicalGuide)
     ?? ergRows[0];
   const endpoint = selectVerifiedAeglEndpoint(canonicalChemical.id, companionCas, requestedDuration, masterChemicalId);
-  if (endpoint) {
+  const ergOnly = c.req.query("ergOnly") === "true";
+  if (endpoint && !ergOnly) {
     const sources = parsedSourceNames(canonicalChemical.sources);
     return c.json({
       mode: "aegl-plume",
@@ -756,12 +856,17 @@ app.get("/api/plume/availability", async (c) => {
     });
   }
 
-  if (ergRow) {
+  {
     const spillSize = c.req.query("ergSpillSize") === "small" ? "small" : "large";
     const period = c.req.query("ergPeriod") === "day" ? "day" : "night";
-    const initialIsolationFt = Number(ergRow[`${spillSize}Initial${period === "day" ? "Day" : "Night"}Ft`]);
-    const protectiveActionMi = Number(ergRow[`${spillSize}Protective${period === "day" ? "Day" : "Night"}Mi`]);
-    if (initialIsolationFt > 0 || protectiveActionMi > 0) {
+    const ergOverlay = resolveErgOverlayDistance({
+      ergRows,
+      canonicalUns,
+      guide: canonicalGuide,
+      spillSize,
+      period,
+    });
+    if (ergOverlay) {
       return c.json({
         mode: "erg-protective-action",
         display: "ERG Initial Isolation / Protective Action Overlay",
@@ -777,22 +882,7 @@ app.get("/api/plume/availability", async (c) => {
           casNumber: companionCas,
           sourceStatus: "Verified Chemical Companion Master Record",
         },
-        ergOverlay: {
-          un: ergRow.un,
-          guide: ergRow.guide,
-          materialName: ergRow.name,
-          spillSize,
-          period,
-          initialIsolationFt,
-          protectiveActionMi,
-          source: "PHMSA Emergency Response Guidebook 2024 Table 1",
-          sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
-          provenanceStatus: "Requires row-level verification against the current PHMSA ERG",
-          limitations: [
-            "This is an ERG initial-isolation/protective-action guide overlay, not a dispersion model or toxic concentration contour.",
-            "Verify the UN/NA identification, spill size, day/night condition, wind direction, current ERG, field observations, monitoring, agency SOPs, and Incident Command.",
-          ],
-        },
+        ergOverlay,
       });
     }
   }
@@ -850,6 +940,17 @@ app.post("/api/plume/run", async (c) => {
       plumeStatus: determinePlumeStatus({ hasChemicalLink: false, hasAeglEndpoint: false, hasWeather: true, hasReleaseInputs: true }),
     }, 422);
   }
+  const requestedUn = String(bodyRecord.unNumber || "").replace(/^(?:UN|NA)\s*/i, "").trim();
+  if (requestedUn && !normalizedTransportList(companionProfile.header.un).includes(requestedUn)) {
+    return c.json({
+      error: `The selected UN/NA ${requestedUn} does not match the verified Chemical Companion master form; unresolved transport forms cannot drive chemical-specific plume guidance.`,
+      display: "No Current Data Exists",
+      modelMode: PLUME_MODEL_MODES.NO_CURRENT_DATA_EXISTS,
+      modelModeLabel: plumeModelModeLabel(PLUME_MODEL_MODES.NO_CURRENT_DATA_EXISTS),
+      confidenceLevel: "Insufficient Data",
+      plumeStatus: determinePlumeStatus({ hasChemicalLink: false, hasAeglEndpoint: false, hasWeather: true, hasReleaseInputs: true }),
+    }, 422);
+  }
 
   const chemicalRows = await db.select().from(schema.chemicals);
   const canonicalChemical = resolveCanonicalChemical(
@@ -885,14 +986,16 @@ app.post("/api/plume/run", async (c) => {
     const ergRows = (await Promise.all(canonicalUns.map((un) =>
       db.select().from(schema.ergTable1).where(eq(schema.ergTable1.un, un))))).flat();
     const canonicalGuide = String(canonicalChemical.ergGuide || "").replace(/P$/i, "");
-    const ergRow = ergRows.find((row) => row.guide.replace(/P$/i, "") === canonicalGuide)
-      ?? ergRows[0];
-    if (ergRow) {
-      const spillSize = bodyRecord.ergSpillSize === "small" ? "small" : "large";
-      const period = bodyRecord.ergPeriod === "day" ? "day" : "night";
-      const initialIsolationFt = Number(ergRow[`${spillSize}Initial${period === "day" ? "Day" : "Night"}Ft`]);
-      const protectiveActionMi = Number(ergRow[`${spillSize}Protective${period === "day" ? "Day" : "Night"}Mi`]);
-      if (initialIsolationFt > 0 || protectiveActionMi > 0) {
+    const spillSize = bodyRecord.ergSpillSize === "small" ? "small" : "large";
+    const period = bodyRecord.ergPeriod === "day" ? "day" : "night";
+    const ergOverlay = resolveErgOverlayDistance({
+      ergRows,
+      canonicalUns,
+      guide: canonicalGuide,
+      spillSize,
+      period,
+    });
+    if (ergOverlay) {
         return c.json({
           id: `erg-overlay-${masterChemicalId}-${Date.now()}`,
           generatedAt: new Date().toISOString(),
@@ -943,26 +1046,11 @@ app.post("/api/plume/run", async (c) => {
           },
           endpoint: {
             endpointType: "ERG 2024 initial isolation / protective action",
-            endpointSource: "PHMSA Emergency Response Guidebook 2024 Table 1",
+            endpointSource: ergOverlay.source,
             endpointStatus: "AEGL / LOC unavailable; bundled ERG distances require current-PHMSA verification.",
           },
           terrain: { status: "Not applied to ERG distance overlay", terrainAppliedToDispersion: false },
-          ergOverlay: {
-            un: ergRow.un,
-            guide: ergRow.guide,
-            materialName: ergRow.name,
-            spillSize,
-            period,
-            initialIsolationFt,
-            protectiveActionMi,
-            source: "PHMSA Emergency Response Guidebook 2024 Table 1",
-            sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
-            provenanceStatus: "Requires row-level verification against the current PHMSA ERG",
-            limitations: [
-              "This is an ERG initial-isolation/protective-action guide overlay, not a dispersion model or toxic concentration contour.",
-              "Verify the UN/NA identification, spill size, day/night condition, wind direction, current ERG, field observations, monitoring, agency SOPs, and Incident Command.",
-            ],
-          },
+          ergOverlay,
           isopleths: [],
           threatZones: [],
           zones: [],
@@ -979,7 +1067,6 @@ app.post("/api/plume/run", async (c) => {
             "Verify with the current ERG, field observations, monitoring, agency SOPs, and Incident Command.",
           ],
         });
-      }
     }
     return c.json({
       mode: "no-distance-data",

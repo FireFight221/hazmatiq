@@ -1263,6 +1263,17 @@
                       <input id="plume-erg-spill-size" type="hidden" value="large" />
                       <input id="plume-erg-period" type="hidden" value="night" />
                     </details>
+                    <details class="plume-advanced-details">
+                      <summary>Advanced Details</summary>
+                      <dl class="plume-review-list">
+                        <div><dt>Incident coordinates</dt><dd id="plume-advanced-coordinates">No Current Data Exists</dd></div>
+                        <div><dt>Location update</dt><dd id="plume-map-address-status" role="status" aria-live="polite">No Current Data Exists</dd></div>
+                        <div><dt>Weather observation update</dt><dd id="plume-advanced-weather-time">Not available</dd></div>
+                        <div><dt>Latest map/model status</dt><dd id="plume-live-status" role="status" aria-live="polite">No Current Data Exists</dd></div>
+                        <div><dt>Layer diagnostics</dt><dd id="plume-layers-status" role="status" aria-live="polite"></dd></div>
+                        <div><dt>Technical diagnostics</dt><dd id="plume-input-status" role="status" aria-live="polite"></dd></div>
+                      </dl>
+                    </details>
                   </div>
                 </details>
               </div>
@@ -1352,10 +1363,6 @@
                     </div>
                   </div>
                   <footer class="plume-map-status-footer">
-                    <span id="plume-map-address-status" role="status" aria-live="polite"></span>
-                    <span id="plume-live-status" role="status" aria-live="polite"></span>
-                    <span id="plume-layers-status" role="status" aria-live="polite"></span>
-                    <span id="plume-input-status" role="status" aria-live="polite"></span>
                     <span id="plume-map-attribution">© OpenFreeMap · © OpenMapTiles · Imagery © Esri</span>
                   </footer>
                 </article>

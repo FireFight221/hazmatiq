@@ -25,6 +25,7 @@
     const outcome = incident.status === 'Completed' ? `The incident was closed${ended ? ` on ${ended}` : ''}.` : 'The incident remains open.';
     const plume = currentPlume?.plumeResult || currentPlume;
     const output = plume?.output || currentPlume?.plumeOutput || {};
+    const isolation = output.isolationOverlay || currentPlume?.isolationSource || null;
     const zones = (output.threatZones || []).map((zone) => zone.properties || zone).filter(Boolean).map((zone) => ({
       name: known(zone.label || zone.zoneLabel || zone.name) || (zone.threatRank ? `AEGL-${zone.threatRank}` : 'Threat zone'),
       distance: Number.isFinite(Number(zone.maxDownwindM)) && zone.maxDownwindM != null ? `${Math.round(Number(zone.maxDownwindM))} m${zone.rangeTruncated ? ' (at least)' : ''}` : '',
@@ -38,6 +39,14 @@
       outcome: manual(incident, 'reportOutcome', outcome), notes: manual(incident, 'reportAdditionalNotes', known(incident.notes)),
       threatNotes: text(incident.reportThreatZoneNotes), weather: known(incident.weather),
       plumeSummary: currentPlume ? known(output.resultSummary || plume?.textSummary || incident.plumeSummary?.summary) : '',
+      isolation: isolation ? {
+        label: known(isolation.label) || 'ERG Initial Isolation',
+        distance: known(isolation.distance),
+        edition: known(isolation.edition) || 'ERG 2024',
+        guide: known(isolation.guide),
+        reference: known(isolation.reference || isolation.source),
+        sourceUrl: known(isolation.sourceUrl),
+      } : null,
       plumeTime: currentPlume ? text(plume?.generatedAt || currentPlume?.createdAt || incident.plumeUpdatedAt) : '',
       zones, preparedBy: known(incident.preparedBy), updatedAt: text(incident.reportUpdatedAt || incident.updatedAt),
     };

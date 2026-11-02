@@ -690,12 +690,43 @@ describe("API routes", () => {
     expect(body.endpoint).toBeUndefined();
   });
 
-  it("does not allow ERG to override Planning Plume when AEGL is available", async () => {
+  it("supports an explicit ERG-only source selection without replacing the normal Planning Plume path", async () => {
     const res = await app.request("/api/plume/availability?chemicalId=10&ergSpillSize=large&ergPeriod=night&ergOnly=true");
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
-      mode: "aegl-plume",
-      modelMode: "HAZMATIQ_PLANNING_ESTIMATE",
+      mode: "erg-protective-action",
+      modelStatus: "Not a modeled plume",
+      ergOverlay: { un: "1005" },
+    });
+  });
+
+  it("uses the PHMSA Guide 154 distance for sodium hydroxide solid without borrowing solution data", async () => {
+    const res = await app.request("/api/plume/availability?chemicalId=515&ergOnly=true&ergSpillSize=large&ergPeriod=night");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      mode: "erg-protective-action",
+      modelStatus: "Not a modeled plume",
+      ergOverlay: {
+        un: "1823",
+        guide: "154",
+        initialIsolationMeters: 25,
+        initialIsolationDistance: {
+          value: 25,
+          units: "m",
+          basis: "ERG 2024 Guide text",
+        },
+        protectiveActionMi: 0,
+        source: "PHMSA Emergency Response Guidebook 2024 Guide 154",
+      },
+    });
+  });
+
+  it("keeps UN 1824 sodium hydroxide solution from driving the solid master guidance", async () => {
+    const res = await app.request("/api/plume/availability?chemicalId=515&unNumber=1824&ergOnly=true");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      mode: "no-distance-data",
+      endpointStatus: "The selected transport form is not linked to this verified master profile.",
     });
   });
 

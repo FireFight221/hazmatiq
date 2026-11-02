@@ -5,7 +5,7 @@ import { NPG } from "@/data/npg";
 import { ALL_NPG } from "@/data/all-npg";
 import { FACILITIES } from "@/data/facilities";
 import { THRESHOLDS, getThresholds } from "@/data/thresholds";
-import { getErgAdditionalTables, getErgContainerDistances, lookupErg } from "@/data/erg";
+import { getErgAdditionalTables, getErgContainerDistances, lookupErg, lookupErgGuideInitialIsolation } from "@/data/erg";
 
 describe("bundled data", () => {
   it("chemicals validate against Zod", () => {
@@ -88,6 +88,22 @@ describe("ERG lookup", () => {
       nightLowWindMi: "2.6",
     });
     expect(getErgContainerDistances("1006")).toEqual([]);
+  });
+
+  it("keeps sodium hydroxide solid and solution Guide 154 distances form-specific", () => {
+    expect(lookupErgGuideInitialIsolation("1823", "154")).toMatchObject({
+      name: "Sodium hydroxide, solid",
+      distanceM: 25,
+      condition: "solid",
+      reference: expect.stringContaining("Immediate precautionary measure"),
+    });
+    expect(lookupErgGuideInitialIsolation("1824", "154")).toMatchObject({
+      name: "Sodium hydroxide, solution",
+      distanceM: 50,
+      condition: "liquid",
+    });
+    expect(lookupErgGuideInitialIsolation("1823", "154")?.distanceM)
+      .not.toBe(lookupErgGuideInitialIsolation("1824", "154")?.distanceM);
   });
 });
 
