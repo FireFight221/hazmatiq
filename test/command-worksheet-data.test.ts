@@ -16,6 +16,15 @@ describe('Tactical worksheet shared facts',()=>{
   expect(worksheetStyles).toContain('@media (max-width: 900px)');
   expect(worksheetStyles).toContain('grid-template-areas:');
   expect(worksheetStyles).toContain('height: 360px; min-height: 300px;');
+  expect(worksheetStyles).toContain('grid-template-columns: minmax(145px, .9fr) minmax(0, 2fr) max-content;');
+  expect(worksheetStyles).toContain('background: #08243a;');
+  expect(worksheetStyles).toContain('grid-template-columns: repeat(3,minmax(0,1fr));');
+  expect(worksheetStyles).toContain('@media (max-width: 600px)');
+  expect(worksheetStyles).toContain('@media (max-width: 420px)');
+  expect(script).toContain("role.className = 'incident-assignment-item-role';");
+  expect(script).toContain("itemInfo.className = 'incident-assignment-item-info';");
+  expect(script).toContain("detailItem.className = 'incident-assignment-detail';");
+  expect(script).toContain("detail.textContent = value || 'Not recorded';");
  });
  it('writes to the same incident and mirrors hidden legacy form values so later saves do not erase worksheet edits',()=>{
   let record = {incidentId:'training',notes:'Old note',incidentName:'Drill'};

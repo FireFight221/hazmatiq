@@ -25,20 +25,30 @@
 #guided-response .guided-support-card button:disabled { opacity: .65; cursor: default; }
 #guided-response .guided-support-card .ghost-btn { min-height: 40px; color: #fff; background: #173f58; border: 1px solid #88abc0; }
 #guided-response .guided-support-card .incident-assignment-table-header { display: none; }
-#guided-response .guided-support-card .incident-assignment-list { display: grid; gap: 9px; margin-top: 12px; }
-#guided-response .guided-support-card .incident-assignment-item { display: grid; gap: 8px; padding: 11px; border: 1px solid #64879c; border-radius: 7px; background: #10344b; }
-#guided-response .guided-support-card .incident-assignment-item-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-#guided-response .guided-support-card .incident-assignment-item-heading,
-#guided-response .guided-support-card .incident-assignment-item-task,
-#guided-response .guided-support-card .incident-assignment-more { grid-column: 1 / -1; }
-#guided-response .guided-support-card .incident-assignment-field-label { display: block; margin-bottom: 3px; color: #bedbe9; font: 700 .8rem/1.3 Arial, sans-serif; }
-#guided-response .guided-support-card strong { color: #fff; font-size: 1rem; overflow-wrap: anywhere; }
-#guided-response .guided-support-card .incident-assignment-item-meta,
-#guided-response .guided-support-card .incident-assignment-item-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-#guided-response .guided-support-card .incident-assignment-state { padding: 4px 7px; border-radius: 4px; background: #205f42; color: #fff; font-weight: 800; }
-#guided-response .guided-support-card .incident-assignment-item-details { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 5px 8px; }
+#guided-response .guided-support-card .incident-assignment-list { display: grid; gap: 6px; margin-top: 10px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item { display: grid; grid-template-columns: minmax(135px, .9fr) minmax(0, 2fr) max-content; grid-template-rows: auto auto; gap: 6px 9px; min-width: 0; padding: 8px; border: 1px solid #64879c; border-radius: 7px; background: #10344b; }
+#guided-response .guided-support-card .incident-assignment-item-content { display: contents; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-heading { grid-column: 1; grid-row: 1; display: grid; align-content: start; gap: 2px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-info { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: repeat(3,minmax(78px,1fr)); gap: 7px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-assigned,
+#guided-response .guided-support-card .incident-assignment-item-supervisor,
+#guided-response .guided-support-card .incident-assignment-item-task { display: grid; align-content: start; gap: 2px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-meta { grid-column: 3; grid-row: 1; display: grid; align-content: start; justify-items: end; gap: 6px; min-width: max-content; }
+#guided-response .guided-support-card .incident-assignment-more { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-field-label { display: block; margin-bottom: 2px; color: var(--gold); font: 900 .68rem/1.15 Arial, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
+#guided-response .guided-support-card strong,
+#guided-response .guided-support-card .incident-assignment-item-role,
 #guided-response .guided-support-card dt,
-#guided-response .guided-support-card dd { margin: 0; color: #fff; overflow-wrap: anywhere; }
+#guided-response .guided-support-card dd { color: #fff; overflow-wrap: anywhere; }
+#guided-response .guided-support-card .incident-assignment-item-title { font-size: .95rem; line-height: 1.2; }
+#guided-response .guided-support-card .incident-assignment-item-role { font-size: .76rem; font-weight: 750; line-height: 1.2; }
+#guided-response .guided-support-card .incident-assignment-item-info strong { font-size: .78rem; line-height: 1.2; }
+#guided-response .guided-support-card .incident-assignment-item-details { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; margin: 5px 0 0; padding: 7px; border-top: 1px solid #64879c; background: #08243a; }
+#guided-response .guided-support-card .incident-assignment-detail { display: grid; gap: 2px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-details dt { color: var(--gold); font: 900 .66rem/1.15 Arial, sans-serif; text-transform: uppercase; }
+#guided-response .guided-support-card .incident-assignment-item-details dd { margin: 0; font-size: .76rem; line-height: 1.25; }
+#guided-response .guided-support-card .incident-assignment-item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-items: center; }
+#guided-response .guided-support-card .incident-assignment-state { padding: 4px 7px; border-radius: 4px; background: #205f42; color: #fff; font-weight: 800; }
 #guided-response .guided-support-card .guided-assignment-grid { grid-template-columns: 1fr; }
 #guided-response .guided-support-card label { display: grid; gap: 5px; margin-top: 8px; color: #fff; }
 #guided-response .guided-support-card input,
@@ -59,11 +69,29 @@
 @media (max-width: 980px) {
   #guided-response .guided-action-workspace { grid-template-columns: minmax(0, 1fr); }
   #guided-response .guided-incident-support { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #guided-response .guided-support-card .incident-assignment-item { grid-template-columns: minmax(0, 1fr) max-content; }
+  #guided-response .guided-support-card .incident-assignment-item-heading { grid-column: 1; grid-row: 1; }
+  #guided-response .guided-support-card .incident-assignment-item-info { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(3,minmax(70px,1fr)); }
+  #guided-response .guided-support-card .incident-assignment-item-meta { grid-column: 2; grid-row: 1; }
+  #guided-response .guided-support-card .incident-assignment-more { grid-column: 1 / -1; grid-row: 3; }
 }
 @media (max-width: 640px) {
   #guided-response .guided-incident-support { grid-template-columns: minmax(0, 1fr); }
+  #guided-response .guided-support-card .incident-assignment-item { grid-template-columns: minmax(0,1fr); grid-template-rows: auto; }
+  #guided-response .guided-support-card .incident-assignment-item-heading,
+  #guided-response .guided-support-card .incident-assignment-item-info,
+  #guided-response .guided-support-card .incident-assignment-item-meta,
+  #guided-response .guided-support-card .incident-assignment-more { grid-column: 1; grid-row: auto; }
+  #guided-response .guided-support-card .incident-assignment-item-info { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #guided-response .guided-support-card .incident-assignment-item-meta { justify-items: start; min-width: 0; }
+  #guided-response .guided-support-card .incident-assignment-item-actions { justify-content: flex-start; }
+  #guided-response .guided-support-card .incident-assignment-item-details { grid-template-columns: repeat(2,minmax(0,1fr)); }
   #guided-response .guided-phase-summary { grid-template-columns: 28px 26px minmax(0, 1fr); }
   #guided-response .guided-phase-state { grid-column: 3; }
+}
+@media (max-width: 420px) {
+  #guided-response .guided-support-card .incident-assignment-item-info,
+  #guided-response .guided-support-card .incident-assignment-item-details { grid-template-columns: minmax(0,1fr); }
 }
 
 #guided-response .guided-chemical-strip {

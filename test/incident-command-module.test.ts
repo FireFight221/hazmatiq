@@ -197,9 +197,14 @@ describe('Incident Command operational hub', () => {
     expect(script).toContain("meta.className = 'incident-assignment-item-meta';");
     expect(script).toContain('meta.append(state, actions);');
     expect(script).toContain('item.append(content, meta);');
+    expect(script).toContain("role.className = 'incident-assignment-item-role';");
+    expect(script).toContain("itemInfo.className = 'incident-assignment-item-info';");
+    expect(script).toContain("detailItem.className = 'incident-assignment-detail';");
+    expect(script).toContain("detail.textContent = value || 'Not recorded';");
     expect(incidentOverrides).toContain('.incident-assignment-table-header');
-    expect(incidentOverrides).toContain('grid-template-columns: minmax(125px, 1.65fr)');
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(140px, .9fr) minmax(0, 2fr) max-content;');
     expect(incidentOverrides).toContain('.incident-assignment-item-assigned');
+    expect(incidentOverrides).toContain('.incident-assignment-item-info');
     expect(incidentOverrides).toContain('.incident-assignment-item-details');
     expect(incidentOverrides).toContain('.incident-assignment-item-meta');
     expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1fr);');
