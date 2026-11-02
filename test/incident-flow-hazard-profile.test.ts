@@ -54,11 +54,22 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     ]) expect(flow).toContain(title);
     expect(flow).not.toContain('class="incident-flow-status"');
     expect(flow).not.toContain('class="incident-flow-details"');
-    expect(incidentStyles).toContain('border: 2px solid #fff;');
+    expect(incidentStyles).toContain('border: 1px solid #082540;');
     expect(flow).toMatch(/1\. Scene Size-Up[\s\S]*data-incident-command-action="chemical-profile"[^>]*>Open Hazard Profile/);
+    for (const action of [
+      'data-incident-command-action="erg-review"[^>]*>Review ERG Distances',
+      'data-command-view="plume"[^>]*>Open Plume Model',
+      'data-command-view="guided-response"[^>]*>Open Guided Response',
+      'data-command-view="report"[^>]*>Open Reports',
+    ]) expect(flow).toMatch(new RegExp(action));
     expect(flow.match(/class="incident-flow-chevron"/g)).toHaveLength(4);
     expect(incidentStyles).toContain("grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr)");
     expect(incidentStyles).toContain("#incident .incident-flow-chevron::after { content: '↓';");
+    expect(incidentStyles).toContain('justify-content: flex-start;');
+    expect(incidentStyles).toContain('background: var(--gold-surface);');
+    expect(incidentStyles).toContain('color: #082540;');
+    expect(incidentStyles).toContain('min-height: 0;');
+    expect(incidentStyles).toContain('@media (max-width: 900px)');
   });
 
   it("keeps commander status controls tied to one canonical task and readable on small screens", () => {
