@@ -2525,10 +2525,12 @@ h1 { font-weight: 800; }
   top: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   min-width: 0;
+  min-height: 0;
   margin: 0;
-  padding: 14px;
+  padding: 10px;
+  box-sizing: border-box;
   border-color: #afc4d3;
   background: #082540;
   color: #f8fafc;
@@ -8569,9 +8571,11 @@ body.workspace-drawer-open { overflow: hidden; }
 #guided-response .guided-phase-summary { display: grid; grid-template-columns: 32px 30px minmax(0, 1fr) auto; gap: 9px; align-items: center; min-width: 0; padding: 10px 13px; cursor: pointer; list-style: none; }
 #guided-response .guided-phase-card > .guided-phase-summary { background: #e7f5e9; color: #173b2a; }
 #guided-response .guided-phase-summary::-webkit-details-marker { display: none; }
-#guided-response .guided-phase-number { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #123d5a; color: #fff; font-size: 1rem; font-weight: 850; }
-#guided-response .guided-phase-card.is-current .guided-phase-number { background: var(--gold-surface); }
+#guided-response .guided-phase-number { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #b11226; color: #fff; font-size: 1rem; font-weight: 850; }
+#guided-response .guided-phase-card.is-not-started .guided-phase-number { background: #b11226; }
+#guided-response .guided-phase-card.is-in-progress .guided-phase-number { background: var(--gold-surface); color: #2b2200; }
 #guided-response .guided-phase-card.is-complete .guided-phase-number { background: #258a4a; }
+#guided-response .guided-phase-card.is-current .guided-phase-number { box-shadow: 0 0 0 2px rgba(var(--gold-rgb), .8); }
 #guided-response .guided-phase-title { min-width: 0; color: #173b2a; font-size: 1.12rem; font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; }
 #guided-response .guided-phase-state { color: #28563a; font-size: .9rem; font-weight: 850; letter-spacing: .04em; }
 #guided-response .guided-phase-card.is-current .guided-phase-state,

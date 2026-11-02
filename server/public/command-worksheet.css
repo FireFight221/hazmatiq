@@ -15,17 +15,37 @@
 #command-tactical-worksheet .worksheet-action { padding: 9px 12px; min-height: 42px; border: 1px solid #88b5cf; border-radius: 6px; background: #153f5c; color: #fff; font: 800 .95rem/1.3 Arial,sans-serif; cursor: pointer; }
 #command-tactical-worksheet .worksheet-save-status { min-height: 1.5em; margin: 6px 0 12px; color: #bfe8cf; font-size: .88rem; }
 #command-tactical-worksheet .worksheet-save-status[data-state="error"] { color: #ffb0b0; }
-#command-tactical-worksheet .worksheet-grid { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 12px; }
-#command-tactical-worksheet .worksheet-card { min-width: 0; padding: 14px; border: 1px solid #799bb3; border-top: 3px solid var(--gold); border-radius: 8px; background: #0b2940; }
-#command-tactical-worksheet .worksheet-wide { grid-column: span 8; }
-#command-tactical-worksheet .worksheet-narrow { grid-column: span 4; }
-#command-tactical-worksheet .worksheet-full { grid-column: 1 / -1; }
-#command-tactical-worksheet .worksheet-card > header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 12px; margin-bottom: 12px; padding-bottom: 9px; border-bottom: 1px solid #4c728c; }
+#command-tactical-worksheet .worksheet-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "incident-info incident-info incident-info incident-info incident-info incident-info chemical-release chemical-release chemical-release chemical-release chemical-release chemical-release"
+    "command-org command-org command-org command-org command-org command-org command-org command-org command-org command-org command-org command-org"
+    "weather-log weather-log weather-log command-notes command-notes command-notes communications communications communications communications communications communications"
+    "resources resources resources resources resources resources resources resources resources resources resources resources"
+    "staging staging staging staging staging staging objectives objectives objectives objectives objectives objectives"
+    "checklist checklist checklist checklist checklist live-map live-map live-map live-map live-map live-map live-map";
+  gap: 8px;
+  min-width: 0;
+}
+#command-tactical-worksheet .worksheet-card { box-sizing: border-box; min-width: 0; max-width: 100%; padding: 10px; border: 1px solid #799bb3; border-top: 3px solid var(--gold); border-radius: 8px; background: #0b2940; }
+#command-tactical-worksheet .worksheet-incident-information { grid-area: incident-info; }
+#command-tactical-worksheet .worksheet-chemical-release { grid-area: chemical-release; }
+#command-tactical-worksheet .worksheet-command-organization { grid-area: command-org; }
+#command-tactical-worksheet .worksheet-weather-log { grid-area: weather-log; }
+#command-tactical-worksheet .worksheet-command-notes { grid-area: command-notes; }
+#command-tactical-worksheet .worksheet-communications { grid-area: communications; }
+#command-tactical-worksheet .worksheet-resources-assignments { grid-area: resources; }
+#command-tactical-worksheet .worksheet-staging { grid-area: staging; }
+#command-tactical-worksheet .worksheet-incident-objectives { grid-area: objectives; }
+#command-tactical-worksheet .worksheet-tactical-checklist { grid-area: checklist; }
+#command-tactical-worksheet .worksheet-live-map-card { grid-area: live-map; }
+#command-tactical-worksheet .worksheet-card > header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #4c728c; }
 #command-tactical-worksheet .worksheet-card h2 { margin: 0; color: var(--gold); font: 850 1.05rem/1.35 Arial,sans-serif; letter-spacing: .045em; text-transform: uppercase; }
 #command-tactical-worksheet .worksheet-source { color: #b6daee; font-size: .78rem; font-weight: 700; }
-#command-tactical-worksheet .worksheet-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
-#command-tactical-worksheet .worksheet-field { display: grid; gap: 6px; min-width: 0; margin: 0 0 10px; color: #fff; font: 750 .95rem/1.35 Arial,sans-serif; }
-#command-tactical-worksheet :is(input,textarea,select) { box-sizing: border-box; min-width: 0; width: 100%; min-height: 43px; padding: 9px 10px; border: 1px solid #85aac2; border-radius: 5px; background: #fff; color: #102e46; font: 1rem/1.4 Arial,sans-serif; }
+#command-tactical-worksheet .worksheet-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+#command-tactical-worksheet .worksheet-field { display: grid; gap: 4px; min-width: 0; margin: 0 0 6px; color: #fff; font: 750 .9rem/1.3 Arial,sans-serif; }
+#command-tactical-worksheet :is(input,textarea,select) { box-sizing: border-box; min-width: 0; width: 100%; min-height: 38px; padding: 6px 8px; border: 1px solid #85aac2; border-radius: 5px; background: #fff; color: #102e46; font: .95rem/1.35 Arial,sans-serif; }
 #command-tactical-worksheet textarea { resize: vertical; }
 #command-tactical-worksheet input[readonly] { background: #e3edf4; color: #183d55; font-weight: 750; }
 #command-tactical-worksheet input::placeholder,
@@ -36,15 +56,15 @@
 #command-tactical-worksheet th { color: var(--gold); font-weight: 850; }
 #command-tactical-worksheet .worksheet-phase-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
 #command-tactical-worksheet .worksheet-phase { display: grid; align-content: space-between; gap: 9px; padding: 11px; border: 1px solid #6c97ad; border-radius: 6px; color: #fff; font-weight: 800; line-height: 1.35; }
-#command-tactical-worksheet .worksheet-org-chart { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 16px 12px; }
-#command-tactical-worksheet .worksheet-role { position: relative; display: grid; align-content: space-between; gap: 9px; min-width: 0; padding: 12px; border: 1px solid #82adbf; border-top: 3px solid #62d293; border-radius: 6px; background: #10374c; }
+#command-tactical-worksheet .worksheet-org-chart { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 18px 12px; }
+#command-tactical-worksheet .worksheet-role { position: relative; display: grid; align-content: space-between; gap: 7px; min-width: 0; padding: 9px; border: 1px solid #82adbf; border-top: 3px solid #62d293; border-radius: 6px; background: #10374c; }
 #command-tactical-worksheet .worksheet-role strong { color: #fff; font: 850 .95rem/1.3 Arial,sans-serif; }
 #command-tactical-worksheet .worksheet-role-tier-0 { grid-column: 1 / -1; width: min(100%,420px); justify-self: center; box-sizing: border-box; border-top-color: var(--gold); }
 #command-tactical-worksheet .worksheet-role-tier-1 { grid-column: span 4; }
 #command-tactical-worksheet .worksheet-role-tier-2,
 #command-tactical-worksheet .worksheet-role-tier-3 { grid-column: span 3; }
 #command-tactical-worksheet .worksheet-role:not(.worksheet-role-tier-0)::before { content: ''; position: absolute; left: 50%; top: -17px; height: 14px; border-left: 2px solid #7098ab; }
-#command-tactical-worksheet .worksheet-map { width: 100%; height: 340px; border: 1px solid #709bb5; border-radius: 6px; background: #071c2c; }
+#command-tactical-worksheet .worksheet-map { position: relative; box-sizing: border-box; width: 100%; min-width: 0; height: 360px; min-height: 300px; overflow: hidden; border: 1px solid #709bb5; border-radius: 6px; background: #071c2c; }
 #command-tactical-worksheet .worksheet-map-status { font-size: .85rem; }
 #command-tactical-worksheet .worksheet-map-marker { width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 3px #000; }
 #command-tactical-worksheet .worksheet-map .maplibregl-ctrl-attrib { color: #102e46; }
@@ -66,10 +86,23 @@
 #command-tactical-worksheet .ghost-btn { min-height: 40px; padding: 8px 12px; color: #fff; background: #164762; border: 1px solid #8fb3c9; }
 #command-tactical-worksheet .guided-assignment-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 14px 0; }
 #command-tactical-worksheet .guided-assignment-grid label { display: grid; gap: 6px; color: #fff; font-weight: 750; }
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
+  #command-tactical-worksheet .worksheet-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "incident-info"
+      "chemical-release"
+      "command-org"
+      "weather-log"
+      "command-notes"
+      "communications"
+      "resources"
+      "staging"
+      "objectives"
+      "checklist"
+      "live-map";
+  }
   #command-tactical-worksheet .worksheet-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  #command-tactical-worksheet .worksheet-wide,
-  #command-tactical-worksheet .worksheet-narrow { grid-column: 1/-1; }
 }
 @media (max-width: 600px) {
   #command-tactical-worksheet .worksheet-fields,

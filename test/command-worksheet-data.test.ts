@@ -3,7 +3,20 @@ import {runInNewContext} from 'node:vm';
 import {describe,it,expect,vi} from 'vitest';
 const command = readFileSync(new URL('../server/public/incident-command.js',import.meta.url),'utf8');
 const script = readFileSync(new URL('../server/public/script.js',import.meta.url),'utf8');
+const worksheet = readFileSync(new URL('../server/public/command-worksheet.js',import.meta.url),'utf8');
+const worksheetStyles = readFileSync(new URL('../server/public/command-worksheet.css',import.meta.url),'utf8');
 describe('Tactical worksheet shared facts',()=>{
+ it('keeps the worksheet order compact at desktop and stacked at tablet widths',()=>{
+  expect(worksheet).toContain("card('Command Organization', 'full', 'Names Save Directly to Shared Assignments & ICS 201 / 203 / 214', 'command-organization')");
+  expect(worksheet).toContain("resources.append(action('Add Assignment'");
+  expect(worksheet).toContain('grid.append(info, chemical, org, weather, notes, comms, resources, staging, objectives, progress, live);');
+  expect(worksheet).toContain('new window.ResizeObserver(resizeMap)');
+  expect(worksheetStyles).toContain('"incident-info incident-info incident-info incident-info incident-info incident-info chemical-release');
+  expect(worksheetStyles).toContain('"checklist checklist checklist checklist checklist live-map live-map');
+  expect(worksheetStyles).toContain('@media (max-width: 900px)');
+  expect(worksheetStyles).toContain('grid-template-areas:');
+  expect(worksheetStyles).toContain('height: 360px; min-height: 300px;');
+ });
  it('writes to the same incident and mirrors hidden legacy form values so later saves do not erase worksheet edits',()=>{
   let record = {incidentId:'training',notes:'Old note',incidentName:'Drill'};
   const input = {value:'Old note'};

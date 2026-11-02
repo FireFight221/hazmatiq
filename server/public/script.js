@@ -7143,6 +7143,13 @@ function guidedGoalStatus(record, phaseId, currentPhaseId) {
   return phaseId === currentPhaseId ? 'Not Started' : 'Not Started';
 }
 
+function guidedPhaseStatusClass(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (/complete|completed|accomplished/.test(normalized)) return 'is-complete';
+  if (/in progress/.test(normalized)) return 'is-in-progress';
+  return 'is-not-started';
+}
+
 function guidedPhaseIsAccomplished(record) {
   return !record?.reassessmentRequired && ['complete', 'accomplished'].includes(String(record?.status || '').trim().toLowerCase());
 }
@@ -7746,12 +7753,12 @@ function createGuidedPhaseCard(phase, model, profile, incident, phaseState, curr
   const record = phaseState[phase.id] || {};
   const status = guidedGoalStatus(record, phase.id, currentPhaseId);
   const card = document.createElement('details');
-  card.className = `guided-phase-card${phase.id === currentPhaseId ? ' is-current' : ''}${status === 'Accomplished' ? ' is-complete' : ''}`;
+  card.className = `guided-phase-card ${guidedPhaseStatusClass(status)}${phase.id === currentPhaseId ? ' is-current' : ''}`;
   card.dataset.phaseId = phase.id;
   card.open = phase.id === currentPhaseId || status === 'In Progress' || status === 'Needs Reassessment';
   const summary = document.createElement('summary');
   summary.className = 'guided-phase-summary';
-  const number = document.createElement('span'); number.className = 'guided-phase-number'; number.textContent = phase.number;
+  const number = document.createElement('span'); number.className = 'guided-phase-number'; number.textContent = phase.number; number.setAttribute('role', 'img'); number.setAttribute('aria-label', `Phase ${phase.number} status: ${status}`);
   const icon = createGuidedPhaseIcon(phase);
   const title = document.createElement('span'); title.className = 'guided-phase-title'; title.textContent = phase.title;
   const state = document.createElement('strong'); state.className = 'guided-phase-state'; state.textContent = status.toUpperCase();

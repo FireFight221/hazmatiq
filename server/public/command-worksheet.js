@@ -18,6 +18,7 @@
   let mapKey = '';
   let mapMarkers = [];
   let frame = 0;
+  let mapResizeObserver = null;
   const fields = new Map();
   const roles = new Map();
   const node = (tag, className, text) => {
@@ -32,8 +33,9 @@
     feedback.textContent = ok ? message : 'Could not save. Keep this entry and retry.';
     feedback.dataset.state = ok ? 'saved' : 'error';
   }
-  function card(title, width = 'wide', source = '') {
+  function card(title, width = 'wide', source = '', area = '') {
     const section = node('section', `worksheet-card worksheet-${width}`);
+    if (area) section.classList.add(`worksheet-${area}`);
     const header = node('header'); header.append(node('h2', '', title));
     if (source) header.append(node('small', 'worksheet-source', source));
     section.append(header); return section;
@@ -79,31 +81,31 @@
   links.append(action('Response Guide', () => document.querySelector('#incident [data-command-view="guided-response"]')?.click()), action('ICS Forms / IAP', () => navigate('report')));
   title.append(copy, links); root.append(title, feedback);
   const grid = node('div', 'worksheet-grid'); root.append(grid);
-  const info = card('Incident Information', 'full', 'Incident Brief');
+  const info = card('Incident Information', 'full', 'Incident Brief', 'incident-information');
   const infoFields = node('div', 'worksheet-fields');
   [['Incident Name', 'incidentName'], ['Run / Incident #', 'incidentNumber'], ['Address / Area', 'address'], ['Date / Opened', 'startedAt'], ['Command', 'commanderName'], ['Strategy', 'operationalMode'], ['Operational Period Start', 'operationalPeriodStart'], ['Operational Period End', 'operationalPeriodEnd'], ['Prepared By / Report Author', 'preparedBy'], ['ICS Position / Title', 'preparedByPosition']].forEach(([label, key]) => field(infoFields, label, key, { readonly: ['startedAt', 'commanderName', 'operationalMode'].includes(key), type: key.startsWith('operationalPeriod') ? 'datetime-local' : 'text' }));
   info.append(infoFields); grid.append(info);
-  const chemical = card('Chemical / Release', 'wide', 'Hazard ID + Incident');
+  const chemical = card('Chemical / Release', 'wide', 'Hazard ID + Incident', 'chemical-release');
   const chemFields = node('div', 'worksheet-fields');
   [['Chemical', 'chemicalName'], ['UN / NA', 'unNumber'], ['Container Type', 'containerType'], ['Container Size', 'containerSize'], ['Amount Released', 'amountReleased'], ['Amount Remaining', 'amountRemaining'], ['Quantity Units', 'releaseQuantityUnit'], ['Patients', 'patientCount'], ['Responsible Party', 'responsibleParty']].forEach(([label, key], index) => field(chemFields, label, key, { readonly: index < 4, type: key === 'patientCount' ? 'number' : 'text' }));
   chemical.append(chemFields); grid.append(chemical);
-  const weather = card('Weather Log', 'narrow', 'Timestamped Incident Observations');
+  const weather = card('Weather Log', 'narrow', 'Timestamped Incident Observations', 'weather-log');
   const weatherBody = node('div', 'worksheet-weather'); weather.append(weatherBody); grid.append(weather);
-  const notes = card('Command Notes', 'full', 'Shared Incident Notes'); field(notes, 'Notes / Observations', 'notes', { multiline: true }); grid.append(notes);
-  const resources = card('Resources & Assignments', 'wide', 'Shared with Command, Guidance, Live Map, and ICS');
+  const notes = card('Command Notes', 'full', 'Shared Incident Notes', 'command-notes'); field(notes, 'Notes / Observations', 'notes', { multiline: true }); grid.append(notes);
+  const resources = card('Resources & Assignments', 'wide', 'Shared with Command, Guidance, Live Map, and ICS', 'resources-assignments');
   const editor = node('div', 'worksheet-assignment-editor'); editor.id = 'worksheet-assignment-editor';
-  resources.append(action('+ Add Worksheet Resource', () => {
+  resources.append(action('Add Assignment', () => {
     const current = context().incident;
     if (current) api().renderIncidentAssignmentEditor({ ...current, __editingAssignment: { status: 'Planned', phaseId: 'zones-resources' } }, editor);
   }), editor); grid.append(resources);
-  const staging = card('Staging / Available / Rehab', 'narrow', 'Recorded Resource Locations & Status');
+  const staging = card('Staging / Available / Rehab', 'narrow', 'Recorded Resource Locations & Status', 'staging');
   const stagingBody = node('div'); staging.append(stagingBody); grid.append(staging);
-  const progress = card('Tactical Checklist', 'wide', 'Shared Response Guide Progress');
+  const progress = card('Tactical Checklist', 'wide', 'Shared Response Guide Progress', 'tactical-checklist');
   const checksBody = node('div', 'worksheet-check-list');
   const phaseDetails = node('details', 'worksheet-response-progress'); phaseDetails.append(node('summary', '', 'Response Guide Phase Progress'));
   const phaseBody = node('div', 'worksheet-phase-list'); phaseDetails.append(phaseBody); progress.append(checksBody, phaseDetails); grid.append(progress);
-  const objectives = card('Incident Objectives', 'narrow', 'ICS 201 / 202'); field(objectives, 'Command Objectives', 'objectives', { multiline: true }); grid.append(objectives);
-  const org = card('Command Organization', 'full', 'Names Save Directly to Shared Assignments & ICS 201 / 203 / 214');
+  const objectives = card('Incident Objectives', 'narrow', 'ICS 201 / 202', 'incident-objectives'); field(objectives, 'Command Objectives', 'objectives', { multiline: true }); grid.append(objectives);
+  const org = card('Command Organization', 'full', 'Names Save Directly to Shared Assignments & ICS 201 / 203 / 214', 'command-organization');
   const chart = node('div', 'worksheet-org-chart');
   roleNames.forEach((role, index) => {
     const label = node('label', `worksheet-role worksheet-role-tier-${index === 0 ? 0 : index < 4 ? 1 : index < 8 ? 2 : 3}`);
@@ -129,14 +131,15 @@
     label.append(input); chart.append(label); roles.set(role, input);
   });
   org.append(chart, action('Open ICS 203 Organization Assignment List', () => { const incident = context().incident; if (!incident) return; navigate('report'); void api().openIncidentIcsForm(incident.incidentId, '203'); })); grid.append(org);
-  const live = card('Live Map', 'wide', 'Same Incident Location, Placed Resources, and Saved Plume');
+  const live = card('Live Map', 'wide', 'Same Incident Location, Placed Resources, and Saved Plume', 'live-map-card');
   const mapElement = node('div', 'worksheet-map'); mapElement.id = 'worksheet-live-map'; mapElement.setAttribute('aria-label', 'Incident Live Map preview');
   const mapStatus = node('p', 'worksheet-map-status');
   live.append(mapElement, mapStatus, action('Open Live Map', () => navigate('map'))); grid.append(live);
-  const comms = card('Communications', 'narrow', 'ICS 204 / 205 / 205A');
+  const comms = card('Communications', 'narrow', 'ICS 204 / 205 / 205A', 'communications');
   [['Command Channel', 'commandChannel'], ['Tactical Channel', 'tacticalChannel'], ['Medical / Decon Channel', 'medicalChannel']].forEach(([label, key]) => field(comms, label, key));
   field(comms, 'Communications Plan', 'communications', { multiline: true });
   field(comms, 'Medical / Rehab Plan', 'medicalPlan', { multiline: true }); grid.append(comms);
+  grid.append(info, chemical, org, weather, notes, comms, resources, staging, objectives, progress, live);
   function table(container, headers, rows, empty) {
     container.replaceChildren();
     if (!rows.length) { container.append(node('p', '', empty)); return; }
@@ -214,6 +217,7 @@
     document.querySelectorAll('[data-command-workspace]').forEach((button) => { const selected = button.dataset.commandWorkspace === tab; button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1; });
     if (tab === 'overview') destroyMap();
     render();
+    window.requestAnimationFrame(() => map?.resize());
   }
   const tabs = [...document.querySelectorAll('[data-command-workspace]')];
   tabs.forEach((button, index) => {
@@ -225,7 +229,12 @@
     });
   });
   ['hazmatiq:incident-record-saved', 'hazmatiq:incident-command-updated', 'hazmatiq:guided-phase-updated', 'hazmatiq:incident-assignment-updated', 'hazmatiq:live-map-updated'].forEach((event) => window.addEventListener(event, schedule));
-  window.addEventListener('resize', () => { if (activeTab === 'worksheet') map?.resize(); });
+  const resizeMap = () => { if (activeTab === 'worksheet') map?.resize(); };
+  if (typeof window.ResizeObserver === 'function') {
+    mapResizeObserver = new window.ResizeObserver(resizeMap);
+    mapResizeObserver.observe(mapElement);
+  }
+  window.addEventListener('resize', resizeMap);
   window.HazMatIQ.commandWorksheet = { render, roleKey, findRole, switchTab };
   render();
 })();

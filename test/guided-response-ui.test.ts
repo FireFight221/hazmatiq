@@ -201,6 +201,16 @@ describe("Guided Response workflow", () => {
     expect(styles).toContain('.guided-command-actions .guided-response-actions #guided-save-incident-btn');
   });
 
+  it("keeps Guided Response command actions compact and colors phase bubbles from shared status", () => {
+    expect(styles).toContain('min-height: 0;');
+    expect(styles).toContain('padding: 10px;');
+    expect(script).toContain('function guidedPhaseStatusClass(status)');
+    expect(script).toContain('number.setAttribute(\'aria-label\', `Phase ${phase.number} status: ${status}`)');
+    expect(styles).toContain('.guided-phase-card.is-not-started .guided-phase-number { background: #b11226; }');
+    expect(styles).toContain('.guided-phase-card.is-in-progress .guided-phase-number { background: var(--gold-surface);');
+    expect(styles).toContain('.guided-phase-card.is-complete .guided-phase-number { background: #258a4a; }');
+  });
+
   it("does not render the redundant Source / Technical Detail box", () => {
     expect(script).not.toContain("createGuidedSupportingSection('SOURCE / TECHNICAL DETAIL'");
     expect(script).toContain("flow.append(heading, notice, grid);");
