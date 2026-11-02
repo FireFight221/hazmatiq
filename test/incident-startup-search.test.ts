@@ -24,6 +24,7 @@ describe('Incident startup and product lookup', () => {
       declaration('incidentChemicalIdentity'),
       declaration('hasCanonicalIncidentChemicalIdentity'),
       declaration('selectedChemicalOperationalData'),
+      declaration('appendAdditionalTransportMatches'),
       'function startIncidentTimer() { rendered(selectedChemicalOperationalData({ incident: { selectedChemicalId: 10, chemicalName: "Saved product" }, profile: {} })); }',
       ...selected.map((node) => script.slice(node.start, node.end)),
     ].join('\n'), { rendered });
@@ -43,7 +44,7 @@ describe('Incident startup and product lookup', () => {
       chemicalSearchDetail: () => 'UN 1017',
       createSuggestion: vi.fn(() => 'suggestion'),
     };
-    await runInNewContext(`${declaration('normalizeChemicalQuery')}\n${declaration('parseJsonField')}\n${declaration('chemicalSearchIdentifiers')}\n${declaration('searchIncidentProducts')}\nsearchIncidentProducts(${JSON.stringify(query)})`, context);
+    await runInNewContext(`${declaration('normalizeChemicalQuery')}\n${declaration('parseJsonField')}\n${declaration('chemicalSearchIdentifiers')}\n${declaration('selectIncidentProduct')}\n${declaration('appendAdditionalTransportMatches')}\n${declaration('searchIncidentProducts')}\nsearchIncidentProducts(${JSON.stringify(query)})`, context);
     expect(fetchJson).toHaveBeenCalledWith('/api/chemicals/search?q=1017');
     expect(append).toHaveBeenCalledWith('suggestion');
     expect(suggestions.hidden).toBe(false);

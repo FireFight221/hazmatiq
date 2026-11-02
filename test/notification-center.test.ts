@@ -68,7 +68,6 @@ describe("HazMatIQ Command Bar", () => {
     for (const label of [
       "Real-Time Operational Overview",
       "Incident Brief",
-      "Commander Status &amp; Confirmation",
       "Incident Reports",
       "Command Tools",
       "Operational Details",
@@ -100,7 +99,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(html).toContain('class="incident-command-brief-list"');
     expect(styles).toContain('.incident-command-summary-strip');
     expect(styles).toContain('overflow-wrap: anywhere;');
-    expect(styles).toContain('.incident-command-guided-list');
+    expect(styles).toContain('.incident-command-guided-links');
     expect(styles).toContain('@media (max-width: 520px)');
   });
 
@@ -251,7 +250,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(styles).toContain("body:has(#overview.view.active)");
     expect(styles).toContain("--overview-accent: #c8102e;");
     expect(styles).toContain("--overview-accent: #1765b0;");
-    expect(styles).toContain("--overview-accent: #f2cf20;");
+    expect(styles).toContain("--overview-accent: var(--gold);");
     expect(styles).toContain("gap: 10px;");
     expect(styles).not.toContain("Final Home cascade lock");
     expect(styles).not.toContain("Homepage brand-first sizing and full-width launcher layout");
@@ -264,7 +263,7 @@ describe("HazMatIQ Command Bar", () => {
     expect(styles).toContain("border: 1px solid rgba(255, 255, 255, 0.88);");
     expect(styles).toContain("--overview-accent: #c8102e;");
     expect(styles).toContain("--overview-accent: #1765b0;");
-    expect(styles).toContain("--overview-accent: #f2cf20;");
+    expect(styles).toContain("--overview-accent: var(--gold);");
     expect(styles).toContain("border: 8px solid var(--overview-accent);");
     expect(styles).toContain(
       ".app-shell:has(#overview.view.active) > .command-header .command-center-label",
