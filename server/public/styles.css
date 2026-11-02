@@ -11718,22 +11718,27 @@ body,
 .incident-command-tool {
   display: grid;
   gap: 4px;
-  min-height: 54px;
-  padding: 7px 9px;
-  border: 1px solid #315d7d;
+  min-height: 74px;
+  height: 100%;
+  padding: 9px 10px;
+  border: 1px solid #b8c2cc;
   border-radius: 7px;
-  color: #d9ecf9;
-  background: rgba(13, 44, 67, 0.72);
+  color: #102a43;
+  background: #e5e7eb;
   text-align: left;
   cursor: pointer;
-  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
-.incident-command-tool:hover { transform: translateY(-2px); border-color: #5fa2ce; box-shadow: 0 8px 18px rgba(0,0,0,.22); }
-.incident-command-tool strong { color: #fff; font-size: 0.77rem; text-transform: uppercase; }
-.incident-command-tool span { color: #a9c0d1; font-size: 0.68rem; }
-.incident-command-tool-danger { border-color: #a92535; background: rgba(106, 17, 33, 0.25); }
-.incident-command-tool-danger { min-height: 52px; padding: 12px 18px; justify-items: center; text-align: center; }
-.incident-command-tool-danger strong { color: #ff737d; font-size: .88rem; font-weight: 900; }
+.incident-command-tool:hover { border-color: #102a43; background: #f3f4f6; box-shadow: 0 6px 14px rgba(8, 37, 64, .18); }
+.incident-command-tool:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.incident-command-tool:active { background: #cfd4da; box-shadow: inset 0 2px 4px rgba(8, 37, 64, .18); }
+.incident-command-tool strong { display: flex; align-items: center; gap: 6px; min-width: 0; color: #102a43; font-size: .9rem; font-weight: 900; line-height: 1.15; text-transform: uppercase; }
+.incident-command-tool strong > span { min-width: 0; color: #102a43; }
+.incident-command-tool > span { color: #102a43; font-size: .75rem; line-height: 1.25; }
+.incident-command-tool-icon { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: #102a43; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.incident-command-tool-danger { border: 2px solid #b91c1c; background: #e5e7eb; }
+.incident-command-tool-danger:hover,
+.incident-command-tool-danger:focus-visible { border-color: #991b1b; background: #f3f4f6; }
 
 .incident-command-operational-details { display: block; position: static; flex: 0 0 auto; order: initial; margin: 0 8px 8px; color: #0b2540; background: #dfe4e8; border: 2px solid #8b949e; box-shadow: none; }
 .incident-command-operational-details > summary { position: static; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; cursor: pointer; list-style: none; }
@@ -11834,12 +11839,11 @@ body,
 
 /* Every action whose purpose is opening or plotting the Plume Model uses red. */
 button[data-view="plume"],
-button[data-command-view="plume"]:not([data-incident-flow-action]),
+button[data-command-view="plume"]:not([data-incident-flow-action]):not(.incident-command-tool),
 #open-plume-btn,
 #guided-open-plume-btn,
 #hazard-profile-plume-btn,
 #plot-plume-btn,
-.incident-command-tool-plume,
 .incident-command-plume-copy > button,
 .chemical-profile-plume {
   border-color: #8f0d12 !important;
@@ -11848,21 +11852,19 @@ button[data-command-view="plume"]:not([data-incident-flow-action]),
   box-shadow: 0 5px 12px rgba(183, 14, 22, .25) !important;
 }
 button[data-view="plume"]:hover,
-button[data-command-view="plume"]:not([data-incident-flow-action]):hover,
+button[data-command-view="plume"]:not([data-incident-flow-action]):not(.incident-command-tool):hover,
 #open-plume-btn:hover,
 #guided-open-plume-btn:hover,
 #hazard-profile-plume-btn:hover,
 #plot-plume-btn:hover,
-.incident-command-tool-plume:hover,
 .incident-command-plume-copy > button:hover,
 .chemical-profile-plume:hover { border-color: #ff7277 !important; background: linear-gradient(135deg, #f33b42, #c8151e) !important; }
 button[data-view="plume"]:disabled,
-button[data-command-view="plume"]:not([data-incident-flow-action]):disabled,
+button[data-command-view="plume"]:not([data-incident-flow-action]):not(.incident-command-tool):disabled,
 #open-plume-btn:disabled,
 #guided-open-plume-btn:disabled,
 #hazard-profile-plume-btn:disabled,
 #plot-plume-btn:disabled,
-.incident-command-tool-plume:disabled,
 .incident-command-plume-copy > button:disabled,
 .chemical-profile-plume:disabled { color: rgba(255,255,255,.7) !important; background: #714144 !important; opacity: .68; }
 

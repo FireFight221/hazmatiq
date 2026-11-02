@@ -54,7 +54,7 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     ]) expect(flow).toContain(title);
     expect(flow).not.toContain('class="incident-flow-status"');
     expect(flow).not.toContain('class="incident-flow-details"');
-    expect(incidentStyles).toContain('border: 1px solid #082540;');
+    expect(incidentStyles).toContain('border: 1px solid #374151;');
     expect(flow).toMatch(/1\. Scene Size-Up[\s\S]*data-incident-command-action="chemical-profile"[^>]*>Open Hazard Profile/);
     for (const action of [
       'data-incident-command-action="erg-review"[^>]*>Review ERG Distances',

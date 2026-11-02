@@ -95,6 +95,12 @@ describe('Incident Command operational hub', () => {
     expect(incidentOverrides).toContain('#incident .incident-command-flow-title');
     expect(incidentOverrides).toContain('.incident-flow-chevron');
     expect(incidentOverrides).toContain('#incident .incident-command-flow {');
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(250px, .85fr) minmax(0, 4.15fr);');
+    expect(incidentOverrides).toContain('gap: 14px;');
+    expect(incidentOverrides).toContain('background: #e5e7eb;');
+    expect(incidentOverrides).toContain('background: #374151;');
+    expect(incidentOverrides).toContain('color: var(--gold);');
+    expect(incidentOverrides).toContain('@media (max-width: 1100px)');
     expect(incidentOverrides).toContain('background: transparent;');
   });
 
@@ -138,7 +144,20 @@ describe('Incident Command operational hub', () => {
     expect(incidentOverrides).toContain('border: 1px solid #f1f5f9 !important;');
     expect(incidentOverrides).toContain('width: 100%;');
     expect(styles).toContain(".incident-command-operational-details[open] > summary::after");
-    expect(styles).toContain('.incident-command-tool-danger { min-height: 52px;');
+    expect(styles).toContain('background: #e5e7eb;');
+    expect(styles).toContain('color: #102a43;');
+    expect(styles).toContain('.incident-command-tool-danger { border: 2px solid #b91c1c;');
+    expect(incidentOverrides).toContain('#incident .incident-command-tool { min-height: 74px;');
+    expect(incidentOverrides).toContain('#incident .incident-command-tool-danger,');
+    for (const [action, label] of [['plume', 'Open Plume Model'], ['map', 'Open Live Map'], ['note', 'Add Incident Note'], ['generate-report', 'Generate Report'], ['complete', 'Complete Incident']]) {
+      const selector = action === 'plume' || action === 'map' ? `data-command-view="${action}"` : `data-incident-command-action="${action}"`;
+      expect(html).toContain(`${selector}`);
+      expect(html).toContain(`<span>${label}</span>`);
+    }
+    expect(html).toContain('assets/page-nav-icons.svg#nav-plume');
+    expect(html).toContain('assets/page-nav-icons.svg#nav-map');
+    expect(html).toContain('assets/page-nav-icons.svg#nav-reports');
+    expect(html).not.toContain('<strong>☁️ Open Plume Model</strong>');
     expect(script).toContain("incidentOperationalSummary.setAttribute('aria-expanded'");
   });
 

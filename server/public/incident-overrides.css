@@ -589,11 +589,21 @@
 
 #incident .incident-command-tools { position: static; z-index: auto; margin: 10px 8px 0; padding: 0; border: 2px solid var(--gold); background: #082540; box-shadow: none; }
 #incident .incident-command-tools > h2 { display: flex; align-items: center; min-height: 42px; padding: 6px 10px; border-top: 0; border-bottom: 1px solid #315d7d; }
+#incident .incident-command-tools-icon { display: inline-flex; width: 22px; height: 22px; margin-right: 6px; color: var(--gold); }
+#incident .incident-command-tools-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 #incident .incident-command-tools > h2 button { display: none; margin-left: auto; min-height: 28px; padding: 4px 8px; border: 1px solid var(--gold); border-radius: 4px; color: #071f36; background: var(--gold-surface); font-size: .62rem; font-weight: 850; }
 #incident .incident-command-tool-grid { gap: 5px; padding: 5px 7px 6px; }
-#incident .incident-command-tool { min-height: 42px; padding: 5px 7px; }
-#incident .incident-command-tool strong { font-size: .68rem; }
-#incident .incident-command-tool span { font-size: .59rem; }
+#incident .incident-command-tool { min-height: 74px; height: 100%; padding: 9px 10px; border: 1px solid #b8c2cc; color: #102a43; background: #e5e7eb; }
+#incident .incident-command-tool:hover { border-color: #102a43; background: #f3f4f6; }
+#incident .incident-command-tool:active { background: #cfd4da; }
+#incident .incident-command-tool strong { color: #102a43; font-size: .9rem; font-weight: 900; }
+#incident .incident-command-tool strong > span,
+#incident .incident-command-tool > span { color: #102a43; }
+#incident .incident-command-tool > span { font-size: .75rem; }
+#incident .incident-command-tool-icon { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: #102a43; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+#incident .incident-command-tool-danger { border: 2px solid #b91c1c; background: #e5e7eb; }
+#incident .incident-command-tool-danger:hover,
+#incident .incident-command-tool-danger:focus-visible { border-color: #991b1b; background: #f3f4f6; }
 #incident .incident-command-dashboard { padding-top: 8px; padding-bottom: 24px; }
 
 @media (max-width: 900px) {
@@ -845,9 +855,7 @@
 
 #incident .incident-command-brief-panel .incident-command-panel-action,
 #incident .incident-command-inline-actions button,
-#incident .incident-command-tool[data-incident-command-action="open-report"],
-#incident .incident-command-tool[data-incident-command-action="ics"],
-#incident .incident-command-tool[data-incident-command-action="generate-report"] {
+#incident .incident-command-tool {
   border-color: #c5cbd1 !important;
   color: #111827 !important;
   background: #e5e7eb !important;
@@ -856,20 +864,20 @@
 #incident .incident-command-brief-panel .incident-command-panel-action:focus-visible,
 #incident .incident-command-inline-actions button:hover,
 #incident .incident-command-inline-actions button:focus-visible,
-#incident .incident-command-tool[data-incident-command-action="open-report"]:hover,
-#incident .incident-command-tool[data-incident-command-action="open-report"]:focus-visible,
-#incident .incident-command-tool[data-incident-command-action="ics"]:hover,
-#incident .incident-command-tool[data-incident-command-action="ics"]:focus-visible,
-#incident .incident-command-tool[data-incident-command-action="generate-report"]:hover,
-#incident .incident-command-tool[data-incident-command-action="generate-report"]:focus-visible {
+#incident .incident-command-tool:hover,
+#incident .incident-command-tool:focus-visible {
   border-color: #111827 !important;
   color: #000 !important;
   background: #f3f4f6 !important;
 }
 #incident .incident-command-inline-actions button strong,
-#incident .incident-command-tool[data-incident-command-action="open-report"] strong,
-#incident .incident-command-tool[data-incident-command-action="ics"] strong,
-#incident .incident-command-tool[data-incident-command-action="generate-report"] strong { color: #111827 !important; }
+#incident .incident-command-tool strong,
+#incident .incident-command-tool strong > span,
+#incident .incident-command-tool > span,
+#incident .incident-command-tool .incident-command-tool-icon { color: #111827 !important; stroke: #111827; }
+#incident .incident-command-tool-danger,
+#incident .incident-command-tool-danger:hover,
+#incident .incident-command-tool-danger:focus-visible { border-color: #b91c1c !important; }
 
 /* Incident Command top-board contract: three equal compact cards on desktop;
    the inventory and weather bands own their height instead of stretching the row. */
@@ -1117,8 +1125,8 @@
 #incident .incident-command-weather-bar { margin: 10px 0 10px; padding: 12px 8px 8px; }
 #incident .incident-command-flow {
   display: grid;
-  grid-template-columns: minmax(185px, .65fr) minmax(0, 4.35fr);
-  gap: 8px;
+  grid-template-columns: minmax(250px, .85fr) minmax(0, 4.15fr);
+  gap: 14px;
   align-items: stretch;
   box-sizing: border-box;
   margin: 0 0 10px;
@@ -1148,6 +1156,7 @@
   stroke-width: 2.8;
 }
 #incident .incident-command-flow-title h2 {
+  min-width: 0;
   margin: 0;
   color: var(--gold);
   font-size: clamp(1.35rem, 1.9vw, 1.9rem);
@@ -1167,6 +1176,7 @@
   min-width: 0;
   width: 100%;
   max-width: 100%;
+  overflow: visible;
 }
 #incident .incident-flow-chevron {
   display: flex;
@@ -1192,7 +1202,7 @@
   box-sizing: border-box;
   border: 1px solid #9a791e;
   border-radius: 4px;
-  background: var(--gold-surface);
+  background: #e5e7eb;
 }
 #incident .incident-flow-icon {
   width: 26px;
@@ -1220,10 +1230,10 @@
   width: 100%;
   min-height: 32px;
   padding: 4px 8px;
-  border: 1px solid #082540;
+  border: 1px solid #374151;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .72);
-  color: #082540;
+  background: #374151;
+  color: var(--gold);
   font-size: .72rem;
   font-weight: 900;
   line-height: 1.15;
@@ -1232,9 +1242,14 @@
 }
 #incident .incident-command-flow-steps article > button:hover,
 #incident .incident-command-flow-steps article > button:focus-visible {
-  border-color: #082540;
-  background: #fff;
-  color: #082540;
+  border-color: var(--gold);
+  background: #4b5563;
+  color: var(--gold);
+}
+#incident .incident-command-flow-steps article > button:active {
+  border-color: var(--gold);
+  background: #1f2937;
+  color: var(--gold);
 }
 #incident .incident-command-brief-panel > h2,
 #incident .incident-command-guided-panel > h2 {
@@ -1279,7 +1294,7 @@
   #incident .incident-command-info-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; }
   #incident .incident-info-card { min-height: 152px; height: auto; }
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   #incident .incident-command-flow { grid-template-columns: 1fr; gap: 7px; padding: 5px 8px; }
   #incident .incident-command-flow-title { justify-content: flex-start; padding: 2px 4px; }
   #incident .incident-command-flow-steps { grid-template-columns: 1fr; gap: 0; }
