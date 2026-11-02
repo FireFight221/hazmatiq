@@ -148,7 +148,7 @@ describe('Incident Command operational hub', () => {
     expect(styles).toContain('color: #102a43;');
     expect(styles).toContain('.incident-command-tool-danger { border: 2px solid #b91c1c;');
     expect(incidentOverrides).toContain('#incident .incident-command-tool { min-height: 74px;');
-    expect(incidentOverrides).toContain('#incident .incident-command-tool-danger,');
+    expect(incidentOverrides).toContain('#incident .incident-command-tool-danger:hover,');
     for (const [action, label] of [['plume', 'Open Plume Model'], ['map', 'Open Live Map'], ['note', 'Add Incident Note'], ['generate-report', 'Generate Report'], ['complete', 'Complete Incident']]) {
       const selector = action === 'plume' || action === 'map' ? `data-command-view="${action}"` : `data-incident-command-action="${action}"`;
       expect(html).toContain(`${selector}`);

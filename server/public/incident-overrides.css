@@ -24,15 +24,6 @@
 .incident-command-page .incident-command-guided-content { font-size: clamp(15px, .95vw, 18px); line-height: 1.45; }
 .incident-command-page button { font-size: clamp(14px, .9vw, 17px); font-weight: 850; }
 .incident-command-page .status-pill { font-size: 13px; }
-.incident-command-flow { margin: 0 0 10px; padding: 8px; border: 0; border-radius: 4px; background: transparent; box-shadow: none; }
-.incident-command-flow-title { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; padding: 6px 8px; }
-.incident-command-flow-title-icon { width: 44px; height: 44px; flex: 0 0 44px; fill: none; stroke: var(--gold); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.8; }
-.incident-command-flow-title h2 { margin: 0; color: var(--gold); font-size: clamp(1.35rem, 1.9vw, 1.9rem); font-weight: 950; letter-spacing: .06em; line-height: 1.05; text-align: center; text-transform: uppercase; }
-.incident-command-flow-title h2 span { display: block; }
-.incident-command-flow-steps { display: grid; grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr) max-content minmax(0, 1fr); gap: 0 7px; align-items: stretch; min-width: 0; }
-.incident-command-flow-steps article { min-width: 0; padding: 8px; border: 1px solid #356b94; border-radius: 4px; background: #0b2944; }
-.incident-command-flow-steps article strong { color: #fff; }
-.incident-command-flow-steps button { align-self: flex-start; margin-top: auto; min-height: 44px; padding: 6px 12px; border: 1px solid #aeb8c3; border-radius: 6px; background: #e5e7eb; color: #082540; }
 .incident-guided-primary { width: 100%; min-height: 44px; margin-bottom: 12px; border: 1px solid var(--gold); border-radius: 7px; background: #123f63; color: #fff; }
 .incident-command-snapshot[hidden] { display: none !important; }
 .incident-command-brief-list { margin: 0; padding: 5px 11px 8px; }
@@ -238,14 +229,6 @@
   font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
-.incident-command-flow-steps button { max-width: 100%; text-align: left; cursor: pointer; }
-.incident-command-flow-steps button:hover { background: #d1d5db; border-color: #7b8794; color: #082540; }
-.incident-command-flow-steps button.command-flow-hazard,
-.incident-command-flow-steps button.command-flow-erg,
-.incident-command-flow-steps button[data-command-view="plume"],
-.incident-command-flow-steps button[data-command-view="guided-response"],
-.incident-command-flow-steps button[data-command-view="report"] { background: #e5e7eb; border-color: #aeb8c3; color: #082540; }
-
 .erg-review-dialog {
   width: min(920px, calc(100vw - 28px));
   max-width: 920px;
@@ -594,16 +577,17 @@
 #incident .incident-command-tools > h2 button { display: none; margin-left: auto; min-height: 28px; padding: 4px 8px; border: 1px solid var(--gold); border-radius: 4px; color: #071f36; background: var(--gold-surface); font-size: .62rem; font-weight: 850; }
 #incident .incident-command-tool-grid { gap: 5px; padding: 5px 7px 6px; }
 #incident .incident-command-tool { min-height: 74px; height: 100%; padding: 9px 10px; border: 1px solid #b8c2cc; color: #102a43; background: #e5e7eb; }
-#incident .incident-command-tool:hover { border-color: #102a43; background: #f3f4f6; }
+#incident .incident-command-tool:hover,
+#incident .incident-command-tool:focus-visible { border-color: #102a43; background: #f3f4f6; }
 #incident .incident-command-tool:active { background: #cfd4da; }
 #incident .incident-command-tool strong { color: #102a43; font-size: .9rem; font-weight: 900; }
 #incident .incident-command-tool strong > span,
-#incident .incident-command-tool > span { color: #102a43; }
+#incident .incident-command-tool > span,
+#incident .incident-command-tool .incident-command-tool-icon { color: #102a43; stroke: #102a43; }
 #incident .incident-command-tool > span { font-size: .75rem; }
-#incident .incident-command-tool-icon { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: #102a43; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-#incident .incident-command-tool-danger { border: 2px solid #b91c1c; background: #e5e7eb; }
+#incident .incident-command-tool-danger { border: 2px solid #b91c1c; }
 #incident .incident-command-tool-danger:hover,
-#incident .incident-command-tool-danger:focus-visible { border-color: #991b1b; background: #f3f4f6; }
+#incident .incident-command-tool-danger:focus-visible { border-color: #991b1b; }
 #incident .incident-command-dashboard { padding-top: 8px; padding-bottom: 24px; }
 
 @media (max-width: 900px) {
@@ -656,7 +640,6 @@
 #incident .incident-info-card .incident-address-autocomplete { min-width: 0; }
 #incident .incident-info-card .chemical-search-suggestions { top: calc(100% + 3px); z-index: 40; }
 #incident .incident-command-weather-bar { border-width: 2px; border-radius: 4px; }
-#incident .incident-command-flow { box-sizing: border-box; border: 0; border-radius: 4px; background: transparent; box-shadow: none; padding: 8px; }
 #incident .incident-command-main-grid { gap: 10px; padding: 0 8px; }
 #incident .incident-command-brief-panel > h2 .incident-command-panel-action:only-child { width: 28px; min-width: 28px; flex: 0 0 28px; }
 #incident .incident-command-status-list { padding: 3px 8px; }
@@ -854,8 +837,7 @@
 #incident .incident-command-status-row > strong { font-size: .95rem; line-height: 1.25; }
 
 #incident .incident-command-brief-panel .incident-command-panel-action,
-#incident .incident-command-inline-actions button,
-#incident .incident-command-tool {
+#incident .incident-command-inline-actions button {
   border-color: #c5cbd1 !important;
   color: #111827 !important;
   background: #e5e7eb !important;
@@ -863,21 +845,12 @@
 #incident .incident-command-brief-panel .incident-command-panel-action:hover,
 #incident .incident-command-brief-panel .incident-command-panel-action:focus-visible,
 #incident .incident-command-inline-actions button:hover,
-#incident .incident-command-inline-actions button:focus-visible,
-#incident .incident-command-tool:hover,
-#incident .incident-command-tool:focus-visible {
+#incident .incident-command-inline-actions button:focus-visible {
   border-color: #111827 !important;
   color: #000 !important;
   background: #f3f4f6 !important;
 }
-#incident .incident-command-inline-actions button strong,
-#incident .incident-command-tool strong,
-#incident .incident-command-tool strong > span,
-#incident .incident-command-tool > span,
-#incident .incident-command-tool .incident-command-tool-icon { color: #111827 !important; stroke: #111827; }
-#incident .incident-command-tool-danger,
-#incident .incident-command-tool-danger:hover,
-#incident .incident-command-tool-danger:focus-visible { border-color: #b91c1c !important; }
+#incident .incident-command-inline-actions button strong { color: #111827 !important; }
 
 /* Incident Command top-board contract: three equal compact cards on desktop;
    the inventory and weather bands own their height instead of stretching the row. */
@@ -1080,9 +1053,6 @@
 #incident .incident-command-assignment-editor { grid-column: auto; }
 #incident .incident-command-assignment-editor > p { margin: 0 0 10px; color: #d7e6ef; line-height: 1.45; }
 #incident #ic-assignment-editor { display: grid; gap: 12px; }
-#incident .incident-assignment-phase { min-width: 0; padding: 10px; border: 1px solid rgba(93, 142, 180, .52); border-radius: 7px; background: rgba(8, 37, 64, .72); }
-#incident .incident-assignment-phase h4 { margin: 0 0 4px; color: #fff; font-size: .82rem; line-height: 1.25; }
-#incident .incident-assignment-phase > p { margin: 0 0 8px; color: #c5dbe7; font-size: .74rem; line-height: 1.35; }
 #incident .guided-role-assignment { display: grid; gap: 8px; }
 #incident .guided-role-assignment > .guided-role-suggestion { display: none; }
 #incident .guided-assignment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

@@ -118,17 +118,6 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   border-color: #69adff !important;
   background: #0d3152 !important;
 }
-.incident-command-tool-plume {
-  border-color: #406b91 !important;
-  background: #082540 !important;
-  color: #f8fafc !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
-}
-.incident-command-tool-plume:hover,
-.incident-command-tool-plume:focus-visible {
-  border-color: #69adff !important;
-  background: #0d3152 !important;
-}
 @media (max-width: 760px) {
   .view:not(#overview) > .hazmat-page-hero .hazmat-page-hero-content {
     padding: 0 12px 60px !important;
