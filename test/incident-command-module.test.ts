@@ -72,9 +72,17 @@ describe('Incident Command operational hub', () => {
     expect(script).toContain('function switchActiveIncident');
   });
 
-  it('uses three command overview cards and keeps the active-incident decision actions in Guided Response', () => {
+  it('uses two command overview cards with a separate assignment rail and keeps decision actions in Guided Response', () => {
     const activeCommand = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('<section class="incident-command-panel incident-command-tools"'));
+    const mainGrid = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('<section class="incident-command-panel incident-command-assignment-editor"'));
+    const assignmentStart = html.indexOf('<section class="incident-command-panel incident-command-assignment-editor"');
+    const plumeStart = html.indexOf('<section class="incident-command-panel incident-command-plume-summary');
     expect(activeCommand.match(/class="incident-command-panel /g)).toHaveLength(5);
+    expect(mainGrid).toContain('incident-command-brief-panel');
+    expect(mainGrid).toContain('incident-command-guided-panel');
+    expect(mainGrid).not.toContain('ic-assignment-editor-section');
+    expect(assignmentStart).toBeGreaterThan(html.indexOf('</div>', html.indexOf('<div class="incident-command-main-grid">')));
+    expect(assignmentStart).toBeLessThan(plumeStart);
     expect(activeCommand).toContain('incident-command-brief-panel');
     expect(activeCommand).toContain('incident-command-guided-panel');
     expect(activeCommand).toContain('id="ic-assignment-editor-section"');
@@ -139,9 +147,10 @@ describe('Incident Command operational hub', () => {
   it('orders the command dashboard content for desktop and responsive layouts', () => {
     expect(incidentOverrides).toContain('#incident .incident-command-info-grid { order: 1;');
     expect(incidentOverrides).toContain('#incident .incident-command-flow { order: 2;');
-    expect(incidentOverrides).toContain('#incident .incident-command-plume-summary-inline { order: 4;');
-    expect(incidentOverrides).toContain('#incident .incident-command-weather-bar { order: 5;');
-    expect(incidentOverrides).toContain('#incident .incident-command-tools { order: 6;');
+    expect(incidentOverrides).toContain('#incident #ic-assignment-editor-section { order: 4;');
+    expect(incidentOverrides).toContain('#incident .incident-command-plume-summary-inline { order: 5;');
+    expect(incidentOverrides).toContain('#incident .incident-command-weather-bar { order: 6;');
+    expect(incidentOverrides).toContain('#incident .incident-command-tools { order: 7;');
     expect(incidentOverrides).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
     expect(incidentOverrides).toContain('border: 1px solid #f1f5f9 !important;');
     expect(incidentOverrides).toContain('width: 100%;');
@@ -199,7 +208,7 @@ describe('Incident Command operational hub', () => {
     expect(html).not.toContain('class="incident-assignment-phase"');
     expect(script).toContain("function persistIncidentAssignment(assignment, previousPhaseId = '')");
     expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 7fr) minmax(220px, 3fr);');
-    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.15fr);');
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);');
     expect(incidentOverrides).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
     expect(incidentOverrides).toContain('.incident-command-plume-map');
     expect(incidentOverrides).toContain('grid-template-rows: auto !important;');
@@ -220,18 +229,22 @@ describe('Incident Command operational hub', () => {
     expect(script).toContain("assigned.className = 'incident-assignment-item-assigned';");
     expect(script).toContain("detailGrid.className = 'incident-assignment-item-details';");
     expect(script).toContain("meta.className = 'incident-assignment-item-meta';");
-    expect(script).toContain('meta.append(state, actions);');
-    expect(script).toContain('item.append(content, meta);');
+    expect(script).toContain('meta.append(state);');
+    expect(script).toContain('item.append(content, meta, actions);');
     expect(script).toContain("role.className = 'incident-assignment-item-role';");
     expect(script).toContain("itemInfo.className = 'incident-assignment-item-info';");
     expect(script).toContain("detailItem.className = 'incident-assignment-detail';");
     expect(script).toContain("detail.textContent = value || 'Not recorded';");
+    expect(script).toContain("remove.setAttribute('aria-label', 'Remove assignment');");
+    expect(script).toContain("rosterToggle.textContent = showAllAssignments ? 'Show Fewer Assignments' : `Show All Assignments (");
+    expect(script).toContain("locationInput.placeholder = 'Named location or searchable address';");
     expect(incidentOverrides).toContain('.incident-assignment-table-header');
-    expect(incidentOverrides).toContain('grid-template-columns: minmax(140px, .9fr) minmax(0, 2fr) max-content;');
+    expect(incidentOverrides).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
     expect(incidentOverrides).toContain('.incident-assignment-item-assigned');
     expect(incidentOverrides).toContain('.incident-assignment-item-info');
     expect(incidentOverrides).toContain('.incident-assignment-item-details');
     expect(incidentOverrides).toContain('.incident-assignment-item-meta');
+    expect(incidentOverrides).toContain('.incident-assignment-item-actions button');
     expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1fr);');
   });
 

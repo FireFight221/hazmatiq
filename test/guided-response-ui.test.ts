@@ -247,12 +247,17 @@ describe("Guided Response workflow", () => {
     expect(script).toContain("Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.");
     expect(script).toContain("function renderIncidentAssignmentEditor(incident, editor =");
     expect(html).toContain('id="ic-manage-assignments-btn"');
-    expect(script).toContain("locationStatus: assignment.locationStatus || 'Location not set'");
+    expect(script).toContain('locationStatus: location.status');
+    expect(script).toContain("locationInput.placeholder = 'Named location or searchable address';");
+    expect(script).toContain("placeOnMap.textContent = 'Place on Live Map';");
     expect(script).toContain("type: 'guided-response-assignment'");
     expect(script).toContain('guidedResponseAssignmentHistory');
     expect(script).toContain('function beginIncidentResourcePlacement(assignment)');
     expect(script).toContain('No location is assumed.');
     expect(script).toContain('Place on Map');
+    expect(script).toContain("window.addEventListener('hazmatiq:incident-assignment-updated'");
+    expect(script).toContain('if (liveMap) renderLiveMapMarkers();');
+    expect(script).toContain("remove.setAttribute('aria-label', 'Remove assignment');");
   });
 
   it("puts the command checkpoints first and makes them interactive", () => {

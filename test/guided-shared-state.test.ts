@@ -47,6 +47,14 @@ describe('Shared operational plan state', () => {
     expect(app.run('guidedIncidentAssignments()')).toHaveLength(0);
     expect((app.incident().guidedResponseAssignmentHistory as unknown[])).toHaveLength(3);
   });
+  it('preserves named assignment locations and resolves only the saved incident location', () => {
+    const app = setup({ address: '100 Main Street', city: 'Birmingham', state: 'AL', latitude: 33.52, longitude: -86.8 });
+    app.run("persistIncidentAssignment({assignmentId:'placed', phaseId:'zones-resources', personnel:'Entry 1', unit:'HM1', responsibility:'Prepare entry', locationLabel:'100 Main Street', status:'Confirmed'});");
+    expect(app.run('guidedIncidentAssignments()[0]')).toMatchObject({ locationLabel: '100 Main Street', latitude: 33.52, longitude: -86.8, locationSource: 'Saved incident location' });
+    app.run("persistIncidentAssignment({assignmentId:'unplaced', phaseId:'zones-resources', personnel:'Decon', unit:'HM2', responsibility:'Set corridor', locationLabel:'North gate', status:'Planned'});");
+    expect(app.run("guidedIncidentAssignments().find((item) => item.assignmentId === 'unplaced')")).toMatchObject({ locationLabel: 'North gate', locationStatus: 'North gate', locationSource: 'Named location — not placed' });
+    expect(app.run("guidedIncidentAssignments().find((item) => item.assignmentId === 'unplaced').latitude")).toBe('');
+  });
   it('loads older flattened assignments without borrowing another planning session', () => {
     const app = setup({ guidedResponseAssignments: [{ assignmentId: 'legacy', phaseId: 'recon-assessment', personnel: 'Recon', status: 'Confirmed' }] });
     expect(app.run('guidedIncidentAssignments()')).toHaveLength(1);

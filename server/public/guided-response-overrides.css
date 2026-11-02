@@ -26,15 +26,15 @@
 #guided-response .guided-support-card .ghost-btn { min-height: 40px; color: #fff; background: #173f58; border: 1px solid #88abc0; }
 #guided-response .guided-support-card .incident-assignment-table-header { display: none; }
 #guided-response .guided-support-card .incident-assignment-list { display: grid; gap: 6px; margin-top: 10px; min-width: 0; }
-#guided-response .guided-support-card .incident-assignment-item { display: grid; grid-template-columns: minmax(135px, .9fr) minmax(0, 2fr) max-content; grid-template-rows: auto auto; gap: 6px 9px; min-width: 0; padding: 8px; border: 1px solid #64879c; border-radius: 7px; background: #10344b; }
-#guided-response .guided-support-card .incident-assignment-item-content { display: contents; min-width: 0; }
-#guided-response .guided-support-card .incident-assignment-item-heading { grid-column: 1; grid-row: 1; display: grid; align-content: start; gap: 2px; min-width: 0; }
-#guided-response .guided-support-card .incident-assignment-item-info { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: repeat(3,minmax(78px,1fr)); gap: 7px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item { display: grid; grid-template-columns: minmax(0, 1fr) max-content; grid-template-rows: auto auto; gap: 7px 9px; min-width: 0; padding: 8px; border: 1px solid #64879c; border-radius: 7px; background: #10344b; }
+#guided-response .guided-support-card .incident-assignment-item-content { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: minmax(120px, .85fr) minmax(0, 1.4fr); gap: 6px 9px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-heading { display: grid; align-content: start; gap: 2px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-info { display: grid; grid-template-columns: repeat(2,minmax(78px,1fr)); gap: 7px; min-width: 0; }
 #guided-response .guided-support-card .incident-assignment-item-assigned,
 #guided-response .guided-support-card .incident-assignment-item-supervisor,
 #guided-response .guided-support-card .incident-assignment-item-task { display: grid; align-content: start; gap: 2px; min-width: 0; }
-#guided-response .guided-support-card .incident-assignment-item-meta { grid-column: 3; grid-row: 1; display: grid; align-content: start; justify-items: end; gap: 6px; min-width: max-content; }
-#guided-response .guided-support-card .incident-assignment-more { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-item-meta { grid-column: 2; grid-row: 1; display: grid; align-content: start; justify-items: end; gap: 6px; min-width: 0; }
+#guided-response .guided-support-card .incident-assignment-more { grid-column: 1 / -1; min-width: 0; }
 #guided-response .guided-support-card .incident-assignment-field-label { display: block; margin-bottom: 2px; color: var(--gold); font: 900 .68rem/1.15 Arial, sans-serif; letter-spacing: .03em; text-transform: uppercase; }
 #guided-response .guided-support-card strong,
 #guided-response .guided-support-card .incident-assignment-item-role,
@@ -47,13 +47,19 @@
 #guided-response .guided-support-card .incident-assignment-detail { display: grid; gap: 2px; min-width: 0; }
 #guided-response .guided-support-card .incident-assignment-item-details dt { color: var(--gold); font: 900 .66rem/1.15 Arial, sans-serif; text-transform: uppercase; }
 #guided-response .guided-support-card .incident-assignment-item-details dd { margin: 0; font-size: .76rem; line-height: 1.25; }
-#guided-response .guided-support-card .incident-assignment-item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-items: center; }
+#guided-response .guided-support-card .incident-assignment-item-actions { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-items: center; padding-top: 6px; border-top: 1px solid #64879c; }
+#guided-response .guided-support-card .incident-assignment-item-actions button { box-sizing: border-box; display: inline-flex; min-width: 74px; min-height: 30px; align-items: center; justify-content: center; padding: 4px 7px; }
+#guided-response .guided-support-card .incident-assignment-item-actions .incident-assignment-remove { min-width: 30px; width: 30px; padding: 4px; }
+#guided-response .guided-support-card .incident-assignment-item-actions svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 #guided-response .guided-support-card .incident-assignment-state { padding: 4px 7px; border-radius: 4px; background: #205f42; color: #fff; font-weight: 800; }
 #guided-response .guided-support-card .guided-assignment-grid { grid-template-columns: 1fr; }
 #guided-response .guided-support-card label { display: grid; gap: 5px; margin-top: 8px; color: #fff; }
 #guided-response .guided-support-card input,
 #guided-response .guided-support-card select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 42px; padding: 8px; background: #fff; color: #102f46; border: 1px solid #8daabf; border-radius: 5px; font: 1rem Arial, sans-serif; }
 #guided-response .guided-support-card .guided-assignment-actions { display: flex; gap: 8px; margin-top: 10px; }
+#guided-response .guided-support-card .incident-assignment-location-coordinates { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; align-items: end; }
+#guided-response .guided-support-card .incident-assignment-location-coordinates > button { min-height: 42px; }
+#guided-response .guided-support-card .incident-assignment-location-status { grid-column: 1 / -1; color: #c5dbe7; font-size: .72rem; line-height: 1.25; }
 #guided-response .guided-support-card .guided-assignment-equipment-field { min-width: 0; margin: 8px 0 0; padding: 8px; border: 1px solid #8daabf; border-radius: 6px; background: #f7fafc; }
 #guided-response .guided-support-card .guided-assignment-equipment-field legend { padding: 0 4px; color: #173e57; font-size: .78rem; font-weight: 900; }
 #guided-response .guided-role-assignment .guided-assignment-equipment-field { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 8px; border: 1px solid #8daabf; border-radius: 6px; background: #f7fafc; }
@@ -140,23 +146,17 @@
 @media (max-width: 980px) {
   #guided-response .guided-action-workspace { grid-template-columns: minmax(0, 1fr); }
   #guided-response .guided-incident-support { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #guided-response .guided-support-card .incident-assignment-item { grid-template-columns: minmax(0, 1fr) max-content; }
-  #guided-response .guided-support-card .incident-assignment-item-heading { grid-column: 1; grid-row: 1; }
-  #guided-response .guided-support-card .incident-assignment-item-info { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(3,minmax(70px,1fr)); }
-  #guided-response .guided-support-card .incident-assignment-item-meta { grid-column: 2; grid-row: 1; }
-  #guided-response .guided-support-card .incident-assignment-more { grid-column: 1 / -1; grid-row: 3; }
+  #guided-response .guided-support-card .incident-assignment-item-info { grid-template-columns: repeat(3,minmax(70px,1fr)); }
 }
 @media (max-width: 640px) {
   #guided-response .guided-incident-support { grid-template-columns: minmax(0, 1fr); }
-  #guided-response .guided-support-card .incident-assignment-item { grid-template-columns: minmax(0,1fr); grid-template-rows: auto; }
-  #guided-response .guided-support-card .incident-assignment-item-heading,
-  #guided-response .guided-support-card .incident-assignment-item-info,
-  #guided-response .guided-support-card .incident-assignment-item-meta,
-  #guided-response .guided-support-card .incident-assignment-more { grid-column: 1; grid-row: auto; }
+  #guided-response .guided-support-card .incident-assignment-item { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto auto; }
+  #guided-response .guided-support-card .incident-assignment-item-content { grid-column: 1; grid-row: 1; grid-template-columns: minmax(0,1fr); }
+  #guided-response .guided-support-card .incident-assignment-item-meta { grid-column: 1; grid-row: 2; justify-items: start; }
+  #guided-response .guided-support-card .incident-assignment-item-actions { grid-column: 1; grid-row: 3; justify-content: flex-start; }
   #guided-response .guided-support-card .incident-assignment-item-info { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  #guided-response .guided-support-card .incident-assignment-item-meta { justify-items: start; min-width: 0; }
-  #guided-response .guided-support-card .incident-assignment-item-actions { justify-content: flex-start; }
   #guided-response .guided-support-card .incident-assignment-item-details { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #guided-response .guided-support-card .incident-assignment-location-coordinates { grid-template-columns: minmax(0,1fr); }
   #guided-response .guided-phase-summary { grid-template-columns: 28px 26px minmax(0, 1fr); }
   #guided-response .guided-phase-state { grid-column: 3; }
 }

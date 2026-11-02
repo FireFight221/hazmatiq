@@ -7316,6 +7316,72 @@ function buildIncidentActionPlan(incident, phaseState = readGuidedResponsePhaseS
   return { strategy: strategy || 'Assessment / Not Selected', phases, updatedAt: new Date().toISOString() };
 }
 
+function validAssignmentCoordinatePair(latitude, longitude) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng)
+    && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0)
+    ? { latitude: lat, longitude: lng }
+    : null;
+}
+
+function savedIncidentLocation(incident) {
+  const coordinates = validAssignmentCoordinatePair(incident?.latitude, incident?.longitude);
+  const label = [incident?.facilityName, incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', ')
+    || incident?.selectedFacility?.name || '';
+  return coordinates ? { ...coordinates, label } : null;
+}
+
+async function resolveAssignmentAddress(address) {
+  const value = String(address || '').trim();
+  if (value.length < 3) return null;
+  const query = new URLSearchParams({ f: 'json', SingleLine: value, outFields: 'Addr_type,Address,City,Region,RegionAbbr,Postal', maxLocations: '1', forStorage: 'false' });
+  const result = await fetchJson(`${arcgisGeocoderUrl}/findAddressCandidates?${query}`);
+  const candidate = result?.candidates?.[0];
+  const coordinates = validAssignmentCoordinatePair(candidate?.location?.y, candidate?.location?.x);
+  return coordinates ? { ...coordinates, label: candidate?.address || value } : null;
+}
+
+function resolveAssignmentLocation(incident, assignment) {
+  const previousStatus = String(assignment.locationStatus || '').trim();
+  const label = String(assignment.locationLabel || (previousStatus && !/^location (not set|placed on map)$/i.test(previousStatus) ? previousStatus : '')).trim();
+  const recorded = validAssignmentCoordinatePair(assignment.latitude, assignment.longitude);
+  if (recorded) {
+    const recordedLabel = label || (previousStatus && !/^location not set$/i.test(previousStatus) ? previousStatus : 'Recorded coordinates');
+    return {
+    label: recordedLabel,
+    latitude: recorded.latitude,
+    longitude: recorded.longitude,
+    status: label || (previousStatus && !/^location not set$/i.test(previousStatus) ? previousStatus : 'Placed on Map'),
+    source: assignment.locationSource || 'Recorded coordinates',
+    };
+  }
+  const incidentLocation = savedIncidentLocation(incident);
+  const normalize = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const savedLabels = [
+    incidentLocation?.label,
+    incident?.facilityName,
+    incident?.address,
+    [incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', '),
+    incident?.selectedFacility?.name,
+    incident?.selectedFacility?.address,
+  ].map(normalize).filter(Boolean);
+  if (label && incidentLocation && savedLabels.includes(normalize(label))) return {
+    label,
+    latitude: incidentLocation.latitude,
+    longitude: incidentLocation.longitude,
+    status: label,
+    source: 'Saved incident location',
+  };
+  return {
+    label,
+    latitude: '',
+    longitude: '',
+    status: label || 'Location not set',
+    source: label ? 'Named location — not placed' : 'Not placed',
+  };
+}
+
 function persistGuidedResponsePhaseState(phaseId, patch = {}, options = {}) {
   const incident = getActiveIncident();
   const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
@@ -7467,13 +7533,17 @@ function persistGuidedPhaseAssignment(phaseId, assignment) {
   const existingIndex = assignments.findIndex((item) => item?.assignmentId === assignmentId);
   const action = existingIndex >= 0 ? 'updated' : 'assigned';
   const now = new Date().toISOString();
+  const location = resolveAssignmentLocation(incident, assignment);
   const nextAssignment = {
     ...assignment,
     assignmentId,
     phaseId,
     role: assignment.role || guidedPhaseDefinitions.find((phase) => phase.id === phaseId)?.roles || '',
-    locationStatus: assignment.locationStatus || 'Location not set',
-    locationSource: assignment.locationSource || 'Not placed',
+    locationLabel: location.label,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    locationStatus: location.status,
+    locationSource: location.source,
     updatedAt: now,
     changedBy: incidentResponderIdentity(),
   };
@@ -7502,12 +7572,16 @@ function persistIncidentAssignment(assignment, previousPhaseId = '') {
   const current = readGuidedResponsePhaseState(incident, getIncidentChemicalContext(incident)?.chemical || activeChemical);
   const priorPhaseId = previousPhaseId || Object.entries(current).find(([, record]) => (record?.assignments || []).some((item) => item?.assignmentId === assignmentId))?.[0] || '';
   const now = new Date().toISOString();
+  const location = resolveAssignmentLocation(incident, assignment);
   const nextAssignment = {
     ...assignment,
     assignmentId,
     phaseId: targetPhaseId,
-    locationStatus: assignment.locationStatus || 'Location not set',
-    locationSource: assignment.locationSource || 'Not placed',
+    locationLabel: location.label,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    locationStatus: location.status,
+    locationSource: location.source,
     updatedAt: now,
     changedBy: incidentResponderIdentity(),
   };
@@ -7598,6 +7672,58 @@ function createGuidedRoleAssignment(phase, incident, record) {
     controlRow.append(input);
     field.append(controlRow); grid.append(field);
   });
+  const locationField = document.createElement('label');
+  locationField.textContent = 'Location';
+  const locationInput = document.createElement('input');
+  locationInput.type = 'text';
+  locationInput.value = assignment.locationLabel || (assignment.locationStatus && !/^location (not set|placed on map)$/i.test(assignment.locationStatus) ? assignment.locationStatus : '');
+  locationInput.placeholder = 'Named location or searchable address';
+  const locationList = document.createElement('datalist');
+  locationList.id = `guided-assignment-locations-${phase.id}`;
+  const savedLocation = savedIncidentLocation(incident);
+  [savedLocation?.label, incident?.facilityName, incident?.selectedFacility?.name, incident?.selectedFacility?.address]
+    .filter(Boolean).forEach((value) => { const option = document.createElement('option'); option.value = value; locationList.append(option); });
+  locationInput.setAttribute('list', locationList.id);
+  controls.locationLabel = locationInput;
+  locationInput.addEventListener('input', () => {
+    const coordinateInputs = [...coordinates.querySelectorAll('input[type="number"]')];
+    coordinateInputs.forEach((input) => { input.value = ''; });
+    locationStatus.textContent = 'Named location is not placed until resolved or selected on Live Map.';
+  });
+  locationField.append(locationInput, locationList); grid.append(locationField);
+  const coordinates = document.createElement('div'); coordinates.className = 'incident-assignment-location-coordinates';
+  [['Map latitude', 'latitude', assignment.latitude || ''], ['Map longitude', 'longitude', assignment.longitude || '']].forEach(([label, key, value]) => {
+    const field = document.createElement('label'); field.textContent = label;
+    const input = document.createElement('input'); input.type = 'number'; input.step = 'any'; input.value = value; input.placeholder = 'Not placed'; controls[key] = input; field.append(input); coordinates.append(field);
+  });
+  const useIncidentLocation = document.createElement('button'); useIncidentLocation.type = 'button'; useIncidentLocation.className = 'ghost-btn incident-assignment-use-incident-location'; useIncidentLocation.textContent = 'Use Incident Location'; useIncidentLocation.disabled = !savedLocation;
+  useIncidentLocation.addEventListener('click', () => {
+    if (!savedLocation) return;
+    locationInput.value = savedLocation.label || 'Incident location';
+    const coordinateInputs = [...coordinates.querySelectorAll('input')];
+    if (coordinateInputs[0]) coordinateInputs[0].value = String(savedLocation.latitude);
+    if (coordinateInputs[1]) coordinateInputs[1].value = String(savedLocation.longitude);
+  });
+  coordinates.append(useIncidentLocation);
+  const resolveAddress = document.createElement('button'); resolveAddress.type = 'button'; resolveAddress.className = 'ghost-btn incident-assignment-resolve-address'; resolveAddress.textContent = 'Resolve Address';
+  resolveAddress.addEventListener('click', async () => {
+    resolveAddress.disabled = true;
+    const resolved = await resolveAssignmentAddress(locationInput.value);
+    resolveAddress.disabled = false;
+    if (!resolved) { locationStatus.textContent = 'Address not resolved; coordinates remain unplaced.'; return; }
+    locationInput.value = resolved.label;
+    const coordinateInputs = [...coordinates.querySelectorAll('input[type="number"]')];
+    if (coordinateInputs[0]) coordinateInputs[0].value = String(resolved.latitude);
+    if (coordinateInputs[1]) coordinateInputs[1].value = String(resolved.longitude);
+    locationStatus.textContent = 'Address resolved and ready to save.';
+  });
+  coordinates.append(resolveAddress);
+  const placeOnMap = document.createElement('button'); placeOnMap.type = 'button'; placeOnMap.className = 'ghost-btn incident-assignment-place-on-map'; placeOnMap.textContent = 'Place on Live Map'; placeOnMap.disabled = !assignmentId;
+  placeOnMap.addEventListener('click', () => beginIncidentResourcePlacement({ ...assignment, assignmentId, phaseId: phase.id }));
+  coordinates.append(placeOnMap);
+  const locationStatus = document.createElement('small'); locationStatus.className = 'incident-assignment-location-status';
+  locationStatus.textContent = validAssignmentCoordinatePair(assignment.latitude, assignment.longitude) ? 'Coordinates recorded.' : 'Named location is not placed until resolved or selected on Live Map.';
+  coordinates.append(locationStatus); grid.append(coordinates);
   const statusField = document.createElement('label');
   statusField.textContent = 'Assignment state';
   const statusSelect = document.createElement('select');
@@ -7678,7 +7804,10 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
   const incidentId = incident?.incidentId || '';
   const assignments = guidedIncidentAssignments(incident);
   if (!force && !incident?.__editingAssignment && editor.dataset.incidentId === incidentId && editor.querySelector('form')) return;
-  const renderKey = JSON.stringify([incidentId, assignments, incident?.__editingAssignment || null]);
+  const showAllAssignments = editor.dataset.showAllAssignments === 'true';
+  const initialAssignmentLimit = 6;
+  const visibleAssignments = showAllAssignments ? assignments : assignments.slice(0, initialAssignmentLimit);
+  const renderKey = JSON.stringify([incidentId, assignments, visibleAssignments.length, showAllAssignments, incident?.__editingAssignment || null]);
   if (!force && editor.dataset.renderKey === renderKey) return;
   editor.replaceChildren();
   editor.dataset.incidentId = incidentId;
@@ -7700,7 +7829,7 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     empty.className = 'incident-assignment-empty';
     empty.textContent = editor.dataset.emptyMessage || 'No assignments recorded.';
     list.append(empty);
-  } else assignments.forEach((assignment) => {
+  } else visibleAssignments.forEach((assignment) => {
     const item = document.createElement('article');
     item.className = 'incident-assignment-item';
     item.dataset.assignmentId = assignment.assignmentId || '';
@@ -7740,7 +7869,7 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     taskLabel.className = 'incident-assignment-field-label';
     taskLabel.textContent = 'Location';
     const taskValue = document.createElement('strong');
-    taskValue.textContent = assignment.locationStatus || 'Location not set';
+    taskValue.textContent = assignment.locationLabel || assignment.locationStatus || 'Location not set';
     task.append(taskLabel, taskValue);
     const itemInfo = document.createElement('div');
     itemInfo.className = 'incident-assignment-item-info';
@@ -7762,7 +7891,7 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     addDetail('Responsibility', assignment.responsibility);
     addDetail('Supervisor', assignment.supervisor);
     addDetail('Notes', assignment.notes || assignment.note);
-    addDetail('Location', assignment.locationStatus || 'Location not set');
+    addDetail('Location', assignment.locationLabel || assignment.locationStatus || 'Location not set');
     const selectedEquipment = equipmentSelectionEntries(assignment.equipmentSelections || assignment.equipmentIds)
       .map((selection) => incidentEquipmentInventory(incident).find((entry) => entry.id === selection.equipmentId))
       .filter(Boolean)
@@ -7781,24 +7910,37 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
     state.setAttribute('aria-label', `Assignment status: ${state.textContent}`);
     const meta = document.createElement('div');
     meta.className = 'incident-assignment-item-meta';
+    meta.append(state);
     const actions = document.createElement('div');
     actions.className = 'incident-assignment-item-actions';
     const edit = document.createElement('button');
     edit.type = 'button'; edit.className = 'ghost-btn'; edit.textContent = 'Edit';
     edit.addEventListener('click', () => renderIncidentAssignmentEditor({ ...getActiveIncident(), __editingAssignment: assignment }, editor));
     const remove = document.createElement('button');
-    remove.type = 'button'; remove.className = 'ghost-btn incident-assignment-remove'; remove.textContent = 'Remove';
+    remove.type = 'button'; remove.className = 'ghost-btn incident-assignment-remove'; remove.setAttribute('aria-label', 'Remove assignment'); remove.title = 'Remove assignment';
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 7h14M10 11v6m4-6v6M9 7V4h6v3m-9 0 1 13h8l1-13" /></svg><span class="sr-only">Remove assignment</span>';
     remove.addEventListener('click', () => {
       if (!window.confirm(`Remove the ${assignment.role || phaseLabel(assignment.phaseId)} assignment?`)) return;
       const result = removeIncidentAssignment(assignment.assignmentId, assignment.phaseId);
       if (result.ok) renderIncidentAssignmentEditor(getActiveIncident(), editor, true);
     });
     actions.append(edit, remove);
-    meta.append(state, actions);
-    item.append(content, meta);
+    item.append(content, meta, actions);
     list.append(item);
   });
   editor.append(list);
+  if (assignments.length > initialAssignmentLimit) {
+    const rosterToggle = document.createElement('button');
+    rosterToggle.type = 'button';
+    rosterToggle.className = 'incident-assignment-roster-toggle ghost-btn';
+    rosterToggle.textContent = showAllAssignments ? 'Show Fewer Assignments' : `Show All Assignments (${assignments.length})`;
+    rosterToggle.setAttribute('aria-expanded', String(showAllAssignments));
+    rosterToggle.addEventListener('click', () => {
+      editor.dataset.showAllAssignments = String(!showAllAssignments);
+      renderIncidentAssignmentEditor(getActiveIncident(), editor, true);
+    });
+    editor.append(rosterToggle);
+  }
   if (incident.__editingAssignment) {
     const assignment = incident.__editingAssignment;
     const form = document.createElement('form');
@@ -7811,6 +7953,73 @@ function renderIncidentAssignmentEditor(incident, editor = document.getElementBy
       const field = document.createElement('label'); field.textContent = label;
       const input = document.createElement('input'); input.type = 'text'; input.value = assignment[key] || ''; input.placeholder = placeholder; controls[key] = input; field.append(input); grid.append(field);
     });
+    const locationField = document.createElement('label');
+    locationField.textContent = 'Location';
+    const locationInput = document.createElement('input');
+    locationInput.type = 'text';
+    locationInput.value = assignment.locationLabel || (assignment.locationStatus && !/^location (not set|placed on map)$/i.test(assignment.locationStatus) ? assignment.locationStatus : '');
+    locationInput.placeholder = 'Named location or searchable address';
+    locationInput.setAttribute('list', `incident-assignment-locations-${assignment.assignmentId || 'new'}`);
+    controls.locationLabel = locationInput;
+    locationInput.addEventListener('input', () => {
+      const coordinateInputs = [...coordinates.querySelectorAll('input[type="number"]')];
+      coordinateInputs.forEach((input) => { input.value = ''; });
+      locationStatus.textContent = 'Named location is not placed until resolved or selected on Live Map.';
+    });
+    locationField.append(locationInput);
+    const locationList = document.createElement('datalist');
+    locationList.id = `incident-assignment-locations-${assignment.assignmentId || 'new'}`;
+    const savedLocation = savedIncidentLocation(incident);
+    [savedLocation?.label, incident.facilityName, incident.selectedFacility?.name, incident.selectedFacility?.address]
+      .filter(Boolean).forEach((value) => { const option = document.createElement('option'); option.value = value; locationList.append(option); });
+    locationField.append(locationList);
+    grid.append(locationField);
+    const coordinates = document.createElement('div');
+    coordinates.className = 'incident-assignment-location-coordinates';
+    const coordinateLabels = [['Map latitude', 'latitude', assignment.latitude || ''], ['Map longitude', 'longitude', assignment.longitude || '']];
+    coordinateLabels.forEach(([label, key, value]) => {
+      const field = document.createElement('label'); field.textContent = label;
+      const input = document.createElement('input'); input.type = 'number'; input.step = 'any'; input.value = value; input.placeholder = 'Not placed'; controls[key] = input; field.append(input); coordinates.append(field);
+    });
+    const useIncidentLocation = document.createElement('button');
+    useIncidentLocation.type = 'button'; useIncidentLocation.className = 'ghost-btn incident-assignment-use-incident-location'; useIncidentLocation.textContent = 'Use Incident Location';
+    useIncidentLocation.disabled = !savedLocation;
+    useIncidentLocation.addEventListener('click', () => {
+      if (!savedLocation) return;
+      locationInput.value = savedLocation.label || 'Incident location';
+      const coordinateInputs = [...coordinates.querySelectorAll('input')];
+      if (coordinateInputs[0]) coordinateInputs[0].value = String(savedLocation.latitude);
+      if (coordinateInputs[1]) coordinateInputs[1].value = String(savedLocation.longitude);
+    });
+    coordinates.append(useIncidentLocation);
+    const resolveAddress = document.createElement('button');
+    resolveAddress.type = 'button'; resolveAddress.className = 'ghost-btn incident-assignment-resolve-address'; resolveAddress.textContent = 'Resolve Address';
+    resolveAddress.addEventListener('click', async () => {
+      resolveAddress.disabled = true;
+      const resolved = await resolveAssignmentAddress(locationInput.value);
+      resolveAddress.disabled = false;
+      if (!resolved) { locationStatus.textContent = 'Address not resolved; coordinates remain unplaced.'; return; }
+      locationInput.value = resolved.label;
+      const coordinateInputs = [...coordinates.querySelectorAll('input[type="number"]')];
+      if (coordinateInputs[0]) coordinateInputs[0].value = String(resolved.latitude);
+      if (coordinateInputs[1]) coordinateInputs[1].value = String(resolved.longitude);
+      locationStatus.textContent = 'Address resolved and ready to save.';
+    });
+    coordinates.append(resolveAddress);
+    const placeOnMap = document.createElement('button');
+    placeOnMap.type = 'button'; placeOnMap.className = 'ghost-btn incident-assignment-place-on-map'; placeOnMap.textContent = 'Place on Live Map';
+    placeOnMap.disabled = !assignment.assignmentId;
+    placeOnMap.title = assignment.assignmentId ? 'Choose this assignment location on Live Map' : 'Save the assignment before placing it on Live Map';
+    placeOnMap.addEventListener('click', () => {
+      if (assignment.assignmentId) beginIncidentResourcePlacement(assignment);
+    });
+    coordinates.append(placeOnMap);
+    const locationStatus = document.createElement('small');
+    locationStatus.className = 'incident-assignment-location-status';
+    locationStatus.textContent = validAssignmentCoordinatePair(assignment.latitude, assignment.longitude)
+      ? 'Coordinates recorded.' : 'Named location is not placed until resolved or selected on Live Map.';
+    coordinates.append(locationStatus);
+    grid.append(coordinates);
     const phaseField = document.createElement('label'); phaseField.textContent = 'Response phase';
     const phaseSelect = document.createElement('select');
     guidedPhaseDefinitions.forEach((phase) => { const option = document.createElement('option'); option.value = phase.id; option.textContent = `${phase.number}. ${phase.title}`; phaseSelect.append(option); });
@@ -18761,7 +18970,7 @@ function updateGuidedPhaseAssignmentLocation(phaseId, assignmentId, location) {
   const phaseAssignments = Array.isArray(current[phaseId]?.assignments) ? current[phaseId].assignments : [];
   const now = new Date().toISOString();
   const nextAssignments = phaseAssignments.map((assignment) => assignment?.assignmentId === assignmentId
-    ? { ...assignment, latitude: location.latitude, longitude: location.longitude, locationStatus: 'Placed on Map', locationSource: 'Commander placed on map', placedAt: now, updatedAt: now, changedBy: incidentResponderIdentity() }
+    ? { ...assignment, locationLabel: assignment.locationLabel || 'Map placement', latitude: location.latitude, longitude: location.longitude, locationStatus: assignment.locationLabel || 'Placed on Map', locationSource: 'Commander placed on map', placedAt: now, updatedAt: now, changedBy: incidentResponderIdentity() }
     : assignment);
   const assignment = nextAssignments.find((item) => item?.assignmentId === assignmentId);
   if (!assignment) return false;
@@ -18774,11 +18983,12 @@ function updateGuidedPhaseAssignmentLocation(phaseId, assignmentId, location) {
 }
 
 function beginIncidentResourcePlacement(assignment) {
+  pendingIncidentResourcePlacement = assignment;
   if (!liveMap) {
-    setText('live-map-status', 'Open Live Map before placing an incident resource.');
+    showView('map');
+    setText('live-map-status', `Choose a map position for ${assignment.personnel || assignment.unit || 'this resource'}. No location is assumed.`);
     return;
   }
-  pendingIncidentResourcePlacement = assignment;
   liveMap.getCanvas?.().style.setProperty('cursor', 'crosshair');
   setText('live-map-status', `Click the map to place ${assignment.personnel || assignment.unit || 'this resource'}. No location is assumed.`);
 }
@@ -19308,6 +19518,10 @@ function initializeLiveMap(context = {}) {
   if (liveMap && !liveMap.__assignmentPlacementBound) {
     liveMap.__assignmentPlacementBound = true;
     liveMap.on('click', handleIncidentResourceMapClick);
+  }
+  if (liveMap && pendingIncidentResourcePlacement) {
+    liveMap.getCanvas?.().style.setProperty('cursor', 'crosshair');
+    setText('live-map-status', `Choose a map position for ${pendingIncidentResourcePlacement.personnel || pendingIncidentResourcePlacement.unit || 'this resource'}. No location is assumed.`);
   }
   if (liveMap && !liveMap.__wildfireMoveBound) {
     liveMap.__wildfireMoveBound = true;
