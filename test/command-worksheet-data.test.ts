@@ -26,6 +26,21 @@ describe('Tactical worksheet shared facts',()=>{
   expect(script).toContain("detailItem.className = 'incident-assignment-detail';");
   expect(script).toContain("detail.textContent = value || 'Not recorded';");
  });
+ it('uses explicit organization metadata for section accents, reporting lines, and shared staging fields',()=>{
+  expect(worksheet).toContain("cardElement.dataset.parentRoleId");
+  expect(worksheet).toContain("organizationRoleId: definition.roleId");
+  expect(worksheet).toContain("organizationSection: definition.section");
+  expect(worksheet).toContain("parentRoleId: definition.parentRoleId");
+  expect(worksheet).toContain("addRoleField('Staging Manager', 'personnel'");
+  expect(worksheet).toContain("addRoleField('Staging location', 'locationStatus'");
+  expect(worksheet).toContain('worksheet-org-connectors');
+  expect(worksheetStyles).toContain('[data-section="operations"]');
+  expect(worksheetStyles).toContain('[data-section="planning"]');
+  expect(worksheetStyles).toContain('[data-section="logistics"]');
+  expect(worksheetStyles).toContain('[data-section="finance"]');
+  expect(worksheetStyles).not.toContain('worksheet-role-tier-');
+  expect(worksheetStyles).not.toContain(':nth-child');
+ });
  it('writes to the same incident and mirrors hidden legacy form values so later saves do not erase worksheet edits',()=>{
   let record = {incidentId:'training',notes:'Old note',incidentName:'Drill'};
   const input = {value:'Old note'};

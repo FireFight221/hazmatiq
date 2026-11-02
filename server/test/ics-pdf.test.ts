@@ -62,6 +62,24 @@ describe('Editable incident ICS worksheets', () => {
     expect(recordedIcsValue('214', 'Notable ActivitiesRow2', sample)).toContain('Zones established');
     expect(incidentActivity(sample).map((event) => event.detail).join(' ')).not.toContain('Recon completed');
   });
+  it('maps corrected organization parents and keeps responder rehab separate from operational patient care', () => {
+    const incident = {
+      guidedResponseAssignments: [
+        { assignmentId: 'ic', role: 'Incident Commander', personnel: 'Chief One', status: 'Confirmed', organizationRoleId: 'incident-command' },
+        { assignmentId: 'ops', role: 'Operations Section Chief', personnel: 'Operations One', status: 'Confirmed', organizationRoleId: 'operations-chief' },
+        { assignmentId: 'entry', role: 'Entry Team', personnel: 'Entry One', status: 'Confirmed', organizationRoleId: 'entry-team', parentRoleId: 'operations-chief' },
+        { assignmentId: 'patient-care', role: 'Patient Care / EMS', personnel: 'Patient Care One', status: 'Confirmed', organizationSection: 'operations', parentRoleId: 'operations-chief' },
+        { assignmentId: 'rehab', role: 'Medical / Rehab', personnel: 'Responder Rehab One', status: 'Confirmed', organizationRoleId: 'responder-medical-rehab', parentRoleId: 'logistics-chief' },
+        { assignmentId: 'staging', role: 'Staging', personnel: 'Staging Manager', unit: 'Unit 7', locationStatus: 'South lot', status: 'Confirmed', organizationRoleId: 'staging', parentRoleId: 'logistics-chief' },
+      ],
+    };
+    expect(recordedIcsValue('203', 'DivisionGroup Identifier 1', incident)).toBe('Entry Team');
+    expect(recordedIcsValue('203', 'DivisionGroup Name 1', incident)).toBe('Entry One');
+    expect(recordedIcsValue('203', 'DivisionGroup Identifier 2', incident)).toBe('Patient Care / EMS');
+    expect(recordedIcsValue('203', 'DivisionGroup Name 2', incident)).toBe('Patient Care One');
+    expect(recordedIcsValue('203', 'DivisionGroup Identifier 3', incident)).toBe('');
+    expect(recordedIcsValue('203', 'Operations Section Staging Area 1', incident)).toBe('South lot | Unit 7 | Staging Manager');
+  });
   it('records actual completion in the log without marking active incidents complete', () => {
     const completed = { ...sample, status: 'Completed', completedAt: '2026-10-29T14:30:00Z' };
     expect(incidentActivity(completed).at(-1)?.detail).toContain('Incident closed');

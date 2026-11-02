@@ -56,14 +56,26 @@
 #command-tactical-worksheet th { color: var(--gold); font-weight: 850; }
 #command-tactical-worksheet .worksheet-phase-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
 #command-tactical-worksheet .worksheet-phase { display: grid; align-content: space-between; gap: 9px; padding: 11px; border: 1px solid #6c97ad; border-radius: 6px; color: #fff; font-weight: 800; line-height: 1.35; }
-#command-tactical-worksheet .worksheet-org-chart { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 18px 12px; }
-#command-tactical-worksheet .worksheet-role { position: relative; display: grid; align-content: space-between; gap: 7px; min-width: 0; padding: 9px; border: 1px solid #82adbf; border-top: 3px solid #62d293; border-radius: 6px; background: #10374c; }
-#command-tactical-worksheet .worksheet-role strong { color: #fff; font: 850 .95rem/1.3 Arial,sans-serif; }
-#command-tactical-worksheet .worksheet-role-tier-0 { grid-column: 1 / -1; width: min(100%,420px); justify-self: center; box-sizing: border-box; border-top-color: var(--gold); }
-#command-tactical-worksheet .worksheet-role-tier-1 { grid-column: span 4; }
-#command-tactical-worksheet .worksheet-role-tier-2,
-#command-tactical-worksheet .worksheet-role-tier-3 { grid-column: span 3; }
-#command-tactical-worksheet .worksheet-role:not(.worksheet-role-tier-0)::before { content: ''; position: absolute; left: 50%; top: -17px; height: 14px; border-left: 2px solid #7098ab; }
+#command-tactical-worksheet .worksheet-org-chart { position: relative; display: grid; grid-template-columns: repeat(14,minmax(0,1fr)); grid-auto-flow: row; gap: 22px 10px; min-width: 0; padding: 4px 0; }
+#command-tactical-worksheet .worksheet-org-connectors { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+#command-tactical-worksheet .worksheet-org-connector { fill: none; stroke: #d4af37; stroke-width: 2; vector-effect: non-scaling-stroke; }
+#command-tactical-worksheet .worksheet-role { position: relative; z-index: 1; display: grid; align-content: start; gap: 7px; min-width: 0; padding: 9px; border: 1px solid #82adbf; border-top: 3px solid var(--gold); border-radius: 6px; background: #10374c; }
+#command-tactical-worksheet .worksheet-role strong { color: #fff; font: 850 .95rem/1.3 Arial,sans-serif; overflow-wrap: anywhere; }
+#command-tactical-worksheet .worksheet-role-level-0 { grid-column: 1 / -1; grid-row: 1; width: min(100%,420px); justify-self: center; }
+#command-tactical-worksheet .worksheet-role-level-1 { grid-column: span 2; grid-row: 2; }
+#command-tactical-worksheet .worksheet-role-level-2 { grid-column: span 2; grid-row: 3; }
+#command-tactical-worksheet .worksheet-role[data-section="incident-command"],
+#command-tactical-worksheet .worksheet-role[data-section="command-staff"] { border-top-color: var(--gold); }
+#command-tactical-worksheet .worksheet-role[data-section="operations"] { border-top-color: #ef4444; }
+#command-tactical-worksheet .worksheet-role[data-section="planning"] { border-top-color: #4169e1; }
+#command-tactical-worksheet .worksheet-role[data-section="logistics"] { border-top-color: #fff; }
+#command-tactical-worksheet .worksheet-role[data-section="finance"] { border-top-color: #35c978; }
+#command-tactical-worksheet .worksheet-role-fields { display: grid; gap: 6px; min-width: 0; }
+#command-tactical-worksheet .worksheet-role[data-role-id="staging"] .worksheet-role-fields { grid-template-columns: repeat(3,minmax(0,1fr)); }
+#command-tactical-worksheet .worksheet-role-field { display: grid; gap: 3px; min-width: 0; color: #fff; font-size: .74rem; font-weight: 800; line-height: 1.2; }
+#command-tactical-worksheet .worksheet-role-field-label { overflow-wrap: anywhere; }
+#command-tactical-worksheet .worksheet-role-field input { min-height: 34px; padding: 5px 6px; font-size: .86rem; }
+#command-tactical-worksheet .worksheet-role-assignment { color: #fff; font-size: .82rem; font-weight: 750; line-height: 1.3; overflow-wrap: anywhere; }
 #command-tactical-worksheet .worksheet-map { position: relative; box-sizing: border-box; width: 100%; min-width: 0; height: 360px; min-height: 300px; overflow: hidden; border: 1px solid #709bb5; border-radius: 6px; background: #071c2c; }
 #command-tactical-worksheet .worksheet-map-status { font-size: .85rem; }
 #command-tactical-worksheet .worksheet-map-marker { width: 16px; height: 16px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 3px #000; }
@@ -122,6 +134,10 @@
       "live-map";
   }
   #command-tactical-worksheet .worksheet-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #command-tactical-worksheet .worksheet-org-chart { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px 8px; }
+  #command-tactical-worksheet .worksheet-role-level-0 { grid-column: 1/-1; grid-row: auto; }
+  #command-tactical-worksheet .worksheet-role-level-1,
+  #command-tactical-worksheet .worksheet-role-level-2 { grid-column: span 1; grid-row: auto; }
 }
 @media (max-width: 600px) {
   #command-tactical-worksheet .worksheet-fields,
@@ -136,8 +152,11 @@
   #command-tactical-worksheet .incident-assignment-item-meta { justify-items: start; min-width: 0; }
   #command-tactical-worksheet .incident-assignment-item-actions { justify-content: flex-start; }
   #command-tactical-worksheet .incident-assignment-item-details { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  #command-tactical-worksheet .worksheet-role { grid-column: span 6; }
-  #command-tactical-worksheet .worksheet-role-tier-0 { grid-column: 1/-1; }
+  #command-tactical-worksheet .worksheet-org-chart { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px 8px; }
+  #command-tactical-worksheet .worksheet-role-level-0 { grid-column: 1/-1; grid-row: auto; }
+  #command-tactical-worksheet .worksheet-role-level-1,
+  #command-tactical-worksheet .worksheet-role-level-2 { grid-column: span 1; grid-row: auto; }
+  #command-tactical-worksheet .worksheet-role[data-role-id="staging"] .worksheet-role-fields { grid-template-columns: minmax(0,1fr); }
   #command-tactical-worksheet .worksheet-card { padding: 10px; }
 }
 @media (max-width: 420px) {

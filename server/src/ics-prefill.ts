@@ -17,6 +17,39 @@ export function incidentAssignments(incident: RecordValue): RecordValue[] {
       seen.add(key); return true;
     });
 }
+function organizationRoleMetadata(assignment: RecordValue): { roleId: string; section: string; parentRoleId: string; order: number } | undefined {
+  const explicit = normalize(assignment.organizationRoleId || assignment.roleId);
+  const role = normalize(assignment.role);
+  const value = explicit || role;
+  if (value === 'incidentcommand' || /^(incidentcommander|ic|unifiedcommand)$/.test(value)) return { roleId: 'incident-command', section: 'incident-command', parentRoleId: '', order: 0 };
+  if (value === 'safetyofficer' || /safety/.test(value)) return { roleId: 'safety-officer', section: 'command-staff', parentRoleId: 'incident-command', order: 10 };
+  if (value === 'liaisonofficer' || /liaison/.test(value)) return { roleId: 'liaison-officer', section: 'command-staff', parentRoleId: 'incident-command', order: 11 };
+  if (value === 'publicinformationofficer' || /publicinfo|pio/.test(value)) return { roleId: 'public-information-officer', section: 'command-staff', parentRoleId: 'incident-command', order: 12 };
+  if (value === 'operationschief' || /operationssectionchief/.test(value)) return { roleId: 'operations-chief', section: 'operations', parentRoleId: 'incident-command', order: 20 };
+  if (value === 'planningchief' || /planningsectionchief/.test(value)) return { roleId: 'planning-chief', section: 'planning', parentRoleId: 'incident-command', order: 30 };
+  if (value === 'logisticschief' || /logisticssectionchief/.test(value)) return { roleId: 'logistics-chief', section: 'logistics', parentRoleId: 'incident-command', order: 40 };
+  if (value === 'financechief' || /finance.*sectionchief/.test(value)) return { roleId: 'finance-chief', section: 'finance', parentRoleId: 'incident-command', order: 50 };
+  if (/responder.*medical|medical.*rehab|rehab/.test(role)) return { roleId: 'responder-medical-rehab', section: 'logistics', parentRoleId: 'logistics-chief', order: 42 };
+  if (/staging/.test(role)) return { roleId: 'staging', section: 'logistics', parentRoleId: 'logistics-chief', order: 41 };
+  if (value === 'hazmatgroup' || /hazmat.*(group|supervisor)/.test(role)) return { roleId: 'hazmat-group', section: 'operations', parentRoleId: 'operations-chief', order: 21 };
+  if (value === 'entryteam' || /entry/.test(role)) return { roleId: 'entry-team', section: 'operations', parentRoleId: 'operations-chief', order: 22 };
+  if (value === 'decongroup' || /decon|decontamination/.test(role)) return { roleId: 'decon-group', section: 'operations', parentRoleId: 'operations-chief', order: 23 };
+  if (/patient|fire\/?ems|\bems\b/.test(role)) return { roleId: 'patient-care-ems', section: 'operations', parentRoleId: 'operations-chief', order: 24 };
+  const section = normalize(assignment.organizationSection || assignment.section);
+  const parentRoleId = normalize(assignment.parentRoleId);
+  if (section === 'operations' || parentRoleId === 'operationschief') return { roleId: explicit || 'operations-assignment', section: 'operations', parentRoleId: 'operations-chief', order: 25 };
+  if (section === 'planning' || parentRoleId === 'planningchief') return { roleId: explicit || 'planning-assignment', section: 'planning', parentRoleId: 'planning-chief', order: 31 };
+  if (section === 'logistics' || parentRoleId === 'logisticschief') return { roleId: explicit || 'logistics-assignment', section: 'logistics', parentRoleId: 'logistics-chief', order: 43 };
+  if (section === 'finance' || parentRoleId === 'financechief') return { roleId: explicit || 'finance-assignment', section: 'finance', parentRoleId: 'finance-chief', order: 51 };
+  return undefined;
+}
+function organizationRows(assignments: RecordValue[]): RecordValue[] {
+  return [...assignments].sort((left, right) => {
+    const leftOrder = organizationRoleMetadata(left)?.order ?? 90;
+    const rightOrder = organizationRoleMetadata(right)?.order ?? 90;
+    return leftOrder - rightOrder;
+  });
+}
 export function incidentActivity(incident: RecordValue): Array<{ time: string; detail: string }> {
   const timeline = Array.isArray(incident.incidentTimeline) ? [...incident.incidentTimeline] : [];
   const history = Array.isArray(incident.guidedResponseAssignmentHistory) ? incident.guidedResponseAssignmentHistory : [];
@@ -67,7 +100,7 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
   const role = (pattern: RegExp) => assignments.filter((a) => pattern.test(text(a.role))).map((a) => text(a.personnel)).filter(Boolean).join(' / ');
   const row = /row[\s,]*(\d+)/i.exec(fieldName);
   const index = row ? Number(row[1]) - 1 : /_(\d+)$/.test(fieldName) ? Number(/_(\d+)$/.exec(fieldName)![1]) - 1 : 0;
-  const a = assignments[index];
+  const a = formId === '203' ? organizationRows(assignments)[index] : assignments[index];
   const summary = assignments.map((a) => [a.role, a.personnel, a.unit, a.responsibility, a.locationStatus, a.status].map(text).filter(Boolean).join(' | ')).join('\n');
   const periodPart = (value: unknown, part: number) => text(value).split('T')[part] || '';
   if (n === 'datefrom' && incident.operationalPeriodStart) return periodPart(incident.operationalPeriodStart, 0);
@@ -75,12 +108,17 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
   if (n === 'dateto' && incident.operationalPeriodEnd) return periodPart(incident.operationalPeriodEnd, 0);
   if (n === 'timeto' && incident.operationalPeriodEnd) return periodPart(incident.operationalPeriodEnd, 1);
   if (formId === '203' && /^3incidentcommandersandcommandstaffrow[23]$/.test(n)) {
-    const commanders = assignments.filter((a) => /^(incident commander|ic|unified command)$/i.test(text(a.role)));
-    return text(commanders[index - 1]?.personnel) || (index === 1 ? text(incident.commanderName) : '');
+    const commanders = assignments.filter((assignment) => organizationRoleMetadata(assignment)?.roleId === 'incident-command');
+    const commandStaffRow = Number(/row(\d+)$/.exec(n)?.[1] || 2) - 2;
+    return text(commanders[commandStaffRow]?.personnel) || (commandStaffRow === 0 ? text(incident.commanderName) : '');
+  }
+  if (formId === '203' && /^operationssectionstagingarea[12]$/.test(n)) {
+    const staging = assignments.find((assignment) => organizationRoleMetadata(assignment)?.roleId === 'staging');
+    return [staging?.locationStatus, staging?.unit, staging?.personnel].map(text).filter(Boolean).join(' | ');
   }
   if (formId === '203' && /^divisiongroup(?:identifier|name)\d+$/.test(n)) {
     const groupIndex = Number(/(\d+)$/.exec(n)?.[1] || 1) - 1;
-    const groups = assignments.filter((a) => /hazmat|entry|decon|medical|rehab|division|group/i.test(text(a.role)));
+    const groups = assignments.filter((assignment) => organizationRoleMetadata(assignment)?.section === 'operations' && organizationRoleMetadata(assignment)?.roleId !== 'operations-chief');
     return text(n.includes('identifier') ? groups[groupIndex]?.role : groups[groupIndex]?.personnel);
   }
   const channels = [
