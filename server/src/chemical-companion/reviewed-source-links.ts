@@ -5,9 +5,12 @@ export interface ReviewedTransportationLink {
   properShippingName: string;
   ergGuide: string;
   linkType: "exact_chemical_match" | "synonym_or_alias";
-  reviewStatus: "approved";
-  reviewedBy: string;
-  reviewedAt: string;
+  reviewStatus: "approved" | "requires_review";
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  verificationStatus?: "source_verified";
+  sourceUrl?: string;
+  sourceCitation?: string;
   notes: string;
 }
 
@@ -40,6 +43,30 @@ export const REVIEWED_TRANSPORTATION_LINKS: readonly ReviewedTransportationLink[
   reviewedBy: "HazMatIQ source-link audit",
   reviewedAt: "2026-08-24",
   notes: "Exact Chemical Companion master CAS 7647-01-0 and UN1050 match; distinct from UN1789 hydrochloric acid solution.",
+}, {
+  sourceIdentifierId: 7003,
+  masterChemicalId: 515,
+  identifierValue: "1823",
+  properShippingName: "Caustic soda, solid",
+  ergGuide: "154",
+  linkType: "exact_chemical_match",
+  reviewStatus: "requires_review",
+  verificationStatus: "source_verified",
+  sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
+  sourceCitation: "PHMSA ERG 2024, Name of Material / Guide No. / ID No. table",
+  notes: "Source verifies UN1823 and Guide 154 for the solid shipping name. Reviewer attribution and approval date are intentionally not supplied.",
+}, {
+  sourceIdentifierId: 7004,
+  masterChemicalId: 515,
+  identifierValue: "1823",
+  properShippingName: "Sodium hydroxide, solid",
+  ergGuide: "154",
+  linkType: "exact_chemical_match",
+  reviewStatus: "requires_review",
+  verificationStatus: "source_verified",
+  sourceUrl: "https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg",
+  sourceCitation: "PHMSA ERG 2024, Name of Material / Guide No. / ID No. table",
+  notes: "Source verifies UN1823 and Guide 154 for the solid shipping name. Reviewer attribution and approval date are intentionally not supplied.",
 }];
 
 export const REVIEWED_CHEMICAL_SOURCE_LINKS: readonly ReviewedChemicalSourceLink[] = [

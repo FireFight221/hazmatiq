@@ -355,8 +355,10 @@
     const data = await fetchJson(`/api/chemicals/search?q=${encodeURIComponent(query)}`);
     if (requestId !== latestSearch || !suggestions) return;
     const chemicals = (data?.chemicals || []).map(companionChemicalForUi);
+    const masterChemicals = chemicals.filter((chemical) => !isUnreviewedTransportationRecord(chemical));
+    const transportMatches = chemicals.filter(isUnreviewedTransportationRecord);
     suggestions.replaceChildren();
-    chemicals.slice(0, 8).forEach((chemical) => {
+    masterChemicals.slice(0, 8).forEach((chemical) => {
       suggestions.append(createSuggestion(
         chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical Companion Master'),
         chemical.name,
@@ -367,6 +369,9 @@
           warning: isUnreviewedTransportationRecord(chemical) ? chemical.reviewWarning : '',
         },
       ));
+    });
+    appendAdditionalTransportMatches(suggestions, transportMatches, (chemical) => void loadComparisonChemical(chemical), {
+      getIdentifiers: chemicalSearchIdentifiers,
     });
     suggestions.hidden = chemicals.length === 0;
     searchInput?.setAttribute('aria-expanded', String(chemicals.length > 0));

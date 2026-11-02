@@ -905,6 +905,9 @@ type SearchRecord = {
   masterChemicalId?: number;
   linkType?: string;
   linkReviewStatus?: 'approved' | 'requires_review' | 'rejected';
+  linkVerificationStatus?: 'source_verified';
+  linkSourceUrl?: string;
+  linkSourceCitation?: string;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
 };
@@ -920,6 +923,15 @@ function hasApprovedMasterLink(row: SearchRecord): boolean {
     && approvedTransportLinkTypes.has(String(row.linkType || ''))
     && Boolean(row.reviewedBy?.trim())
     && Boolean(row.reviewedAt?.trim());
+}
+
+function hasSearchVerifiedMasterLink(row: SearchRecord): boolean {
+  return hasApprovedMasterLink(row)
+    || (row.recordType === 'transportation-identifier'
+      && Number.isInteger(row.masterChemicalId)
+      && row.linkReviewStatus === 'requires_review'
+      && row.linkVerificationStatus === 'source_verified'
+      && Boolean(row.linkSourceUrl?.trim()));
 }
 
 function linkedIdentifier(type: LinkedSearchIdentifier['type'], value: unknown, label: string, reviewStatus: LinkedSearchIdentifier['reviewStatus']): LinkedSearchIdentifier | null {
@@ -959,15 +971,15 @@ export function groupChemicalSearchResults(results: RankedSearchRecord[]) {
 
   const unresolvedGroups = new Map<string, ResultGroup>();
   results.filter((row) => row.recordType === 'transportation-identifier').forEach((row) => {
-    const linkedGroup = hasApprovedMasterLink(row) ? masterGroupById.get(Number(row.masterChemicalId)) : undefined;
+    const linkedGroup = hasSearchVerifiedMasterLink(row) ? masterGroupById.get(Number(row.masterChemicalId)) : undefined;
     if (linkedGroup) {
       linkedGroup.members.push(row);
       return;
     }
     const unresolvedKey = [
-      normalizeSearchText(row.ChemicalName),
       normalizeTransportationIdentifier(row.UnnaNumber) || '',
       String(row.ErgNumber || '').trim(),
+      normalizeTransportationIdentifier(row.UnnaNumber) ? '' : normalizeSearchText(row.ChemicalName),
     ].join(':');
     let group = unresolvedGroups.get(unresolvedKey);
     if (!group) {
@@ -982,9 +994,15 @@ export function groupChemicalSearchResults(results: RankedSearchRecord[]) {
     const primary = group.primary;
     const isMaster = primary.recordType === 'master-chemical';
     const aliases = [...new Set(group.members.flatMap((row) => row.synonyms || []).map((value) => value.trim()).filter(Boolean))];
-    const sourceBadges = [...new Set(group.members.flatMap((row) => row.sourceBadges || []))];
+    const sourceBadges = [...new Set(group.members.flatMap((row) => row.sourceBadges || []))]
+      .filter((badge) => !(isMaster && badge === 'Requires Review'));
+    const transportNames = [...new Set(group.members
+      .filter((row) => row.recordType === 'transportation-identifier')
+      .map((row) => row.ProperShippingName || row.ChemicalName)
+      .map((value) => String(value || '').trim())
+      .filter(Boolean))];
     const identifiers = group.members.flatMap((row) => {
-      const status = row.recordType === 'master-chemical' || hasApprovedMasterLink(row) ? 'verified' : 'requires_review';
+      const status = row.recordType === 'master-chemical' || hasSearchVerifiedMasterLink(row) ? 'verified' : 'requires_review';
       return [
         linkedIdentifier('CAS', row.CasNumber, `CAS ${row.CasNumber}`, status),
         linkedIdentifier(row.recordType === 'transportation-identifier' ? 'Transport' : 'UN/NA', row.UnnaNumber,
@@ -1005,6 +1023,7 @@ export function groupChemicalSearchResults(results: RankedSearchRecord[]) {
       aliases,
       synonyms: aliases,
       sourceBadges,
+      transportNames,
       linkedIdentifiers,
       matchedBy: matchReasons,
       matchReason: matchReasons.join(' · '),
@@ -1018,8 +1037,11 @@ export function groupChemicalSearchResults(results: RankedSearchRecord[]) {
       groupedMasterChemicalIds: [...group.masterIds],
       reviewWarning: isMaster ? '' : 'This transport identifier has not been verified against a Chemical Companion master chemical record. Do not use it for IDLH, PPE, plume, decon, or medical guidance until reviewed.',
       guidanceEligible: isMaster,
+      transportIdentificationOnly: !isMaster,
     };
-  }).sort((a, b) => a.rank - b.rank || a.ChemicalName.localeCompare(b.ChemicalName));
+  }).sort((a, b) => Number(b.guidanceEligible) - Number(a.guidanceEligible)
+    || a.rank - b.rank
+    || a.ChemicalName.localeCompare(b.ChemicalName));
 }
 
 let searchIndex: SearchRecord[] | null = null;
@@ -1075,14 +1097,17 @@ export function rebuildCompanionSearchIndex() {
         HazardClass: 'Not available', sourceIdentifierId: Number(item.id),
         matchTerms: [String(item.proper_shipping_name), un, `UN ${un}`, `NA ${un}`], synonyms: [],
         recordType: 'transportation-identifier', reviewStatus: 'requires_review', guidanceEligible: false,
-        sourceBadges: reviewedLink
+        sourceBadges: reviewedLink?.reviewStatus === 'approved'
           ? ['Transportation Identifier', 'Linked ERG']
           : ['Transportation Identifier', 'Linked ERG', 'Requires Review'],
         ...(reviewedLink ? {
-          reviewStatus: 'approved' as const,
+          reviewStatus: reviewedLink.reviewStatus,
           masterChemicalId: reviewedLink.masterChemicalId,
           linkType: reviewedLink.linkType,
           linkReviewStatus: reviewedLink.reviewStatus,
+          linkVerificationStatus: reviewedLink.verificationStatus,
+          linkSourceUrl: reviewedLink.sourceUrl,
+          linkSourceCitation: reviewedLink.sourceCitation,
           reviewedBy: reviewedLink.reviewedBy,
           reviewedAt: reviewedLink.reviewedAt,
         } : {}),
@@ -1099,8 +1124,8 @@ export function rebuildCompanionSearchIndex() {
       importedAliasTotal: [...synonymsById.values()].reduce((sum, values) => sum + values.length, 0),
       searchIndexTotal: records.length,
       transportationIdentifierTotal: transportationIdentifiers.size,
-      reviewedTransportationLinkTotal: REVIEWED_TRANSPORTATION_LINKS.length,
-      unlinkedTransportationIdentifiers: Math.max(0, transportationIdentifiers.size - REVIEWED_TRANSPORTATION_LINKS.length),
+      reviewedTransportationLinkTotal: REVIEWED_TRANSPORTATION_LINKS.filter((link) => link.reviewStatus === 'approved').length,
+      unlinkedTransportationIdentifiers: Math.max(0, transportationIdentifiers.size - REVIEWED_TRANSPORTATION_LINKS.filter((link) => link.reviewStatus === 'approved').length),
     };
     if (process.env.NODE_ENV !== 'production') console.info('[chemical-companion] development diagnostics', diagnostics);
     return diagnostics;
@@ -1115,7 +1140,7 @@ export function searchCompanionChemicals(query: string) {
   const exactTransportation = normalizeTransportationIdentifier(query);
   const exactCas = normalizeCasIdentifier(query);
   const words = term.split(' ').filter(Boolean);
-  const ranked = (searchIndex ?? (rebuildCompanionSearchIndex(), searchIndex!)).map((row) => {
+  const matched = (searchIndex ?? (rebuildCompanionSearchIndex(), searchIndex!)).map((row) => {
     const name = normalizeSearchText(row.ChemicalName);
     const primaryName = normalizeSearchText(row.PrimaryChemicalName);
     const terms = row.matchTerms.map(normalizeSearchText);
@@ -1145,7 +1170,23 @@ export function searchCompanionChemicals(query: string) {
     .filter((row, index, all) => all.findIndex((other) => other.recordType === row.recordType
       && other.ChemicalID === row.ChemicalID && other.UnnaNumber === row.UnnaNumber
       && other.ChemicalName === row.ChemicalName) === index);
-  const grouped = groupChemicalSearchResults(ranked)
+  const matchedMasterIds = new Set(matched
+    .filter((row) => row.recordType === 'master-chemical')
+    .map((row) => Number(row.ChemicalID)));
+  const resolvedMasters = matched
+    .filter((row) => hasSearchVerifiedMasterLink(row) && !matchedMasterIds.has(Number(row.masterChemicalId)))
+    .flatMap((row) => {
+      const master = searchIndex?.find((candidate) => candidate.recordType === 'master-chemical'
+        && candidate.ChemicalID === row.masterChemicalId);
+      return master ? [{
+        ...master,
+        rank: row.rank,
+        matchReason: hasApprovedMasterLink(row)
+          ? `Resolved from approved ${row.IdentifierType} transport alias`
+          : `Resolved from source-verified ${row.IdentifierType} transport name`,
+      }] : [];
+    });
+  const grouped = groupChemicalSearchResults([...matched, ...resolvedMasters])
     .map(({ rank: _rank, matchTerms: _terms, ...row }) => row);
   console.info('[chemical-companion] search', { query, normalizedTransportation: exactTransportation, normalizedCas: exactCas, resultTotal: grouped.length, top: grouped[0] ?? null });
   return grouped;

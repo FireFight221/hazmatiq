@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import app from '../server/src/app.js';
 import { getCompanionDiagnostics, groupChemicalSearchResults, NIOSH_IDENTITY_STATUS, normalizeChemicalProfile, normalizeTransportationIdentifier, queryChemicalProfile, searchCompanionChemicals } from '../server/src/chemical-companion.js';
+import { REVIEWED_TRANSPORTATION_LINKS } from '../server/src/chemical-companion/reviewed-source-links.js';
 import { CHEMICALS } from '../src/data/chemicals.js';
 
 describe('normalizeChemicalProfile', () => {
@@ -60,6 +61,55 @@ describe('normalizeChemicalProfile', () => {
     ['ammonia', 10], ['7664-41-7', 10], ['1005', 10],
   ])('resolves required regression query %s', (query, id) => {
     expect(searchCompanionChemicals(query)[0]?.ChemicalID).toBe(id);
+  });
+
+  it.each(['sodium hydroxide', 'caustic soda', '1823'])('resolves sodium hydroxide solid regression query %s to master 515', (query) => {
+    expect(searchCompanionChemicals(query)[0]).toMatchObject({
+      ChemicalID: 515,
+      CasNumber: '1310-73-2',
+      UnnaNumber: '1823',
+      guidanceEligible: true,
+      recordType: 'master-chemical',
+    });
+  });
+
+  it.each(['Caustic soda, solid', 'Sodium hydroxide, solid'])('groups verified solid shipping name %s beneath master 515', (query) => {
+    const results = searchCompanionChemicals(query);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ ChemicalID: 515, masterChemicalId: 515, groupedRecordCount: 2 });
+    expect(results[0].transportNames).toEqual(expect.arrayContaining([query]));
+    expect(results.some((row) => row.recordType === 'transportation-identifier')).toBe(false);
+  });
+
+  it('keeps UN1824 solution transport matches separate and guidance-ineligible', () => {
+    const [solution] = searchCompanionChemicals('1824');
+    expect(solution).toMatchObject({
+      ChemicalID: null,
+      UnnaNumber: '1824',
+      ErgNumber: '154',
+      recordType: 'transportation-identifier',
+      transportIdentificationOnly: true,
+      guidanceEligible: false,
+      groupedRecordCount: 2,
+    });
+    expect(solution.transportNames).toEqual(expect.arrayContaining([
+      'Caustic soda, solution', 'Sodium hydroxide, solution',
+    ]));
+    expect(solution.masterChemicalId).toBeUndefined();
+  });
+
+  it('records PHMSA source verification for UN1823 without fabricating reviewer metadata', () => {
+    expect(REVIEWED_TRANSPORTATION_LINKS.filter((link) => link.masterChemicalId === 515)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        identifierValue: '1823',
+        reviewStatus: 'requires_review',
+        verificationStatus: 'source_verified',
+        sourceUrl: 'https://www.phmsa.dot.gov/training/hazmat/erg/emergency-response-guidebook-erg',
+      }),
+    ]));
+    expect(REVIEWED_TRANSPORTATION_LINKS.filter((link) => link.masterChemicalId === 515)
+      .every((link) => !link.reviewedBy && !link.reviewedAt)).toBe(true);
+    expect(REVIEWED_TRANSPORTATION_LINKS.some((link) => link.identifierValue === '1824')).toBe(false);
   });
 
   it.each([

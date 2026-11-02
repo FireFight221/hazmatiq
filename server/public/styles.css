@@ -2174,6 +2174,28 @@ h1 { font-weight: 800; }
   background: #103b5b;
 }
 
+.chemical-additional-transport-matches {
+  margin: 6px 0 2px;
+  padding: 4px;
+  border: 1px solid rgba(159, 177, 195, 0.55);
+  border-radius: 5px;
+  background: rgba(3, 17, 31, 0.72);
+}
+
+.chemical-additional-transport-matches > summary {
+  padding: 9px 10px;
+  color: #f7d889;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.chemical-transport-only-note {
+  margin: 2px 10px 8px;
+  color: #f2c8c8;
+  font-size: 0.74rem;
+}
+
 .chemical-suggestion-type {
   padding: 5px 7px;
   border-radius: 6px;

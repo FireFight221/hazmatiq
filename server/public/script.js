@@ -9821,9 +9821,37 @@ function chemicalSearchDetail(chemical) {
 function chemicalSearchProvenance(chemical) {
   return [
     chemicalSearchDetail(chemical),
+    ...((chemical.transportNames || []).length ? [`Verified transport names: ${chemical.transportNames.join(' · ')}`] : []),
     ...(chemical.sourceBadges || []),
     ...(chemical.sourceLinks || []).map((source) => source.sourceName || source.source || ''),
   ].filter(Boolean).join(' · ');
+}
+
+function appendAdditionalTransportMatches(container, transportMatches, onSelect, { getIdentifiers = chemicalSearchResultBadges } = {}) {
+  if (!container || !transportMatches.length) return;
+  const disclosure = document.createElement('details');
+  disclosure.className = 'chemical-additional-transport-matches';
+  const summary = document.createElement('summary');
+  summary.textContent = `Additional transport matches (${transportMatches.length})`;
+  disclosure.append(summary);
+  const note = document.createElement('p');
+  note.className = 'chemical-transport-only-note';
+  note.textContent = 'Transport identification only. These entries cannot drive chemical-specific guidance.';
+  disclosure.append(note);
+  transportMatches.slice(0, 8).forEach((chemical) => {
+    disclosure.append(createSuggestion(
+      'Transport identification only',
+      chemical.name,
+      chemicalSearchDetail(chemical),
+      () => onSelect(chemical),
+      {
+        identifiers: getIdentifiers(chemical),
+        warning: chemical.reviewWarning || 'Do not use this unresolved transport entry for chemical-specific guidance.',
+        provenance: chemicalSearchProvenance(chemical),
+      },
+    ));
+  });
+  container.append(disclosure);
 }
 
 function reportedIdentifierValue(value) {
@@ -10262,7 +10290,7 @@ function createSuggestion(kind, title, detail, onSelect, { identifiers = [], war
     warningText.textContent = warning;
     text.append(warningText);
   }
-  if (!isFacilitySuggestion && /Transportation Identifier/i.test(kind)) {
+  if (!isFacilitySuggestion && /Transportation Identifier|Transport identification only/i.test(kind)) {
     const type = document.createElement('span');
     type.className = 'chemical-suggestion-type';
     type.textContent = kind;
@@ -10304,11 +10332,13 @@ async function searchChemicalId(value, { submit = false } = {}) {
   if (requestId !== latestChemicalSearch) return;
 
   const chemicals = (chemicalData?.chemicals || []).map(companionChemicalForUi);
+  const masterChemicals = chemicals.filter((chemical) => !isUnreviewedTransportationRecord(chemical));
+  const transportMatches = chemicals.filter(isUnreviewedTransportationRecord);
 
-  if (submit && chemicals.length && !isUnreviewedTransportationRecord(chemicals[0])) {
+  if (submit && masterChemicals.length) {
     clearChemicalSuggestions();
     if (facilityInventory) facilityInventory.hidden = true;
-    await (window.HazMatIQ.openHazardProfile?.(chemicals[0]) || openChemical(chemicals[0]));
+    await (window.HazMatIQ.openHazardProfile?.(masterChemicals[0]) || openChemical(masterChemicals[0]));
     return;
   }
   const facilityData = await facilityPromise;
@@ -10322,7 +10352,7 @@ async function searchChemicalId(value, { submit = false } = {}) {
 
   if (!chemicalSearchSuggestions) return;
   chemicalSearchSuggestions.replaceChildren();
-  chemicals.slice(0, 5).forEach((chemical) => {
+  masterChemicals.slice(0, 5).forEach((chemical) => {
     chemicalSearchSuggestions.append(createSuggestion(
       chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
       chemical.name,
@@ -10342,6 +10372,13 @@ async function searchChemicalId(value, { submit = false } = {}) {
         provenance: chemicalSearchDetail(chemical),
       },
     ));
+  });
+  appendAdditionalTransportMatches(chemicalSearchSuggestions, transportMatches, (chemical) => {
+    if (chemicalSearchInput) chemicalSearchInput.value = chemical.name;
+    if (facilityInventory) facilityInventory.hidden = true;
+    clearChemicalSuggestions();
+    setChemicalSearchStatus(chemical.reviewWarning || 'Transport identification only. This entry cannot drive chemical-specific guidance.', 'error');
+    window.HazMatIQ?.openChemCompareWithBase?.(chemical);
   });
   facilities.slice(0, 8).forEach((facility) => {
     chemicalSearchSuggestions.append(createSuggestion(
@@ -10467,10 +10504,11 @@ async function selectIncidentProduct(chemical) {
 
 function chemicalSearchIdentifiers(chemical) {
   return [
-    chemical?.CasNumber || chemical?.casNumber || chemical?.cas?.[0] || chemical?.cas,
-    chemical?.UnnaNumber || chemical?.unNumber || chemical?.un?.[0] || chemical?.un,
-    chemical?.ErgNumber || chemical?.ergGuide || chemical?.erg,
-  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== '').map(String);
+    ['CAS', chemical?.CasNumber || chemical?.casNumber || chemical?.cas?.[0] || chemical?.cas],
+    ['UN/NA', chemical?.UnnaNumber || chemical?.unNumber || chemical?.un?.[0] || chemical?.un],
+    ['ERG', chemical?.ErgNumber || chemical?.ergGuide || chemical?.erg],
+  ].filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+    .map(([type, value]) => ({ type, label: `${type} ${value}` }));
 }
 
 async function searchIncidentProducts(value) {
@@ -10478,7 +10516,10 @@ async function searchIncidentProducts(value) {
   const data = await fetchJson(`/api/chemicals/search?q=${encodeURIComponent(normalizeChemicalQuery(value))}`);
   if (requestId !== latestIncidentProductSearch || !incidentProductSuggestions) return;
   incidentProductSuggestions.replaceChildren();
-  (data?.chemicals || []).map(companionChemicalForUi).slice(0, 8).forEach((chemical) => {
+  const chemicals = (data?.chemicals || []).map(companionChemicalForUi);
+  const masterChemicals = chemicals.filter((chemical) => !isUnreviewedTransportationRecord(chemical));
+  const transportMatches = chemicals.filter(isUnreviewedTransportationRecord);
+  masterChemicals.slice(0, 8).forEach((chemical) => {
     incidentProductSuggestions.append(createSuggestion(
       chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
       chemical.name,
@@ -10490,6 +10531,9 @@ async function searchIncidentProducts(value) {
         provenance: chemicalSearchDetail(chemical),
       },
     ));
+  });
+  appendAdditionalTransportMatches(incidentProductSuggestions, transportMatches, selectIncidentProduct, {
+    getIdentifiers: chemicalSearchIdentifiers,
   });
   const hasSuggestions = incidentProductSuggestions.childElementCount > 0;
   incidentProductSuggestions.hidden = !hasSuggestions;
@@ -10553,7 +10597,10 @@ async function searchPlumeChemicals(value) {
   const data = await fetchJson(`/api/chemicals/search?q=${encodeURIComponent(normalizeChemicalQuery(value))}`);
   if (requestId !== latestPlumeChemicalSearch || !plumeChemicalSuggestions) return;
   plumeChemicalSuggestions.replaceChildren();
-  (data?.chemicals || []).map(companionChemicalForUi).slice(0, 8).forEach((chemical) => {
+  const chemicals = (data?.chemicals || []).map(companionChemicalForUi);
+  const masterChemicals = chemicals.filter((chemical) => !isUnreviewedTransportationRecord(chemical));
+  const transportMatches = chemicals.filter(isUnreviewedTransportationRecord);
+  masterChemicals.slice(0, 8).forEach((chemical) => {
     plumeChemicalSuggestions.append(createSuggestion(
       chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
       chemical.name,
@@ -10566,6 +10613,7 @@ async function searchPlumeChemicals(value) {
       },
     ));
   });
+  appendAdditionalTransportMatches(plumeChemicalSuggestions, transportMatches, selectPlumeChemical);
   const hasSuggestions = plumeChemicalSuggestions.childElementCount > 0;
   plumeChemicalSuggestions.hidden = !hasSuggestions;
   plumeChemicalInput?.setAttribute('aria-expanded', String(hasSuggestions));
