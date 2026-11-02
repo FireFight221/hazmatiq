@@ -2323,50 +2323,21 @@ function buildIncidentCommandViewModel() {
   };
 }
 
-function incidentCommandStatusClass(status) {
-  const normalized = String(status).toLowerCase();
-  if (/complete|completed|accomplished|verified|available|source backed|imported|facility identified/.test(normalized)) return 'is-available';
-  if (/active|plotted|deployed|scene located|planning estimate/.test(normalized)) return 'is-active';
-  if (/blocked|missing|no current/.test(normalized)) return 'is-missing';
-  if (/review|not started|not plotted|not linked|not deployed|pending|draft/.test(normalized)) return 'is-review';
-  return '';
+function incidentCommandPhaseStatusClass(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (/complete|completed|accomplished|verified|available|source backed|imported|facility identified/.test(normalized)) return 'is-completed';
+  if (/in progress|active|plotted|deployed|scene located|planning estimate/.test(normalized)) return 'is-in-progress';
+  if (/blocked|on hold|needs reassessment|missing|no current/.test(normalized)) return 'is-blocked';
+  return 'is-not-started';
 }
 
 function renderIncidentGuidedResponse(model) {
-  const priorities = document.getElementById('ic-guided-priorities');
   const progress = document.getElementById('ic-guided-progress');
-  if (!priorities || !progress) return;
+  if (!progress) return;
 
   const phaseDefinitions = typeof guidedPhaseDefinitions !== 'undefined' ? guidedPhaseDefinitions : [];
   const phaseState = readGuidedResponsePhaseState(model.incident);
   const currentPhase = phaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]))?.id;
-  const compactPhaseLabels = {
-    'identify-isolate-notify': 'Identify / Notify',
-    'zones-resources': 'Zone Prep',
-    'recon-assessment': 'Recon',
-    'mitigation-strategy': 'Tactical',
-    'withdraw-decon-rehab': 'Decon / Rehab',
-    'verify-recovery': 'Verify / Transfer',
-    'notifications-documentation': 'Document / Close',
-  };
-  const priorityItems = phaseDefinitions.map((phase) => [
-    { ...phase, label: compactPhaseLabels[phase.id] || phase.title, target: 'guided-response' },
-    { status: guidedGoalStatus(phaseState[phase.id], phase.id, currentPhase) },
-  ]);
-  priorities.replaceChildren();
-  priorityItems.forEach(([definition, task]) => {
-    const item = document.createElement('li');
-    item.className = ['Complete', 'Accomplished'].includes(task.status) ? 'is-complete' : 'is-pending';
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.commandView = definition.target;
-    button.textContent = task.status;
-    button.setAttribute('aria-label', `${definition.label}: ${task.status}`);
-    const text = document.createElement('span');
-    text.textContent = definition.label;
-    item.append(button, text);
-    priorities.append(item);
-  });
 
   const activePhase = phaseDefinitions.find((phase) => phase.id === currentPhase)
     || phaseDefinitions.at(-1);
@@ -2546,15 +2517,14 @@ function renderIncidentCommandDashboard() {
         option.value = status; option.textContent = status; select.append(option);
       });
       select.value = guidedGoalStatus(phaseState[phase.id]);
+      select.classList.add(incidentCommandPhaseStatusClass(select.value));
       select.addEventListener('change', () => {
+        select.className = `incident-command-status-select ${incidentCommandPhaseStatusClass(select.value)}`;
         persistGuidedResponsePhaseState(phase.id, { status: select.value });
         if (document.getElementById('guided-response')?.classList.contains('active')) renderGuidedResponse();
       });
-      const badge = document.createElement('span');
-      badge.className = `incident-command-badge ${incidentCommandStatusClass(select.value)}`;
-      badge.textContent = select.value;
       control.append(select);
-      row.append(identity, control, badge);
+      row.append(identity, control);
       statusList.append(row);
     });
   }

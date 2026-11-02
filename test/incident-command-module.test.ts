@@ -98,23 +98,35 @@ describe('Incident Command operational hub', () => {
     expect(incidentOverrides).toContain('background: transparent;');
   });
 
-  it('centers the dashboard card icons and preserves Command Status controls across timer renders', () => {
-    expect(html).toContain('<h3 id="ic-guided-status-heading" aria-label="Response Phase Goal Status">Phase Goal Status</h3>');
-    expect(html).toContain('aria-labelledby="ic-guided-status-heading"');
+  it('keeps compact shared phase controls in Operational Guidance across timer renders', () => {
+    expect(html).toContain('<h3>RESPONSE PHASE</h3>');
+    expect(html).not.toContain('id="ic-guided-priorities"');
+    expect(html).not.toContain('Phase Goal Status');
+    expect(html).not.toContain('incident-command-guided-state-note');
     expect(incidentOverrides).toContain('grid-template-columns: auto minmax(0, 1fr) auto;');
     expect(incidentOverrides).toContain('width: 26px; height: 26px;');
     expect(incidentOverrides).toContain('width: 26px;');
     expect(script).toContain('const statusRenderKey = `${model.incident.incidentId}:` + guidedPhaseDefinitions.map');
     expect(script).toContain('statusList.dataset.renderKey !== statusRenderKey');
     expect(script).toContain('control.append(select);');
-    expect(script).toContain('row.append(identity, control, badge);');
+    expect(script).toContain('row.append(identity, control);');
+    expect(script).not.toContain('row.append(identity, control, badge);');
+    expect(script).toContain('incidentCommandPhaseStatusClass');
     expect(script).not.toContain('System signal only; commander confirmation is required.');
     expect(script).toContain('resizePlumeMapAfterLayout();');
-    expect(styles).toContain('grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr) max-content;');
-    expect(styles).toContain('.incident-command-status-row > .incident-command-status-support');
-    expect(incidentOverrides).toContain('grid-template-columns: minmax(180px, 1fr) minmax(170px, 220px) max-content !important;');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) minmax(150px, 220px);');
+    expect(styles).not.toContain('.incident-command-status-row > .incident-command-status-support');
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) !important;');
     expect(incidentOverrides).toContain('grid-column: 2 !important;');
-    expect(incidentOverrides).toContain('grid-column: 3 !important;');
+    expect(incidentOverrides).toContain('.incident-command-status-select.is-in-progress');
+    expect(incidentOverrides).toContain('.incident-command-status-select.is-blocked');
+  });
+
+  it('maps phase statuses to readable select states without changing stored values', () => {
+    const functionSource = script.slice(script.indexOf('function incidentCommandPhaseStatusClass'), script.indexOf('function renderIncidentGuidedResponse'));
+    const context = {} as Record<string, unknown>;
+    runInNewContext(`${functionSource}\nresult = ['Not Started', 'In Progress', 'Accomplished', 'Complete', 'Blocked', 'On Hold', 'Needs Reassessment'].map(incidentCommandPhaseStatusClass);`, context);
+    expect(context.result).toEqual(['is-not-started', 'is-in-progress', 'is-completed', 'is-completed', 'is-blocked', 'is-blocked', 'is-blocked']);
   });
 
   it('orders the command dashboard content for desktop and responsive layouts', () => {

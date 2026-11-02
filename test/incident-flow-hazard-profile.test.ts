@@ -63,9 +63,9 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
 
   it("keeps commander status controls tied to one canonical task and readable on small screens", () => {
     expect(script).toContain("row.className = 'incident-command-status-row';");
-    expect(script).toContain("identity.textContent = task.label;");
-    expect(script).toContain("row.append(identity, control, badge);");
-    expect(script).toContain("select.dataset.taskId = task.id;");
+    expect(script).toContain("identity.textContent = `${phase.number}. ");
+    expect(script).toContain("row.append(identity, control);");
+    expect(script).not.toContain("row.append(identity, control, badge);");
     expect(incidentStyles).toContain(".incident-command-status-list");
     expect(incidentStyles).toContain(".incident-command-status-control");
     expect(incidentStyles).toContain("@media (max-width: 560px)");

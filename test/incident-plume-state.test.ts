@@ -49,7 +49,7 @@ describe('Incident Command plume ownership', () => {
   });
 
   it('keeps planning plumes out of active-incident command summaries', () => {
-    const model = script.slice(script.indexOf('function buildIncidentCommandViewModel'), script.indexOf('function incidentCommandStatusClass'));
+    const model = script.slice(script.indexOf('function buildIncidentCommandViewModel'), script.indexOf('function incidentCommandPhaseStatusClass'));
     expect(model).toContain('const incidentPlumeCandidate = incident.plumeModelResults || null;');
     expect(model).toContain('isIncidentPlumeCurrent(incidentPlumeCandidate, incident)');
     expect(model).not.toContain('planning.plumeModelResults || readIncidentCommandStorage');

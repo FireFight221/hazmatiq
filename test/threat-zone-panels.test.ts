@@ -82,19 +82,21 @@ describe('Command phase progress', () => {
       append(...children: TestNode[]) { this.children.push(...children); },
       setAttribute: vi.fn(),
     });
-    const priorities = node(); const recommendations = node(); const progress = node();
+    const progress = node();
     const definitions = [{ id: 'first', title: 'First' }, { id: 'second', title: 'Second' }];
     const context = {
       model: { operationalChecklist: { tasks: [] }, incident: { guidedResponsePhaseState: {} as Record<string, { status: string }> }, tacticalStatus: [] },
       guidedPhaseDefinitions: definitions,
-      document: { createElement: node, getElementById: (id: string) => new Map([['ic-guided-priorities', priorities], ['ic-guided-recommendations', recommendations], ['ic-guided-progress', progress]]).get(id) },
+      document: { createElement: node, getElementById: (id: string) => new Map([['ic-guided-progress', progress]]).get(id) },
     };
     const code = ['readGuidedResponsePhaseState', 'guidedPhaseIsAccomplished', 'guidedGoalStatus', 'renderIncidentGuidedResponse'].map(declaration).join('\n');
     runInNewContext(`${code}\nrenderIncidentGuidedResponse(model)`, context);
-    expect(priorities.children.map((item) => item.children[0].textContent)).toEqual(['Not Started', 'Not Started']);
+    expect(progress.children[0].children[0].textContent).toBe('Not Started');
     context.model.incident.guidedResponsePhaseState = { first: { status: 'Accomplished' } };
     runInNewContext(`${code}\nrenderIncidentGuidedResponse(model)`, context);
-    expect(priorities.children.map((item) => item.className)).toEqual(['is-complete', 'is-pending']);
+    expect(progress.children[0].className).toBe('is-pending');
+    expect(progress.children[0].children[1].textContent).toBe('Second');
+    expect(runInNewContext("guidedGoalStatus({ status: 'Accomplished' })", context)).toBe('Accomplished');
     expect(script).toContain("{ id: 'medical-rehab', label: 'Medical and rehab'");
     expect(script).not.toContain("medical: 'documentation'");
   });
