@@ -72,11 +72,12 @@ describe('Incident Command operational hub', () => {
     expect(script).toContain('function switchActiveIncident');
   });
 
-  it('uses two command cards and keeps the active-incident decision actions in Guided Response', () => {
+  it('uses three command overview cards and keeps the active-incident decision actions in Guided Response', () => {
     const activeCommand = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('<section class="incident-command-panel incident-command-tools"'));
     expect(activeCommand.match(/class="incident-command-panel /g)).toHaveLength(5);
     expect(activeCommand).toContain('incident-command-brief-panel');
     expect(activeCommand).toContain('incident-command-guided-panel');
+    expect(activeCommand).toContain('id="ic-assignment-editor-section"');
     expect(activeCommand).toContain('incident-command-plume-summary-inline');
     expect(activeCommand).not.toContain('Operational Status');
     expect(activeCommand).toContain('incident-command-card-icon-brief');
@@ -138,8 +139,9 @@ describe('Incident Command operational hub', () => {
   it('orders the command dashboard content for desktop and responsive layouts', () => {
     expect(incidentOverrides).toContain('#incident .incident-command-info-grid { order: 1;');
     expect(incidentOverrides).toContain('#incident .incident-command-flow { order: 2;');
-    expect(incidentOverrides).toContain('#incident .incident-command-weather-bar { order: 4;');
-    expect(incidentOverrides).toContain('#incident .incident-command-tools { order: 5;');
+    expect(incidentOverrides).toContain('#incident .incident-command-plume-summary-inline { order: 4;');
+    expect(incidentOverrides).toContain('#incident .incident-command-weather-bar { order: 5;');
+    expect(incidentOverrides).toContain('#incident .incident-command-tools { order: 6;');
     expect(incidentOverrides).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
     expect(incidentOverrides).toContain('border: 1px solid #f1f5f9 !important;');
     expect(incidentOverrides).toContain('width: 100%;');
@@ -183,10 +185,12 @@ describe('Incident Command operational hub', () => {
     expect(incidentOverrides).toContain('color: #071f36 !important; background: #e5e7eb !important;');
   });
 
-  it('keeps the plume summary inside Incident Brief and uses one incident-level assignment editor', () => {
+  it('keeps the complete Incident Brief separate from assignments and the full-width plume summary', () => {
     const brief = html.slice(html.indexOf('incident-command-brief-panel'), html.indexOf('incident-command-guided-panel'));
-    expect(brief).toContain('incident-command-plume-summary-inline');
-    expect(brief).toContain('id="ic-assignment-editor-section"');
+    const mainGrid = html.slice(html.indexOf('<div class="incident-command-main-grid">'), html.indexOf('</div>\n\n                <section class="incident-command-panel incident-command-plume-summary'));
+    expect(brief).not.toContain('incident-command-plume-summary-inline');
+    expect(brief).not.toContain('id="ic-assignment-editor-section"');
+    expect(mainGrid).toContain('id="ic-assignment-editor-section"');
     expect(brief).toContain('class="incident-command-panel incident-command-operational-details"');
     expect(html).toContain('id="ic-assignment-editor-section"');
     expect(html).toContain('id="ic-manage-assignments-btn"');
@@ -194,7 +198,9 @@ describe('Incident Command operational hub', () => {
     expect(html).toContain('id="ic-plume-preview-map"');
     expect(html).not.toContain('class="incident-assignment-phase"');
     expect(script).toContain("function persistIncidentAssignment(assignment, previousPhaseId = '')");
-    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 3fr) minmax(220px, 2fr);');
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 7fr) minmax(220px, 3fr);');
+    expect(incidentOverrides).toContain('grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.15fr);');
+    expect(incidentOverrides).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
     expect(incidentOverrides).toContain('.incident-command-plume-map');
     expect(incidentOverrides).toContain('grid-template-rows: auto !important;');
     expect(incidentOverrides).toContain('grid-row: 2 !important;');

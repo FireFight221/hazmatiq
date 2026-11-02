@@ -38,6 +38,7 @@ describe('Tactical worksheet shared facts',()=>{
   expect(worksheetStyles).toContain('[data-section="planning"]');
   expect(worksheetStyles).toContain('[data-section="logistics"]');
   expect(worksheetStyles).toContain('[data-section="finance"]');
+  expect(worksheetStyles).toContain('.worksheet-org-connector { fill: none; stroke: #fff;');
   expect(worksheetStyles).not.toContain('worksheet-role-tier-');
   expect(worksheetStyles).not.toContain(':nth-child');
  });

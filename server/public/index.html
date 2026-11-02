@@ -387,18 +387,6 @@
                     <h2><span class="incident-command-card-icon incident-command-card-icon-brief" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><rect x="12" y="7" width="24" height="34" rx="3" /><path d="M18 7.5h12v5H18zM18 20h12M18 26h12M18 32h8" /></svg></span><span class="incident-command-panel-title">Incident Brief</span><small class="incident-command-panel-subtitle">Identity, scene context, and commander record</small><span class="incident-command-panel-actions"><button class="incident-command-panel-action" type="button" data-incident-command-action="export-package" aria-label="Print or export incident brief" title="Print or export incident brief"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 0-2 2v1h18v-1a2 2 0 0 0-2-2M3 10h18v7H3zM7 14h10" /></svg></button></span></h2>
                     <dl id="ic-brief-list" class="incident-command-brief-list"></dl>
                     <div id="ic-chemical-summary" class="incident-command-chemical-summary" aria-live="polite"></div>
-                    <section class="incident-command-panel incident-command-plume-summary incident-command-plume-summary-inline" aria-labelledby="ic-plume-summary-title">
-                      <div class="incident-command-section-heading"><div><h2 id="ic-plume-summary-title">Plume Summary</h2></div><strong id="ic-plume-status" class="incident-command-plume-status">NOT PLOTTED</strong></div>
-                      <div class="incident-command-plume-preview">
-                        <div class="incident-command-plume-image-wrap"><div id="ic-plume-preview-map" class="incident-command-plume-map" role="application" aria-label="Interactive incident plume summary map" hidden></div><img id="ic-plume-preview-image" alt="Saved plume and threat-zone preview" hidden /><div id="ic-plume-preview-empty" class="incident-command-plume-empty">No plume map is saved for this incident.</div></div>
-                        <div class="incident-command-plume-copy"><strong id="ic-plume-preview-title">Plot a plume from Incident Command</strong><p id="ic-plume-preview-summary">Use the canonical Plume Model after confirming chemical identity, release inputs, and current weather.</p><dl id="ic-plume-preview-facts"></dl><button type="button" data-command-view="plume" id="ic-plume-open-btn">PLOT PLUME</button></div>
-                      </div>
-                    </section>
-                    <section class="incident-command-panel incident-command-assignment-editor" id="ic-assignment-editor-section" aria-labelledby="ic-assignment-title">
-                      <div class="incident-command-section-heading"><div><h2 id="ic-assignment-title">Assignments</h2><p>Incident Assignments for Live Map and ICS/Reports.</p></div><div class="incident-assignment-toolbar"><button class="ghost-btn" id="ic-manage-assignments-btn" type="button">Add Assignment</button></div></div>
-                      <div class="incident-assignment-summary" aria-hidden="true"><strong id="ic-assignment-count">0 assignments</strong><span id="ic-assignment-summary">No confirmed or planned assignments.</span></div>
-                      <div id="ic-assignment-editor" data-empty-message="No assignments recorded."></div>
-                    </section>
                     <details class="incident-command-panel incident-command-operational-details">
                       <summary><strong>Operational Details</strong><span>Detailed information, full guidance, and supporting resources.</span></summary>
                       <div class="incident-command-detail-grid">
@@ -438,7 +426,20 @@
                       </section>
                     </div>
                   </article>
+                  <section class="incident-command-panel incident-command-assignment-editor" id="ic-assignment-editor-section" aria-labelledby="ic-assignment-title">
+                    <div class="incident-command-section-heading"><div><h2 id="ic-assignment-title">Assignments</h2><p>Incident Assignments for Live Map and ICS/Reports.</p></div><div class="incident-assignment-toolbar"><button class="ghost-btn" id="ic-manage-assignments-btn" type="button">Add Assignment</button></div></div>
+                    <div class="incident-assignment-summary" aria-hidden="true"><strong id="ic-assignment-count">0 assignments</strong><span id="ic-assignment-summary">No confirmed or planned assignments.</span></div>
+                    <div id="ic-assignment-editor" data-empty-message="No assignments recorded."></div>
+                  </section>
                 </div>
+
+                <section class="incident-command-panel incident-command-plume-summary incident-command-plume-summary-inline" aria-labelledby="ic-plume-summary-title">
+                  <div class="incident-command-section-heading"><div><h2 id="ic-plume-summary-title">Plume Summary</h2></div><strong id="ic-plume-status" class="incident-command-plume-status">NOT PLOTTED</strong></div>
+                  <div class="incident-command-plume-preview">
+                    <div class="incident-command-plume-image-wrap"><div id="ic-plume-preview-map" class="incident-command-plume-map" role="application" aria-label="Interactive incident plume summary map" hidden></div><img id="ic-plume-preview-image" alt="Saved plume and threat-zone preview" hidden /><div id="ic-plume-preview-empty" class="incident-command-plume-empty">No plume map is saved for this incident.</div></div>
+                    <div class="incident-command-plume-copy"><strong id="ic-plume-preview-title">Plot a plume from Incident Command</strong><p id="ic-plume-preview-summary">Use the canonical Plume Model after confirming chemical identity, release inputs, and current weather.</p><dl id="ic-plume-preview-facts"></dl><button type="button" data-command-view="plume" id="ic-plume-open-btn">PLOT PLUME</button></div>
+                  </div>
+                </section>
 
                 <section class="incident-command-panel incident-command-tools" aria-labelledby="ic-command-tools-title">
                   <h2 id="ic-command-tools-title"><span class="incident-command-tools-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><use href="assets/page-nav-icons.svg#nav-command"></use></svg></span> Command Tools <button id="ic-command-tools-toggle" type="button" aria-expanded="false">Show tools</button></h2>

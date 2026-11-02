@@ -859,9 +859,16 @@
 #incident #incident-command-active { display: flex; flex-direction: column; }
 #incident .incident-command-info-grid { order: 1; margin: 0 0 14px; }
 #incident .incident-command-flow { order: 2; }
-#incident .incident-command-main-grid { order: 3; }
-#incident .incident-command-weather-bar { order: 4; }
-#incident .incident-command-tools { order: 5; }
+#incident .incident-command-main-grid { order: 3; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1.15fr); align-items: stretch; }
+#incident .incident-command-main-grid > .incident-command-panel { display: flex; flex-direction: column; align-self: stretch; min-height: 0; }
+#incident .incident-command-guided-content { flex: 1 1 auto; }
+#incident #ic-assignment-editor-section { margin: 0; }
+#incident #ic-assignment-editor-section .incident-command-section-heading { box-sizing: border-box; min-height: 42px; margin: 0; padding: 6px 10px; border-bottom: 1px solid #b8c2cc; }
+#incident #ic-assignment-editor-section .incident-command-section-heading h2 { font-family: "Bahnschrift Condensed", "Arial Narrow", sans-serif; font-size: clamp(1rem, 1.1vw, 1.18rem); font-weight: 900; line-height: 1.05; }
+#incident #ic-assignment-editor-section #ic-assignment-editor { flex: 1 1 auto; min-height: 0; }
+#incident .incident-command-plume-summary-inline { order: 4; box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; }
+#incident .incident-command-weather-bar { order: 5; }
+#incident .incident-command-tools { order: 6; }
 #incident .incident-command-info-grid .incident-info-card {
   width: 100%;
   box-sizing: border-box;
@@ -892,7 +899,7 @@
 #incident .incident-command-plume-summary-inline .incident-command-section-heading { margin-bottom: 7px; }
 #incident .incident-command-plume-summary-inline .incident-command-plume-preview {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(220px, 2fr);
+  grid-template-columns: minmax(0, 7fr) minmax(220px, 3fr);
   gap: 16px;
   align-items: stretch;
   min-width: 0;
@@ -900,13 +907,13 @@
 #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap,
 #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap img,
 #incident .incident-command-plume-summary-inline .incident-command-plume-empty,
-#incident .incident-command-plume-summary-inline .incident-command-plume-map { min-height: 240px; }
+#incident .incident-command-plume-summary-inline .incident-command-plume-map { min-height: 220px; }
 #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap {
   display: block;
   width: 100%;
   height: 100%;
   min-width: 0;
-  min-height: 240px;
+  min-height: 220px;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -926,7 +933,7 @@
   background: #e2e5e8;
 }
 #incident .incident-command-plume-summary-inline .incident-command-plume-empty {
-  min-height: 240px;
+  min-height: 220px;
   padding: 16px;
 }
 #incident .incident-command-plume-summary-inline .incident-command-plume-copy,
@@ -1278,6 +1285,7 @@
   #incident .incident-command-flow-steps { grid-template-columns: 1fr; gap: 0; }
   #incident .incident-flow-chevron { min-height: 22px; font-size: 0; }
   #incident .incident-flow-chevron::after { content: '↓'; font-size: 1.7rem; line-height: 1; }
+  #incident .incident-command-main-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
   #incident .incident-command-status-row {
@@ -1298,6 +1306,7 @@
   #incident .incident-command-plume-summary-inline .incident-command-plume-image-wrap,
   #incident .incident-command-plume-summary-inline .incident-command-plume-map,
   #incident .incident-command-plume-summary-inline .incident-command-plume-empty { min-height: 220px; }
+  #incident .incident-command-main-grid { grid-template-columns: 1fr; }
   #incident .incident-assignment-table-header { display: none; }
   #incident .incident-assignment-item .incident-assignment-field-label { display: inline; }
   #incident .incident-assignment-item { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; gap: 7px; padding: 9px 10px; }
@@ -1406,9 +1415,9 @@
   border-color: #b8c2cc !important;
 }
 
-/* Keep Brief-owned sections on one inset content rail at every breakpoint. */
-#incident .incident-command-brief-panel > .incident-command-plume-summary-inline,
-#incident .incident-command-brief-panel > #ic-assignment-editor-section,
+/* Keep the moved overview sections on one content rail at every breakpoint. */
+#incident .incident-command-plume-summary-inline,
+#incident #ic-assignment-editor-section,
 #incident .incident-command-brief-panel > .incident-command-operational-details {
   box-sizing: border-box;
   width: 100%;
@@ -1417,15 +1426,14 @@
   margin-right: 0;
   margin-left: 0;
 }
-#incident .incident-command-brief-panel > .incident-command-plume-summary-inline {
+#incident .incident-command-plume-summary-inline {
   margin-top: 12px;
 }
-#incident .incident-command-brief-panel > #ic-assignment-editor-section,
 #incident .incident-command-brief-panel > .incident-command-operational-details {
   margin-top: 12px;
 }
-#incident .incident-command-brief-panel > #ic-assignment-editor-section #ic-assignment-editor,
-#incident .incident-command-brief-panel > #ic-assignment-editor-section .incident-assignment-list,
+#incident #ic-assignment-editor-section #ic-assignment-editor,
+#incident #ic-assignment-editor-section .incident-assignment-list,
 #incident .incident-command-brief-panel > .incident-command-operational-details .incident-command-detail-grid {
   box-sizing: border-box;
   width: 100%;
