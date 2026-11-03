@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 export async function offlineWorker(publicDirectory: string) {
   const html = await readFile(path.join(publicDirectory, 'index.html'), 'utf8');
   const links = [...html.matchAll(/(?:src|href)="([^"]+\.(?:css|js)(?:\?[^"]*)?)"/g)].map((match) => match[1].replaceAll('&amp;', '&'));
-  const core = [...new Set(['/', '/manifest.webmanifest', '/assets/app-icon-192.png', '/assets/app-icon-512.png', ...links.map((link) => {
+  const core = [...new Set(['/', '/manifest.webmanifest', '/assets/emergenz-app-32-v2.png', '/assets/emergenz-app-192-v2.png', '/assets/emergenz-app-512-v2.png', '/assets/emergenz-app-maskable-512-v2.png', ...links.map((link) => {
     const url = new URL(link, 'https://shell.invalid/');
     return url.origin === 'https://shell.invalid' ? `${url.pathname}${url.search}` : '';
   }).filter(Boolean)])];

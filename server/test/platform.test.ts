@@ -77,7 +77,7 @@ describe('single-agency account and shared incident safeguards', () => {
   it('serves an install manifest and content-versioned offline worker without caching APIs', async () => {
     const manifest = await app.request('/manifest.webmanifest');
     expect(manifest.status).toBe(200);
-    expect(await manifest.json()).toMatchObject({ name: 'EMERGENZ Response Management', display: 'standalone' });
+    expect(await manifest.json()).toMatchObject({ name: 'EMERGENZ', display: 'standalone' });
     const source = await offlineWorker(path.resolve(__dirname, '../public'));
     expect(source).toMatch(/const CACHE = "emergenz-shell-[a-f0-9]{16}"/);
     expect(source).not.toContain('__EMERGENZ_');
