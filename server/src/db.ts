@@ -125,6 +125,10 @@ export function getDb(): DbClient {
     )
     WHERE facility_id IS NULL;
   `);
+  const incidentColumns = conn.prepare('PRAGMA table_info(incidents)').all() as Array<{ name: string }>;
+  if (!incidentColumns.some((column) => column.name === 'revision')) {
+    conn.exec('ALTER TABLE incidents ADD COLUMN revision INTEGER NOT NULL DEFAULT 0');
+  }
   _client = drizzle(conn, { schema });
   const count = reconcileNpgProjection(_client);
   console.log(`[db] npg projection reconciled: ${count} records`);

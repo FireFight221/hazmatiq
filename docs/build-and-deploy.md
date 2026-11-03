@@ -2,7 +2,9 @@
 
 The app ships as a single Docker container — one Hono server serves both the static UI
 (`server/public/`) and the API, backed by SQLite. There's no separate static-host build
-step anymore (no `dist/`, no Vite, no service worker).
+step anymore (no `dist/` or Vite). The server generates a content-versioned service
+worker for the installable web app. See [account, synchronization, and offline
+setup](platform-access-and-offline.md) for deployment boundaries and activation.
 
 ```bash
 docker compose up --build

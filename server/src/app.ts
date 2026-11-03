@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { offlineWorker } from './pwa.js';
+import { accessGuard, accessRoutes, accountForRequest } from './access.js';
 // Hono REST API for the Hazmat Response Support backend.
 //
 // Routes:
@@ -197,6 +200,9 @@ function plumeBlockedFields(display = "Cannot Plot — Missing Required Data") {
 
 const app = new Hono();
 app.use(logger());
+app.use("/api/*", accessGuard);
+app.route("/api/auth", accessRoutes);
+app.use("/service-worker.js", async (c, next) => { c.header("Cache-Control", "no-cache"); await next(); });
 const serverDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDirectory = path.join(serverDirectory, "public");
 const publicIndexPath = path.join(publicDirectory, "index.html");
@@ -204,6 +210,10 @@ const serveHazardIdWorkspace = async (c: Context) =>
   c.html(await readFile(publicIndexPath, "utf8"));
 app.get("/hazard-id", serveHazardIdWorkspace);
 app.get("/chemical-id", serveHazardIdWorkspace);
+app.get("/service-worker.js", async (c) => {
+  c.header("Content-Type", "text/javascript; charset=utf-8");
+  return c.body(await offlineWorker(publicDirectory));
+});
 app.use("/*", serveStatic({ root: publicDirectory }));
 
 function backendEnvironment(...names: string[]) {
@@ -2077,12 +2087,12 @@ app.get("/api/incidents", async (c) => {
   const rows = await getDb().select().from(schema.incidents);
   const incidents = rows.filter((row) => row.status !== "Deleted").flatMap((row) => {
     try {
-      return [{ ...JSON.parse(row.report), incidentId: row.id, status: row.status }];
+      return [{ ...Object.fromEntries(Object.entries(JSON.parse(row.report)).filter(([key]) => !["_syncFingerprint", "_syncMutation"].includes(key))), incidentId: row.id, status: row.status, _syncRevision: row.revision }];
     } catch {
       return [];
     }
   });
-  return c.json({ incidents });
+  return c.json({ incidents, deletedIds: rows.filter((row) => row.status === "Deleted").map((row) => row.id) });
 });
 
 app.post("/api/incidents", async (c) => {
@@ -2096,30 +2106,49 @@ app.post("/api/incidents", async (c) => {
       typeof item === "object" &&
       typeof (item as Record<string, unknown>).incidentId === "string",
   );
-  let saved = 0;
+  const accepted: Array<{ incidentId: string; revision: number }> = [];
+  const conflicts: Array<{ incidentId: string; reason: string; server: Record<string, unknown> }> = [];
   let ignored = 0;
-  for (const incident of incidents) {
-    const id = incident.incidentId as string;
-    const [existing] = await getDb().select().from(schema.incidents).where(eq(schema.incidents.id, id));
-    if (existing) {
-      if (existing.status === "Deleted") { ignored += 1; continue; }
-      let previous: Record<string, unknown> = {};
-      try { previous = JSON.parse(existing.report); } catch { /* retain recoverable record */ }
-      const priorTime = Date.parse(textValue(previous.updatedAt || previous.completedAt || previous.startedAt)) || 0;
-      const incomingTime = Date.parse(textValue(incident.updatedAt || incident.completedAt || incident.startedAt)) || 0;
-      if ((existing.status === "Completed" && incident.status !== "Completed") || (incomingTime < priorTime && incident.status !== "Completed")) { ignored += 1; continue; }
+  const account = accountForRequest(c);
+  getDb().transaction((tx) => {
+    for (const incident of incidents) {
+      const id = incident.incidentId as string;
+      const existing = tx.select().from(schema.incidents).where(eq(schema.incidents.id, id)).get();
+      const { _syncRevision: _baseRevision, _syncFingerprint: _oldFingerprint, ...incomingContent } = incident;
+      void _baseRevision; void _oldFingerprint;
+      const fingerprint = createHash('sha256').update(JSON.stringify(incomingContent)).digest('hex');
+      if (existing) {
+        let previous: Record<string, unknown> = {};
+        try { previous = JSON.parse(existing.report); } catch { /* retain recoverable record */ }
+        if (existing.status !== 'Deleted' && typeof incident._syncMutation === 'string'
+          && incident._syncMutation === previous._syncMutation && fingerprint === previous._syncFingerprint) {
+          accepted.push({ incidentId: id, revision: existing.revision });
+          continue;
+        }
+        if (existing.status === "Deleted" || (existing.status === "Completed" && incident.status !== "Completed")
+          || incident._syncRevision !== existing.revision) {
+          conflicts.push({ incidentId: id, reason: existing.status === 'Deleted' ? 'deleted' : 'revision-changed',
+            server: { ...Object.fromEntries(Object.entries(previous).filter(([key]) => !["_syncFingerprint", "_syncMutation"].includes(key))), incidentId: id, status: existing.status, _syncRevision: existing.revision } });
+          ignored += 1;
+          continue;
+        }
+      }
+      const revision = (existing?.revision || 0) + 1;
+      const { _syncRevision: _revision, ...record } = incident;
+      record._syncFingerprint = fingerprint;
+      void _revision;
+      if (account) {
+        record.lastSavedBy = { username: account.username, displayName: account.displayName, at: new Date().toISOString() };
+        if (!record.preparedBy) { record.preparedBy = account.displayName; record.preparedByUserId = account.username; record.preparedBySource = 'account-profile'; }
+      }
+      const status = typeof record.status === "string" ? record.status : "Active";
+      tx.insert(schema.incidents).values({ id, status, report: JSON.stringify(record), revision })
+        .onConflictDoUpdate({ target: schema.incidents.id,
+          set: { status, report: JSON.stringify(record), revision, updatedAt: sql`(datetime('now'))` } }).run();
+      accepted.push({ incidentId: id, revision });
     }
-    const status = typeof incident.status === "string" ? incident.status : "Completed";
-    await getDb()
-      .insert(schema.incidents)
-      .values({ id, status, report: JSON.stringify(incident) })
-      .onConflictDoUpdate({
-        target: schema.incidents.id,
-        set: { status, report: JSON.stringify(incident), updatedAt: sql`(datetime('now'))` },
-      });
-    saved += 1;
-  }
-  return c.json({ saved, ignored });
+  });
+  return c.json({ saved: accepted.length, ignored, accepted, conflicts }, conflicts.length ? 409 : 200);
 });
 
 app.delete("/api/incidents/:incidentId", async (c) => {
@@ -2129,6 +2158,7 @@ app.delete("/api/incidents/:incidentId", async (c) => {
   if (incident.status !== "Completed") return c.json({ error: "Active incident reports cannot be deleted" }, 409);
   await getDb().update(schema.incidents).set({
     status: "Deleted",
+    revision: sql`${schema.incidents.revision} + 1`,
     report: JSON.stringify({ incidentId, status: "Deleted" }),
     updatedAt: sql`(datetime('now'))`,
   }).where(eq(schema.incidents.id, incidentId));

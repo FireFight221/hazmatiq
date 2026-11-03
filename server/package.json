@@ -9,6 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "account:create": "node --import tsx src/create-user.ts",
     "dev": "tsx watch src/index.ts",
     "start": "node --import tsx src/index.ts",
     "db:generate": "drizzle-kit generate",

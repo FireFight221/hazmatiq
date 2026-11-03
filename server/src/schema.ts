@@ -355,6 +355,7 @@ export const incidents = sqliteTable(
     id: text("id").primaryKey(),
     status: text("status").notNull(),
     report: text("report").notNull(),
+    revision: integer("revision").notNull().default(0),
     updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
   },
   (t) => ({ statusIdx: index("idx_incidents_status").on(t.status) }),

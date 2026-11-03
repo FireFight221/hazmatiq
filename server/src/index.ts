@@ -5,6 +5,9 @@ import { serve } from "@hono/node-server";
 import app from "./app.js";
 import { getDb } from "./db.js";
 
+if (process.env.EMERGENZ_AUTH_MODE && !['pilot', 'required'].includes(process.env.EMERGENZ_AUTH_MODE)) {
+  throw new Error('EMERGENZ_AUTH_MODE must be pilot or required.');
+}
 const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOST ?? "0.0.0.0";
 

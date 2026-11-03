@@ -1375,6 +1375,31 @@ const icsFormCatalog = [
 ];
 let incidentTimerInterval = null;
 let incidentSyncTimer = null;
+let incidentSyncBusy = false;
+let incidentRestoreBusy = false;
+let volatileIncidentRecords = null;
+let incidentLocalSaveFailed = false;
+const incidentOutbox = window.EMERGENZSync.createTracker(window.localStorage);
+let incidentConflicts = [];
+window.EMERGENZPendingIncidentCount = () => incidentOutbox.count();
+function showIncidentSyncStatus(message) {
+  window.EMERGENZPlatform?.status(message);
+}
+function showIncidentSyncConflicts(conflicts) {
+  incidentConflicts = conflicts;
+  window.EMERGENZPlatform?.conflicts(conflicts, (conflict, keepLocal) => {
+    const incidentId = conflict.incidentId;
+    if (!keepLocal) {
+      if (conflict.server.status === 'Deleted') setIncidentDeletionMarker(incidentId);
+      writeIncidents([...readIncidents().filter((item) => item.incidentId !== incidentId), conflict.server]
+        .filter((item) => item.status !== 'Deleted'), { sync: false });
+    }
+    incidentOutbox.resolve(incidentId, conflict.server._syncRevision, keepLocal);
+    showIncidentSyncConflicts(incidentConflicts.filter((item) => item.incidentId !== incidentId));
+    renderIncidentLists();
+    if (keepLocal) void syncIncidentsToBackend();
+  });
+}
 let openIcsForm = null;
 let openIcsFormObjectUrl = null;
 let openIncidentSummaryId = null;
@@ -1510,6 +1535,7 @@ function compactIncidentForLocalStorage(incident) {
 }
 
 function readIncidents() {
+  if (volatileIncidentRecords) return volatileIncidentRecords.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
   try {
     const incidents = JSON.parse(window.localStorage.getItem(incidentsStorageKey) || '[]');
     return Array.isArray(incidents) ? incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)) : [];
@@ -1518,39 +1544,62 @@ function readIncidents() {
   }
 }
 
-function writeIncidents(incidents) {
+function writeIncidents(incidents, { sync = true } = {}) {
+  const previous = new Map(readIncidents().map((item) => [item.incidentId, JSON.stringify(item)]));
   const retainedIncidents = incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
   const localIncidents = retainedIncidents.map(compactIncidentForLocalStorage);
   let savedLocally = false;
   try {
     window.localStorage.setItem(incidentsStorageKey, JSON.stringify(localIncidents));
     savedLocally = true;
+    if (sync) localIncidents.forEach((incident) => {
+      if (previous.get(incident.incidentId) !== JSON.stringify(incident) && !incidentOutbox.enqueue(incident.incidentId)) savedLocally = false;
+    });
   } catch (error) {
+    savedLocally = false;
+    localIncidents.forEach((incident) => incidentOutbox.enqueue(incident.incidentId));
     if (!isQuotaExceededError(error)) console.warn('Incident records could not be saved locally.', error);
     setIncidentStatus('Local storage is full. Existing incident records were preserved; this update remains available in memory and will retry backend sync.');
   }
+  volatileIncidentRecords = savedLocally ? null : localIncidents;
+  incidentLocalSaveFailed = !savedLocally;
   window.clearTimeout(incidentSyncTimer);
-  incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(retainedIncidents), 250);
+  if (sync && incidentOutbox.count()) {
+    showIncidentSyncStatus(`${savedLocally ? "Saved on this device" : "Local save failed"} · ${incidentOutbox.count()} pending sync`);
+    incidentSyncTimer = window.setTimeout(() => syncIncidentsToBackend(), 250);
+  }
   window.dispatchEvent(new CustomEvent('hazmatiq:incident-record-saved'));
   return savedLocally;
 }
 
-async function syncIncidentsToBackend(incidents = readIncidents()) {
-  const retainedIncidents = await Promise.all(incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)).map(async (incident) => {
-    if (incident.plumeMapImage || !incident.plumeMapImageRef) return incident;
-    const image = await readIncidentMapSnapshot(incident.plumeMapImageRef);
-    return image ? { ...incident, plumeMapImage: image } : incident;
-  }));
+async function syncIncidentsToBackend() {
+  if (incidentSyncBusy || !navigator.onLine) return;
+  const batch = incidentOutbox.batch().filter((item) => !isIncidentDeletionMarked(item.id) && !incidentConflicts.some((conflict) => conflict.incidentId === item.id));
+  if (!batch.length) return;
+  incidentSyncBusy = true;
   try {
+    const local = new Map(readIncidents().map((item) => [item.incidentId, item]));
+    const incidents = await Promise.all(batch.filter((item) => local.has(item.id)).map(async (item) => {
+      const incident = local.get(item.id);
+      const image = !incident.plumeMapImage && incident.plumeMapImageRef ? await readIncidentMapSnapshot(incident.plumeMapImageRef) : '';
+      return { ...incident, ...(image ? { plumeMapImage: image } : {}), _syncRevision: item.base, _syncMutation: item.mutation };
+    }));
     const response = await fetch('/api/incidents', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ incidents: retainedIncidents }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incidents }), signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok) throw new Error(`Incident sync failed (${response.status})`);
+    if (!response.ok && response.status !== 409) throw new Error(`Server sync unavailable (${response.status})`);
+    const result = await response.json();
+    for (const accepted of result.accepted || []) {
+      const sent = batch.find((item) => item.id === accepted.incidentId);
+      if (sent) incidentOutbox.acknowledge(sent.id, sent.mutation, accepted.revision);
+    }
+    showIncidentSyncConflicts([...incidentConflicts.filter((item) => !batch.some((sent) => sent.id === item.incidentId)), ...(result.conflicts || [])]);
+    showIncidentSyncStatus(incidentConflicts.length ? 'Saved on this device · sync conflict needs review' : incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Saved to server');
   } catch (error) {
-    console.warn('Incident reports remain saved on this device; backend sync is unavailable.', error);
-  }
+    showIncidentSyncStatus(`${incidentLocalSaveFailed ? 'Local save failed — keep this tab open' : 'Saved on this device'} · ${incidentOutbox.count()} pending sync`);
+    console.warn('Incident changes remain queued on this device.', error);
+  } finally { incidentSyncBusy = false; }
 }
 
 function incidentModifiedAt(incident) {
@@ -1558,27 +1607,45 @@ function incidentModifiedAt(incident) {
 }
 
 async function restoreIncidentsFromBackend() {
+  if (incidentRestoreBusy || incidentSyncBusy || !navigator.onLine) return;
+  incidentRestoreBusy = true;
   try {
-    const response = await fetch('/api/incidents');
-    if (!response.ok) throw new Error(`Incident restore failed (${response.status})`);
-    const remote = (await response.json()).incidents;
-    if (!Array.isArray(remote)) return;
-
-    const merged = new Map(remote
-      .filter((incident) => !isIncidentDeletionMarked(incident?.incidentId))
-      .map((incident) => [incident.incidentId, incident]));
-    readIncidents().forEach((local) => {
-      const saved = merged.get(local.incidentId);
-      if (!saved || local.status === 'Completed' || (saved.status !== 'Completed' && incidentModifiedAt(local) >= incidentModifiedAt(saved))) merged.set(local.incidentId, local);
-    });
-    writeIncidents([...merged.values()]);
-    const pointer = window.localStorage.getItem(activeIncidentIdStorageKey);
-    if (pointer && !getActiveIncident()) clearActiveIncidentState();
-    renderIncidentLists();
+    const response = await fetch('/api/incidents', { signal: AbortSignal.timeout(15000), cache: 'no-store' });
+    if (!response.ok) throw new Error(`Incident restore unavailable (${response.status})`);
+    const result = await response.json();
+    if (!Array.isArray(result.incidents)) throw new Error('Invalid incident response');
+    const localRecords = readIncidents();
+    const merged = new Map(result.incidents.filter((item) => !isIncidentDeletionMarked(item.incidentId)).map((item) => [item.incidentId, item]));
+    for (const remote of result.incidents) incidentOutbox.observe(remote.incidentId, remote._syncRevision);
+    for (const local of localRecords) {
+      const remote = merged.get(local.incidentId);
+      if ((result.deletedIds || []).includes(local.incidentId)) {
+        if (!incidentOutbox.has(local.incidentId)) setIncidentDeletionMarker(local.incidentId);
+        else merged.set(local.incidentId, local);
+        continue;
+      }
+      if (incidentOutbox.has(local.incidentId)) merged.set(local.incidentId, local);
+      else if (!remote || incidentModifiedAt(local) > incidentModifiedAt(remote)) {
+        incidentOutbox.enqueue(local.incidentId, Boolean(remote)); merged.set(local.incidentId, local);
+      }
+    }
+    const next = [...merged.values()];
+    if (JSON.stringify(next) !== JSON.stringify(localRecords)) {
+      writeIncidents(next, { sync: false });
+      const pointer = window.localStorage.getItem(activeIncidentIdStorageKey);
+      if (pointer && !getActiveIncident()) clearActiveIncidentState();
+      if (!document.activeElement?.matches('input,textarea,select,[contenteditable=true]')) renderIncidentLists();
+    }
+    showIncidentSyncStatus(incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Connected · server records available');
+    if (incidentOutbox.count()) void syncIncidentsToBackend();
   } catch (error) {
-    console.warn('Using incident reports saved on this device; backend restore is unavailable.', error);
-  }
+    showIncidentSyncStatus(`Saved on this device${incidentOutbox.count() ? ` · ${incidentOutbox.count()} pending sync` : ''} · server unavailable`);
+    console.warn('Using this device’s saved incident records.', error);
+  } finally { incidentRestoreBusy = false; }
 }
+window.addEventListener('online', () => { void restoreIncidentsFromBackend(); });
+window.addEventListener('emergenz:signed-in', () => { void restoreIncidentsFromBackend(); });
+window.setInterval(() => { if (!document.hidden) void restoreIncidentsFromBackend(); }, 15000);
 
 function getActiveIncident() {
   const activeId = window.localStorage.getItem(activeIncidentIdStorageKey);
@@ -3120,7 +3187,8 @@ function setIncidentSummaryEditing(editing) {
 }
 
 function currentReportAuthor() {
-  const user = window.HazMatIQ?.user;
+  const account = window.EMERGENZPlatform?.user();
+  const user = account ? { name: account.displayName, id: account.username } : window.HazMatIQ?.user;
   return user && typeof user.name === 'string' && user.name.trim()
     ? { name: user.name.trim(), userId: user.id || '', source: 'account-profile' } : null;
 }

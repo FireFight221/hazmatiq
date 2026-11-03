@@ -25,11 +25,11 @@ beforeAll(() => {
   const dbPath = path.join(mkdtempSync(path.join(tmpdir(), "hazmat-test-")), "test.db");
   process.env.SQLITE_PATH = dbPath;
 
-  execFileSync("npx", ["tsx", "src/init-sqlite.ts"], {
+  execFileSync(process.execPath, ["--import", "tsx", "src/init-sqlite.ts"], {
     cwd: path.resolve(__dirname, ".."),
     env: process.env,
   });
-  execFileSync("npx", ["tsx", "src/seed.ts"], {
+  execFileSync(process.execPath, ["--import", "tsx", "src/seed.ts"], {
     cwd: path.resolve(__dirname, ".."),
     env: process.env,
   });
@@ -827,7 +827,7 @@ describe("API routes", () => {
     const response = await app.request("/api/incidents");
     expect(response.status).toBe(200);
     const body = (await response.json()) as { incidents: (typeof incident)[] };
-    expect(body.incidents).toContainEqual(incident);
+    expect(body.incidents).toContainEqual({ ...incident, _syncRevision: 1 });
   });
 
   it("deletes completed incidents while blocking stale sync and active deletion", async () => {
@@ -857,7 +857,7 @@ describe("API routes", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ incidents: [completed] }),
     });
-    expect(staleSync.status).toBe(200);
+    expect(staleSync.status).toBe(409);
     expect(await staleSync.json()).toMatchObject({ saved: 0, ignored: 1 });
 
     const activeDeletion = await app.request(`/api/incidents/${active.incidentId}`, { method: "DELETE" });
