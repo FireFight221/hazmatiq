@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/platform.css?v=1" />
     <script src="/platform.js?v=1"></script>
     <script src="/incident-sync.js?v=1"></script>
+    <script src="/preferences.js?v=1"></script>
     <title>EMERGENZ | Incident Intelligence + Response Planning</title>
     <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css" />
     <link rel="stylesheet" href="styles.css?v=live-map-responsive-7&gold=1" />
@@ -27,6 +28,7 @@
     <link rel="stylesheet" href="monitoring-console.css?v=4&gold=1" />
     <link rel="stylesheet" href="plume-layout-correction.css?v=15" />
     <link rel="stylesheet" href="dashboard-header.css?v=17&gold=1" />
+    <link rel="stylesheet" href="settings-preferences.css?v=1" />
   </head>
   <body>
     <div class="app-shell">
@@ -1677,6 +1679,7 @@
                       <label>INSTRUMENT ALARM<select id="monitor-entry-alarm"><option value="Unknown">Not reported</option><option value="Normal">No alarm reported</option><option value="Caution">Caution reported</option><option value="Alarm">Alarm reported</option></select></label>
                       <label class="em-monitor-full">NOTES<input id="monitor-entry-notes" placeholder="Optional field observations" /></label>
                     </div>
+                    <label class="monitor-checkbox"><input type="checkbox" id="monitor-entry-include-report" checked /> Include this reading in the incident report</label>
                     <div class="em-monitor-entry-actions"><small>Saved as a manual observation — never labeled as live telemetry.</small><button type="submit" class="monitor-btn-primary">SAVE READING</button></div>
                   </form>
                 </section>
@@ -1721,6 +1724,7 @@
                   <label>ASSIGNED TEAM / PERSON<input id="monitor-deploy-team" required placeholder="Entry Team 1" /></label>
                   <label>DEPLOYMENT ROLE<input id="monitor-deploy-role" required placeholder="Downwind / perimeter / entry" /></label>
                   <label>LOCATION NAME<input id="monitor-deploy-location" required placeholder="Monitoring Point A" /></label>
+                  <div class="em-monitor-full"><button type="button" class="monitor-btn-secondary" id="monitor-deploy-gps">Use Device GPS</button><p id="monitor-deploy-gps-status" role="status">Use only at the monitor’s actual position.</p></div>
                   <label>LATITUDE (OPTIONAL)<input id="monitor-deploy-lat" type="number" min="-90" max="90" step="any" placeholder="Real measured coordinates" /></label>
                   <label>LONGITUDE (OPTIONAL)<input id="monitor-deploy-lon" type="number" min="-180" max="180" step="any" placeholder="Real measured coordinates" /></label>
                   <label>NOTES<input id="monitor-deploy-notes" placeholder="Optional" /></label>
@@ -2051,6 +2055,38 @@
             <header class="hazmat-page-hero emergenz-page-header settings-hero"><div class="hazmat-page-hero-content emergenz-page-header-content"><span class="emergenz-page-header-icon" aria-hidden="true"><svg viewBox="0 0 56 62" focusable="false"><path d="M10 15h36M10 31h36M10 47h36"/><circle cx="21" cy="15" r="5"/><circle cx="37" cy="31" r="5"/><circle cx="25" cy="47" r="5"/></svg></span><div class="emergenz-page-header-copy"><p class="eyebrow">Application Configuration</p><h1 class="hazmat-hero-title">Settings</h1><p class="hazmat-hero-subtitle">Appearance, sources, and application preferences.</p></div></div></header>
             <div class="settings-workspace-grid">
               <section class="settings-card settings-appearance-card" aria-labelledby="settings-appearance-title"><header><div><p class="eyebrow">Display</p><h2 id="settings-appearance-title">Appearance</h2></div><span class="settings-current-theme" id="settings-current-theme">Tactical / Dark</span></header><p class="settings-card-intro">Choose the display mode for the whole EMERGENZ application. Tactical is optimized for command rooms; Daylight is optimized for outdoor and vehicle use.</p><div class="settings-theme-options" role="group" aria-label="Application theme"><button class="settings-theme-option" id="theme-tactical-btn" type="button" data-theme-choice="dark" aria-pressed="true"><span class="settings-theme-preview settings-theme-preview-dark" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>Tactical / Dark</strong><small>Dark navy command surfaces and hazard accents.</small></span><b>Active</b></button><button class="settings-theme-option" id="theme-daylight-btn" type="button" data-theme-choice="light" aria-pressed="false"><span class="settings-theme-preview settings-theme-preview-light" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>Daylight / Light</strong><small>High-contrast light surfaces for bright field conditions.</small></span><b>Use</b></button></div><p class="settings-theme-status" id="settings-theme-status" role="status" aria-live="polite">Tactical / Dark is active.</p></section>
+              <section class="settings-card" aria-labelledby="settings-location-title"><header><h2 id="settings-location-title">GPS &amp; Location</h2></header>
+                <label class="settings-check"><input type="checkbox" data-preference="locationEnabled" /> Allow device GPS requests</label>
+                <label class="settings-check"><input type="checkbox" data-preference="autoLocation" /> Acquire GPS automatically when no incident location is saved</label>
+                <label class="settings-check"><input type="checkbox" data-preference="highAccuracy" /> Request high accuracy (may use more battery)</label>
+                <p class="settings-card-intro">Browser permission is still required. Saved addresses and manually entered coordinates remain available. Device GPS never tracks remote teams or monitors.</p>
+                <button type="button" class="ghost-btn" id="settings-test-gps">Check Current GPS</button><p id="settings-gps-status" role="status" aria-live="polite">Permission not checked.</p>
+              </section>
+              <section class="settings-card" aria-labelledby="settings-weather-title"><header><h2 id="settings-weather-title">Weather &amp; Live Map</h2></header>
+                <label class="settings-field">Automatic weather refresh<select data-preference="weatherRefresh"><option value="manual">Manual refresh only</option><option value="5">Every 5 minutes</option><option value="15">Every 15 minutes</option></select></label>
+                <p class="settings-card-intro">Refreshes the visible Command or Weather page. Opening a page or requesting a refresh still loads weather. Source times and freshness checks remain unchanged. Select live, station import, or manual modeling weather on the Plume page.</p>
+                <button type="button" class="ghost-btn" id="settings-weather-import">Open Station Weather Import</button>
+                <p class="settings-card-intro">Opens the existing Columbia CSV importer on the Plume page. Review observation time and units there before modeling.</p>
+                <label class="settings-field">Live Map view on opening<select data-preference="mapView"><option value="remember">Remember last map view</option><option value="satellite">Satellite</option><option value="street">Street</option></select></label>
+                <p class="settings-card-intro">A basemap preference changes the map view, not the saved incident location or threat zones.</p>
+              </section>
+              <section class="settings-card" aria-labelledby="settings-monitors-title"><header><h2 id="settings-monitors-title">Monitoring</h2></header>
+                <label class="settings-check"><input type="checkbox" data-preference="monitorGps" /> Enable “Use Device GPS” for monitor placement</label>
+                <label class="settings-check"><input type="checkbox" data-preference="monitorReport" /> Include new manual readings in incident reports by default</label>
+                <p class="settings-card-intro">Place a monitor only when this device is at its actual field position. Coordinates remain editable. Existing placements and readings are preserved. Linked monitor telemetry requires a connected provider; this does not enable a live feed.</p>
+              </section>
+              <section class="settings-card" aria-labelledby="settings-print-title"><header><h2 id="settings-print-title">Print &amp; PDF Export</h2></header>
+                <label class="settings-check"><input type="checkbox" data-preference="printMap" /> Include the saved plume map in printed incident briefs</label>
+                <label class="settings-check"><input type="checkbox" data-preference="printAuthor" /> Include Prepared By in printed incident briefs</label>
+                <label class="settings-field">Populated ICS PDF action<select data-preference="pdfAction"><option value="view">Open PDF in a new tab</option><option value="download">Download editable PDF</option></select></label>
+                <p class="settings-card-intro">Incident briefs print on white paper backgrounds. Threat zone tables remain included. FEMA form layouts are preserved. Paper size, orientation, printer, and copies are chosen in the browser’s print dialog.</p>
+              </section>
+              <section class="settings-card" aria-labelledby="settings-device-title"><header><h2 id="settings-device-title">Device Preferences</h2></header>
+                <p class="settings-card-intro">Changes save immediately on this browser and device. They do not change other users’ settings or incident records.</p>
+                <div class="settings-actions"><button type="button" class="ghost-btn" id="settings-export">Export Preferences</button><button type="button" class="ghost-btn" id="settings-import">Import Preferences</button><button type="button" class="ghost-btn" id="settings-reset">Restore Defaults</button></div>
+                <input type="file" id="settings-import-file" accept="application/json,.json" hidden />
+                <p id="settings-save-status" role="status" aria-live="polite">Preferences saved on this device.</p>
+              </section>
               <section class="settings-card settings-sources-card" aria-labelledby="settings-sources-title"><header><div><p class="eyebrow">Reference Infrastructure</p><h2 id="settings-sources-title">Sources</h2></div><button class="ghost-btn" id="settings-sources-toggle" type="button" aria-expanded="false" aria-controls="settings-sources-panel">Open Sources</button></header><p class="settings-card-intro">Review the authoritative registries that support EMERGENZ operational data. This page reports the source state already available in the application.</p><div id="settings-sources-panel" class="settings-sources-panel" hidden><div class="settings-source-category"><strong>Chemical</strong><span>Chemical Companion Master · NIOSH Pocket Guide · CAMEO Chemicals</span><b data-source-state="verified">Verified / bundled</b></div><div class="settings-source-category"><strong>Medical / Decon</strong><span>Chemical Companion medical protocols and decontamination guidance</span><b data-source-state="verified">Source-backed where available</b></div><div class="settings-source-category"><strong>CBRN / Radiological</strong><span>Curated EMERGENZ CBRN and radiological reference corpus</span><b data-source-state="verified">Curated / offline</b></div><div class="settings-source-category"><strong>Regulatory</strong><span>ERG 2024, AEGL endpoints, and linked regulatory records</span><b data-source-state="review">Review source context</b></div><div class="settings-source-category"><strong>Weather / Mapping</strong><span>Open-Meteo, NWS observations, MapLibre basemaps, and radar providers</span><b data-source-state="available">Live / availability varies</b></div><p class="settings-source-note">Source status is informational. EMERGENZ does not treat an available network response as automatically verified.</p></div></section>
             </div>
           </section>
@@ -2091,7 +2127,7 @@
     <script src="incident-report-model.js"></script>
      <script src="script.js?v=incident-report-brief-2&gold=1"></script>
     <script src="weather-workspace.js?v=7&gold=1"></script>
-    <script src="settings-workspace.js?v=1"></script>
+    <script src="settings-workspace.js?v=2"></script>
     <script src="incident-command.js"></script>
     <script src="command-worksheet.js?v=1&gold=1"></script>
     <script src="hazard-profile.js?v=hazard-radiological-routing-1"></script>

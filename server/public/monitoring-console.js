@@ -266,7 +266,27 @@
     $('monitor-deploy-lon').value=a?.longitude??'';
     $('monitor-deploy-notes').value=a?.notes||'';
     $('monitor-undeploy').hidden=!a;
+    updateGpsControl();
     $('monitor-deploy-dialog').showModal();
+  }
+  function updateGpsControl() {
+    const button=$('monitor-deploy-gps');
+    if(button)button.disabled=window.HazMatIQ.preferences?.get('monitorGps')===false || window.HazMatIQ.preferences?.get('locationEnabled')===false;
+    if($('monitor-deploy-gps-status'))$('monitor-deploy-gps-status').textContent=button?.disabled ? 'Device placement GPS is disabled in Settings. Enter coordinates manually.' : 'Use only at the monitor’s actual position.';
+  }
+  async function useDeploymentGps() {
+    updateGpsControl(); const button=$('monitor-deploy-gps'); if(button.disabled)return;
+    if(!window.confirm('Is this device at the monitor’s actual field position?'))return;
+    const deploymentId=$('monitor-deploy-id').value;
+    button.disabled=true; $('monitor-deploy-gps-status').textContent='Acquiring device GPS…';
+    try {
+      const point=await window.HazMatIQ.locationTools.getCurrentGps();
+      if(!$('monitor-deploy-dialog').open || $('monitor-deploy-id').value!==deploymentId)return;
+      if(window.HazMatIQ.preferences?.get('monitorGps')===false)return;
+      $('monitor-deploy-lat').value=point.lat.toFixed(6); $('monitor-deploy-lon').value=point.lon.toFixed(6);
+      $('monitor-deploy-gps-status').textContent=`Device fix ±${Math.round(point.accuracy)} m. Review coordinates and Save Deployment. This is not live monitor tracking.`;
+    } catch(error){$('monitor-deploy-gps-status').textContent=error.message||'Unable to acquire GPS.';}
+    finally{button.disabled=window.HazMatIQ.preferences?.get('monitorGps')===false || window.HazMatIQ.preferences?.get('locationEnabled')===false;}
   }
   function saveDeployment(e) {
     e.preventDefault();
@@ -302,7 +322,7 @@
     activity.push({id:uid(),dateTime:new Date().toISOString(),monitorName:a.deviceName,monitorId:a.monitorId,
       assignmentId:a.id,role:a.role,location:a.location,entryType:label,
       sensor:r?.sensor||'',readingValue:r?.readingValue||'',unit:r?.unit||'',alarmState:r?.alarmState||'Unknown',
-      enteredBy:r?.enteredBy||'',notes:r?.notes||'',includeInReport:true,createdAt:new Date().toISOString()});
+      enteredBy:r?.enteredBy||'',notes:r?.notes||'',includeInReport:r ? r.includeInReport !== false : true,createdAt:new Date().toISOString()});
     save(KEYS.activity,activity);
   }
   function saveReading(e) {
@@ -328,7 +348,7 @@
       unit:$('monitor-entry-units').value,location:$('monitor-entry-location').value.trim()||a.location,
       enteredBy:$('monitor-entry-reporter').value.trim(),notes:$('monitor-entry-notes').value.trim(),
       alarmState:$('monitor-entry-alarm').value,dataMode:'Manual',
-      createdAt:new Date().toISOString(),includeInReport:true};
+      createdAt:new Date().toISOString(),includeInReport:$('monitor-entry-include-report').checked};
     if(!save(KEYS.readings,[...readings,record]))return;
     readings.push(record);logAction(a,'Manual reading recorded',record);
     refreshAll();status(record.monitorName+' reading recorded as MANUAL at '+dateText(record.dateTime)+'.');
@@ -420,6 +440,9 @@
       const a=activeAssignment(e.target.value); $('monitor-entry-location').value=a?.location||'';
     });
     $('monitor-manual-form').addEventListener('submit',saveReading);
+    $('monitor-entry-include-report').checked=window.HazMatIQ.preferences?.get('monitorReport')!==false;
+    $('monitor-deploy-gps').addEventListener('click',useDeploymentGps);
+    window.addEventListener('emergenz:preferences-changed',(event)=>{updateGpsControl();if(event.detail.values.monitorReport!==event.detail.previous.monitorReport)$('monitor-entry-include-report').checked=window.HazMatIQ.preferences?.get('monitorReport')!==false;});
     $('monitor-deployment-form').addEventListener('submit',saveDeployment);
     $('monitor-undeploy').addEventListener('click',undeploy);
     $('monitor-deploy-cancel').addEventListener('click',()=>$('monitor-deploy-dialog').close());

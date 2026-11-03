@@ -946,6 +946,18 @@
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeWeatherFirePopup(); });
   }
 
+  let weatherRefreshTimer;
+  function scheduleWeatherRefresh() {
+    window.clearInterval(weatherRefreshTimer);
+    const minutes = window.HazMatIQ.preferences?.get('weatherRefresh') || '5';
+    if (minutes === 'manual') return;
+    weatherRefreshTimer = window.setInterval(() => {
+      if (!document.hidden && document.getElementById('weather')?.classList.contains('active') && weatherLocation) void refreshWeather();
+    }, Number(minutes) * 60 * 1000);
+  }
+  window.addEventListener('emergenz:preferences-changed', scheduleWeatherRefresh);
+  scheduleWeatherRefresh();
+
   function initializeWeatherPage() {
     if (!initialized) { bind(); initialized = true; }
     const saved = readWeatherLocationState();

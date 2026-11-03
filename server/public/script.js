@@ -547,13 +547,22 @@ async function initializeTacticalClock() {
   renderTacticalClock();
   window.setInterval(renderTacticalClock, 1000);
   updateNotificationCenter({ weather: 'Loading live weather…' });
-  window.setInterval(() => {
-    if (notificationWeatherLocation) void refreshNotificationWeather(notificationWeatherLocation);
-  }, 5 * 60 * 1000);
+  let notificationRefreshTimer;
+  const scheduleNotificationRefresh = () => {
+    window.clearInterval(notificationRefreshTimer);
+    const minutes = window.HazMatIQ.preferences?.get('weatherRefresh') || '5';
+    if (minutes === 'manual') return;
+    notificationRefreshTimer = window.setInterval(() => {
+      if (!document.hidden && notificationWeatherLocation) void refreshNotificationWeather(notificationWeatherLocation);
+    }, Number(minutes) * 60 * 1000);
+  };
+  scheduleNotificationRefresh();
+  window.addEventListener('emergenz:preferences-changed', scheduleNotificationRefresh);
 
   try {
     const savedLocation = await getIncidentCoordinates({ requestGps: false }).catch(() => null);
-    const gps = savedLocation || await getCurrentGps();
+    const gps = savedLocation || (window.HazMatIQ.preferences?.get('autoLocation') !== false ? await getCurrentGps() : null);
+    if (!gps) throw new Error('Automatic GPS is disabled.');
     const coordinatesInput = document.getElementById('incident-coordinates-input');
     if (!savedLocation && coordinatesInput && !coordinatesInput.value.trim() && !getIncidentAddressValue()) {
       coordinatesInput.value = `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}`;
@@ -3521,12 +3530,17 @@ async function openIcsPdf() {
   if (!incident) return;
   const status = document.getElementById('ics-form-editor-status');
   // Open synchronously so browser popup blocking cannot discard an awaited PDF.
-  const tab = window.open('', '_blank');
+  const download = window.HazMatIQ.preferences?.get('pdfAction') === 'download';
+  const tab = download ? null : window.open('', '_blank');
   if (tab) tab.opener = null;
   try {
     await refreshIcsPdfPreview(incident, selection);
     if (openIcsForm !== selection) { tab?.close(); return; }
-    if (tab) tab.location.href = openIcsFormObjectUrl;
+    if (download) {
+      const link = document.createElement('a'); link.href = openIcsFormObjectUrl;
+      link.download = `${String(selection.formId).replace(/[^a-z0-9-]/gi, '-')}-${String(incident.incidentName || 'incident').replace(/[^a-z0-9-]/gi, '-')}.pdf`; link.click();
+      if (status) status.textContent = 'Editable ICS PDF downloaded.';
+    } else if (tab) tab.location.href = openIcsFormObjectUrl;
     else if (status) status.textContent += ' Your browser blocked a new tab; use the PDF preview or Download Editable PDF.';
   } catch (error) {
     tab?.close();
@@ -14125,6 +14139,7 @@ function getGpsErrorMessage(error) {
 let pendingDeviceGpsRequest = null;
 let recentDeviceGps = null;
 function getCurrentGps() {
+  if (window.HazMatIQ.preferences?.get('locationEnabled') === false) return Promise.reject(new Error('Device GPS is disabled in Settings. Enable it or enter an address or coordinates.'));
   if (recentDeviceGps && Date.now() - recentDeviceGps.receivedAt < 30000) return Promise.resolve(recentDeviceGps.location);
   if (pendingDeviceGpsRequest) return pendingDeviceGpsRequest;
   pendingDeviceGpsRequest = new Promise((resolve, reject) => {
@@ -14133,6 +14148,7 @@ function getCurrentGps() {
       return;
     }
     const success = ({ coords }) => {
+      if (window.HazMatIQ.preferences?.get('locationEnabled') === false) { reject(new Error('Device GPS was disabled in Settings.')); return; }
       const location = normalizePlumeLocation({ lat: coords?.latitude, lon: coords?.longitude });
       if (!location) { reject(new Error('Browser GPS returned an invalid location.')); return; }
       const result = { ...location, accuracy: coords.accuracy, source: 'Current device GPS', acquiredAt: new Date().toISOString() };
@@ -14140,10 +14156,11 @@ function getCurrentGps() {
       resolve(result);
     };
     navigator.geolocation.getCurrentPosition(success, (error) => {
+      if (window.HazMatIQ.preferences?.get('locationEnabled') === false) { reject(new Error('Device GPS was disabled in Settings.')); return; }
       if (error?.code === 1) { reject(new Error(getGpsErrorMessage(error))); return; }
       navigator.geolocation.getCurrentPosition(success, (fallback) => reject(new Error(getGpsErrorMessage(fallback))),
         { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
-    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+    }, { enableHighAccuracy: window.HazMatIQ.preferences?.get('highAccuracy') !== false, timeout: 10000, maximumAge: 30000 });
   }).finally(() => { pendingDeviceGpsRequest = null; });
   return pendingDeviceGpsRequest;
 }
@@ -14251,7 +14268,7 @@ async function getIncidentCoordinates({ requestGps = true, allowPlumeManual = fa
       return useFallbackLocation({ ...match, source: 'Incident Brief address' });
     }
   }
-  if (requestGps && !locationSelectionLocked) {
+  if (requestGps && !locationSelectionLocked && window.HazMatIQ.preferences?.get('autoLocation') !== false) {
     try {
       const gps = await getCurrentGps();
       const input = document.getElementById('incident-coordinates-input');
@@ -17185,11 +17202,17 @@ document.getElementById('plume-model-form')?.addEventListener('change', () => {
 updatePlumeReleaseQuantityLabel();
 applyChemicalContainerProfile();
 updatePlumeInputSummaries();
-window.setInterval(() => {
-  if (document.getElementById('incident')?.classList.contains('active')) {
-    void refreshCommandWeather({ requestGps: false });
-  }
-}, 5 * 60 * 1000);
+let commandWeatherRefreshTimer;
+function scheduleCommandWeatherRefresh() {
+  window.clearInterval(commandWeatherRefreshTimer);
+  const minutes = window.HazMatIQ.preferences?.get('weatherRefresh') || '5';
+  if (minutes === 'manual') return;
+  commandWeatherRefreshTimer = window.setInterval(() => {
+    if (!document.hidden && document.getElementById('incident')?.classList.contains('active')) void refreshCommandWeather({ requestGps: false });
+  }, Number(minutes) * 60 * 1000);
+}
+scheduleCommandWeatherRefresh();
+window.addEventListener('emergenz:preferences-changed', scheduleCommandWeatherRefresh);
 document.querySelectorAll('[data-plume-map-view]').forEach((button) => {
   button.addEventListener('click', () => setPlumeMapView(button.dataset.plumeMapView));
 });
@@ -19742,7 +19765,8 @@ function initializeLiveMap(context = {}) {
       if (!liveMapStoredStyleApplied) {
         liveMapStoredStyleApplied = true;
         try {
-          const storedStyle = window.localStorage.getItem(liveMapStyleKey);
+          const viewPreference = window.HazMatIQ.preferences?.get('mapView') || 'remember';
+          const storedStyle = viewPreference === 'remember' ? window.localStorage.getItem(liveMapStyleKey) : viewPreference;
           if (storedStyle && storedStyle !== 'satellite') setLiveMapStyle(storedStyle);
         } catch { /* Use the satellite default. */ }
       }
@@ -19826,7 +19850,7 @@ function initializeLiveMap(context = {}) {
     logLiveMapDiagnostic();
   });
   window.setTimeout(() => liveMap.resize(), 150);
-  if (!liveMapGpsRequested && !effectiveContext?.planningPlan) {
+  if (!liveMapGpsRequested && !effectiveContext?.planningPlan && window.HazMatIQ.preferences?.get('autoLocation') !== false && window.HazMatIQ.preferences?.get('locationEnabled') !== false) {
     liveMapGpsRequested = true;
     setText('live-map-status', 'Locating current GPS position…');
     getCurrentGps().then((gps) => {
@@ -20245,3 +20269,9 @@ window.HazMatIQ.locationTools = {
   parseGpsCoordinate,
   geocodePlumeAddress,
 };
+
+window.addEventListener('emergenz:preferences-changed', (event) => {
+  const { values, previous } = event.detail;
+  if (values.locationEnabled !== previous.locationEnabled || values.highAccuracy !== previous.highAccuracy) recentDeviceGps = null;
+  if (liveMap && values.mapView !== previous.mapView && values.mapView !== 'remember') setLiveMapStyle(values.mapView);
+});
