@@ -1171,7 +1171,7 @@ body.plume-map-maximized-open { overflow: hidden; }
 /* Chemical Release uses one stable field contract: label row first, control
    second, with controls kept clear of the field labels. */
 #plume.view.active .plume-release-grid {
-  grid-template-columns: minmax(0, 1.2fr) minmax(110px, .8fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px 8px;
   align-items: start;
 }
@@ -1639,7 +1639,9 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-weather-glance-compass > span { font-size: 8px; }
 #plume.view.active .plume-weather-glance-compass i { height: 16px; }
 #plume.view.active .plume-release-grid .plume-field-label-row > label { overflow-wrap: normal; }
-#plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row > label { color: #ff929a; }
+#plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row > label { color: var(--red, #c1121f);
+background: #f3f4f6; border-left: 3px solid var(--red, #c1121f);
+padding: 4px 6px; border-radius: 3px; width: 100%; box-sizing: border-box; }
 #plume.view.active .plume-release-grid .plume-field-label-row b { display: inline-block; margin-inline-start: .35em; }
 #plume.view.active .plume-weather-source-row { display: grid; align-items: end; }
 @media (min-width: 1101px) {
@@ -1775,3 +1777,14 @@ body.plume-map-maximized-open { overflow: hidden; }
 #plume.view.active .plume-compass-buttons { grid-template-columns: repeat(3, 20px); gap: 2px; }
 #plume.view.active .plume-compass-button { min-width: 20px; min-height: 20px; border-radius: 4px; font-size: 11px; }
 #plume.view.active #plume-bearing-output { font-size: 7px; }
+
+#plume.view.active .plume-release-grid > :is(.plume-release-type-field,.plume-release-quantity-field,.plume-release-duration-field):not([hidden]) {
+  display:grid; grid-template-rows:minmax(0,1fr) 34px;
+  align-self:stretch; gap:4px;
+}
+#plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row {
+  align-items:stretch; margin-bottom:0;
+}
+#plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row b {
+  color:inherit;
+}
