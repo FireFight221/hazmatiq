@@ -1391,8 +1391,8 @@ let incidentLocalSaveFailed = false;
 const incidentOutbox = window.EMERGENZSync.createTracker(window.localStorage);
 let incidentConflicts = [];
 window.EMERGENZPendingIncidentCount = () => incidentOutbox.count();
-function showIncidentSyncStatus(message) {
-  window.EMERGENZPlatform?.status(message);
+function showIncidentSyncStatus(message, connection) {
+  window.EMERGENZPlatform?.status(message, connection);
 }
 function showIncidentSyncConflicts(conflicts) {
   incidentConflicts = conflicts;
@@ -1604,9 +1604,9 @@ async function syncIncidentsToBackend() {
       if (sent) incidentOutbox.acknowledge(sent.id, sent.mutation, accepted.revision);
     }
     showIncidentSyncConflicts([...incidentConflicts.filter((item) => !batch.some((sent) => sent.id === item.incidentId)), ...(result.conflicts || [])]);
-    showIncidentSyncStatus(incidentConflicts.length ? 'Saved on this device · sync conflict needs review' : incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Saved to server');
+    showIncidentSyncStatus(incidentConflicts.length ? 'Saved on this device · sync conflict needs review' : incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Saved to server', true);
   } catch (error) {
-    showIncidentSyncStatus(`${incidentLocalSaveFailed ? 'Local save failed — keep this tab open' : 'Saved on this device'} · ${incidentOutbox.count()} pending sync`);
+    showIncidentSyncStatus(`${incidentLocalSaveFailed ? 'Local save failed — keep this tab open' : 'Saved on this device'} · ${incidentOutbox.count()} pending sync`, false);
     console.warn('Incident changes remain queued on this device.', error);
   } finally { incidentSyncBusy = false; }
 }
@@ -1645,10 +1645,10 @@ async function restoreIncidentsFromBackend() {
       if (pointer && !getActiveIncident()) clearActiveIncidentState();
       if (!document.activeElement?.matches('input,textarea,select,[contenteditable=true]')) renderIncidentLists();
     }
-    showIncidentSyncStatus(incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Connected · server records available');
+    showIncidentSyncStatus(incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Connected · server records available', true);
     if (incidentOutbox.count()) void syncIncidentsToBackend();
   } catch (error) {
-    showIncidentSyncStatus(`Saved on this device${incidentOutbox.count() ? ` · ${incidentOutbox.count()} pending sync` : ''} · server unavailable`);
+    showIncidentSyncStatus(`Saved on this device${incidentOutbox.count() ? ` · ${incidentOutbox.count()} pending sync` : ''} · server unavailable`, false);
     console.warn('Using this device’s saved incident records.', error);
   } finally { incidentRestoreBusy = false; }
 }

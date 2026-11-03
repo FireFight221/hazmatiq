@@ -3,17 +3,47 @@
   const nativeFetch = window.fetch.bind(window);
   let account = null, required = null, installPrompt = null, releaseAccess;
   let syncText = 'Checking connection…', conflicts = [], resolver = null;
+  let serverConnected = null, verifiedAt = null, installCacheError = '';
   const accessReady = new Promise((resolve) => { releaseAccess = resolve; });
   const domReady = document.readyState === 'loading' ? new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve, { once: true })) : Promise.resolve();
-  let bar, status, signButton, installButton, updateButton, conflictButton, login;
+  let bar, status, connectionDot, connectionLabel, warning, signButton, installButton, updateButton, conflictButton, login;
+  let connectionDetail, accountDetail, installDetail;
+  function connectionState() {
+    const state = !navigator.onLine || serverConnected === false ? 'disconnected' : serverConnected === true ? 'connected' : 'checking';
+    return { state, label: !navigator.onLine ? 'Offline' : state === 'connected' ? 'Connected' : state === 'checking' ? 'Checking Connection' : 'Not Connected' };
+  }
   function draw() {
     if (!bar) return;
-    status.textContent = `${navigator.onLine ? syncText : 'Offline · live feeds unavailable'}${account ? ` · ${account.displayName}` : required === null ? ' · Account status unavailable' : required ? ' · Sign-in enabled' : ' · Pilot access: sign-in not enabled'}`;
+    const connection = connectionState();
+    status.dataset.connection = connection.state;
+    connectionLabel.textContent = connection.label;
+    const pending = window.EMERGENZPendingIncidentCount?.() || 0;
+    const localFailure = /local save failed/i.test(syncText);
+    warning.hidden = !pending && !localFailure && !conflicts.length;
+    warning.textContent = localFailure ? 'Local save failed — keep this tab open' : pending ? `${pending} unsynced change${pending === 1 ? '' : 's'}` : 'Sync conflict needs review';
+    warning.dataset.state = localFailure ? 'error' : 'pending';
     conflictButton.hidden = !conflicts.length;
     conflictButton.textContent = `Review ${conflicts.length} sync conflict${conflicts.length === 1 ? '' : 's'}`;
     signButton.hidden = !required;
     signButton.textContent = account ? 'Sign Out' : 'Sign In';
-    installButton.hidden = Boolean(window.matchMedia('(display-mode: standalone)').matches);
+    const installed = Boolean(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone);
+    installButton.hidden = installed;
+    if (connectionDetail) connectionDetail.textContent = `${connection.label} · ${syncText.replace(/^Connected · /, '')}${verifiedAt ? ` · Last server response: ${new Date(verifiedAt).toLocaleTimeString()}` : ''}`;
+    if (accountDetail) accountDetail.textContent = account ? `Signed in as ${account.displayName}` : required === null ? 'Account status unavailable. Reconnect to verify access.' : required ? 'Agency sign-in required.' : 'Pilot access: sign-in not enabled. This preview does not require an account.';
+    if (installDetail) installDetail.textContent = installed ? 'Running as an installed app.' : installCacheError || 'Install on this device using Install App, or your browser’s Add to Home Screen option.';
+  }
+  function mountSettingsControls() {
+    const grid = document.querySelector('#settings .settings-workspace-grid');
+    if (!grid || !bar || connectionDetail) return;
+    const card = document.createElement('section'); card.className = 'settings-card em-platform-settings';
+    card.setAttribute('aria-labelledby', 'platform-settings-title');
+    const header = document.createElement('header'), title = document.createElement('h2');
+    title.id = 'platform-settings-title'; title.textContent = 'Connection, Account & App'; header.append(title); card.append(header);
+    connectionDetail = document.createElement('p'); connectionDetail.id = 'platform-connection-detail'; connectionDetail.setAttribute('role', 'status');
+    accountDetail = document.createElement('p'); accountDetail.id = 'platform-account-detail';
+    installDetail = document.createElement('p'); installDetail.id = 'platform-install-detail';
+    const actions = document.createElement('div'); actions.className = 'settings-actions'; actions.append(signButton, installButton, updateButton);
+    card.append(connectionDetail, accountDetail, installDetail, actions); grid.append(card); draw();
   }
   async function signIn() {
     await domReady;
@@ -51,18 +81,27 @@
   window.EMERGENZPlatform = {
     ready: accessReady,
     user: () => account,
-    status(message) { syncText = message; draw(); },
+    status(message, connection) {
+      syncText = message;
+      if (typeof connection === 'boolean') { serverConnected = connection; if (connection) verifiedAt = Date.now(); }
+      draw();
+    },
+    connectionState,
     conflicts(items, resolve) { conflicts = items; resolver = resolve; draw(); },
   };
   void nativeFetch('/api/auth/session', { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then((r) => { if (!r.ok) throw new Error('Session unavailable'); return r.json(); }).then((data) => {
-    required = data.required; account = data.user;
+    required = data.required; account = data.user; serverConnected = true; verifiedAt = Date.now();
     if (required && !account) void signIn(); else releaseAccess(); draw();
-  }).catch(() => { syncText = 'Connection unavailable · using this device’s saved work'; releaseAccess(); draw(); });
+  }).catch(() => { serverConnected = false; syncText = 'Connection unavailable · using this device’s saved work'; releaseAccess(); draw(); });
   window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); installPrompt = event; draw(); });
-  window.addEventListener('online', draw); window.addEventListener('offline', draw);
+  window.addEventListener('online', () => { serverConnected = null; draw(); }); window.addEventListener('offline', () => { serverConnected = false; draw(); });
+  window.addEventListener('appinstalled', () => { installPrompt = null; draw(); });
   void domReady.then(async () => {
     bar = document.createElement('aside'); bar.className = 'em-platform-bar'; bar.setAttribute('aria-label', 'Application connection and account');
-    status = document.createElement('span'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    status = document.createElement('span'); status.className = 'em-platform-connection'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    connectionDot = document.createElement('span'); connectionDot.className = 'em-platform-dot'; connectionDot.setAttribute('aria-hidden', 'true');
+    connectionLabel = document.createElement('span'); status.append(connectionDot, connectionLabel);
+    warning = document.createElement('span'); warning.className = 'em-platform-warning'; warning.setAttribute('role', 'status'); warning.setAttribute('aria-live', 'polite'); warning.hidden = true;
     conflictButton = document.createElement('button'); conflictButton.type = 'button'; conflictButton.hidden = true;
     conflictButton.addEventListener('click', () => {
       const dialog = document.createElement('dialog'); dialog.className = 'em-platform-dialog';
@@ -97,7 +136,9 @@
       else window.alert('Use your browser’s Install App or Add to Home Screen option. On iPhone/iPad, open Share, then Add to Home Screen.');
     });
     updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.hidden = true; updateButton.textContent = 'Update Available';
-    bar.append(status, conflictButton, signButton, installButton, updateButton); document.body.prepend(bar); draw();
+    const settingsButton = document.createElement('button'); settingsButton.type = 'button'; settingsButton.className = 'em-platform-settings-link'; settingsButton.textContent = 'Details'; settingsButton.setAttribute('aria-label', 'Open connection and app settings');
+    settingsButton.addEventListener('click', () => { window.HazMatIQ?.showView?.('settings'); document.getElementById('platform-settings-title')?.scrollIntoView({ block: 'nearest' }); });
+    bar.append(status, warning, conflictButton, settingsButton); document.body.prepend(bar); mountSettingsControls(); draw();
     if ('serviceWorker' in navigator && window.isSecureContext) {
       try {
         const registration = await navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' });
@@ -109,7 +150,7 @@
           navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
           registration.waiting?.postMessage({ type: 'ACTIVATE_UPDATE' });
         });
-      } catch { syncText = 'App installation cache unavailable · browser mode remains available'; draw(); }
+      } catch { installCacheError = 'App installation cache unavailable · browser mode remains available'; draw(); }
     }
   });
 })();

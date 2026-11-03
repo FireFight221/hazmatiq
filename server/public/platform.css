@@ -8,3 +8,14 @@
 .em-platform-dialog input{display:block;box-sizing:border-box;width:100%;margin-top:5px;padding:9px;background:#f4f7fa;color:#0b1f33;border:1px solid #a8bccd;border-radius:4px;font:16px Arial,sans-serif}
 .em-platform-dialog button{margin:5px 6px 5px 0}.em-platform-dialog p{margin:10px 0}.em-platform-dialog article{border-top:1px solid #476276;padding:12px 0}
 @media print{.em-platform-bar,.em-platform-dialog{display:none!important}}
+/* Compact connection indicator; installation and account details live in Settings. */
+.em-platform-bar{padding:3px 12px;gap:10px;font-size:12px;min-height:27px}
+.em-platform-connection{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.em-platform-dot{display:inline-block;width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#aab8c5}
+.em-platform-connection[data-connection="connected"] .em-platform-dot{background:#3ed984;box-shadow:0 0 4px rgba(62,217,132,.3)}
+.em-platform-connection[data-connection="disconnected"] .em-platform-dot{background:#ff6370}
+.em-platform-warning{color:#f3d270;font-weight:800}
+.em-platform-bar .em-platform-settings-link{padding:3px 6px;min-height:27px;font-size:12px;background:transparent;color:#f4f7fa;border-color:transparent;text-decoration:underline}
+.em-platform-settings p{color:var(--text-secondary);overflow-wrap:anywhere;line-height:1.5}
+.em-platform-settings button{min-height:44px;padding:8px 12px;background:#e5e8ec;color:#0b1f33;border:1px solid #8296a8;border-radius:6px;font-weight:700;cursor:pointer}
+.em-platform-bar [hidden],.em-platform-settings [hidden]{display:none!important}
