@@ -67,4 +67,26 @@ describe('Tactical worksheet shared facts',()=>{
   handlers.input();current='two';flush();expect(persist).toHaveBeenCalledTimes(1);
  });
 
+ it('fills the operational start with local current time and saves picker selections through shared fields',()=>{
+  const helper=worksheet.slice(worksheet.indexOf('  function field('),worksheet.indexOf('  function navigate('));
+  const autosave=worksheet.slice(worksheet.indexOf('  function autosave('),worksheet.indexOf('  function field('));
+  const fields=new Map(); const persist=vi.fn(()=>true);
+  const element=()=>({value:'',dataset:{} as Record<string,string>,children:[] as unknown[],handlers:{} as Record<string,()=>void>,
+   classList:{add:vi.fn()},append(...items:unknown[]){this.children.push(...items);},setAttribute:vi.fn(),focus:vi.fn(),showPicker:vi.fn(),
+   checkValidity:()=>true,reportValidity:vi.fn(),addEventListener(type:string,callback:()=>void){this.handlers[type]=callback;},dispatchEvent(event:Event){this.handlers[event.type]?.();}});
+  class LocalDate {getFullYear(){return 2026;}getMonth(){return 10;}getDate(){return 3;}getHours(){return 16;}getMinutes(){return 7;}}
+  const buttons:ReturnType<typeof element>[]=[];
+  const scope={fields,context:()=>({incident:{incidentId:'one'}}),saved:vi.fn(),node:()=>element(),Date:LocalDate,Event,
+   document:{createElementNS:()=>element()},window:{clearTimeout:vi.fn(),setTimeout:vi.fn(),HazMatIQ:{updateIncidentField:persist}},
+   action:(_text:string,callback:()=>void)=>{const b=element();b.handlers.click=callback;buttons.push(b);return b;},container:element()};
+  runInNewContext(`${autosave}\n${helper}\nfield(container,'Operational Period Start','operationalPeriodStart',{type:'datetime-local'});field(container,'Operational Period End','operationalPeriodEnd',{type:'datetime-local'});`,scope);
+  buttons[0].handlers.click();
+  expect(fields.get('operationalPeriodStart').value).toBe('2026-11-03T16:07');
+  expect(persist).toHaveBeenCalledWith('operationalPeriodStart','2026-11-03T16:07');
+  buttons[1].handlers.click();expect(fields.get('operationalPeriodEnd').showPicker).toHaveBeenCalledOnce();
+  expect(persist).toHaveBeenCalledTimes(1);
+  fields.get('operationalPeriodEnd').value='2026-11-03T22:00';fields.get('operationalPeriodEnd').dispatchEvent(new Event('change'));
+  expect(persist).toHaveBeenLastCalledWith('operationalPeriodEnd','2026-11-03T22:00');
+ });
+
 });

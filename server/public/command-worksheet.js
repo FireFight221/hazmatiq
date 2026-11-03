@@ -100,7 +100,8 @@
     input.addEventListener('change', flush);
   }
   function field(container, labelText, key, { readonly = false, type = 'text', multiline = false } = {}) {
-    const label = node('label', 'worksheet-field', labelText);
+    const period = key === 'operationalPeriodStart' || key === 'operationalPeriodEnd';
+    const label = node(period ? 'div' : 'label', 'worksheet-field', period ? undefined : labelText);
     const input = node(multiline ? 'textarea' : 'input');
     input.id = `worksheet-${key}`;
     if (multiline) input.rows = 3; else input.type = type;
@@ -111,7 +112,35 @@
       if (!input.checkValidity()) { input.reportValidity(); return; }
       saved(Boolean(window.HazMatIQ.updateIncidentField?.(key, input.value.trim())));
     });
-    label.append(input); container.append(label); fields.set(key, input); return input;
+    if (period) {
+      const caption = node('label', 'worksheet-date-label', labelText); caption.htmlFor = input.id;
+      const controls = node('div', 'worksheet-date-control');
+      const button = action(key === 'operationalPeriodStart' ? 'Current' : '', () => {
+        if (!context().incident?.incidentId) { saved(false); return; }
+        if (key === 'operationalPeriodStart') {
+          const now = new Date();
+          const pad = (value) => String(value).padStart(2, '0');
+          input.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          input.focus();
+          try { input.showPicker?.(); } catch { /* Native field remains editable if the browser blocks its picker. */ }
+        }
+      });
+      button.classList.add('worksheet-date-button');
+      button.setAttribute('aria-label', key === 'operationalPeriodStart' ? 'Set operational period start to current date and time' : 'Choose operational period end date and time');
+      if (key === 'operationalPeriodEnd') {
+        button.title = 'Choose end date and time';
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
+        const outline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        outline.setAttribute('d', 'M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2ZM7 2v5M17 2v5M3 10h18M7 14h2M12 14h2M7 17h2');
+        icon.append(outline); button.append(icon);
+      }
+      controls.append(input, button); label.append(caption, controls);
+    } else label.append(input);
+    container.append(label); fields.set(key, input); return input;
   }
   function navigate(page) { api()?.showView?.(page, { sourcePage: 'incident', incidentId: context().incident?.incidentId }); }
   function action(text, callback) {
@@ -125,7 +154,11 @@
   const grid = node('div', 'worksheet-grid'); root.append(grid);
   const info = card('Incident Information', 'full', 'Incident Brief', 'incident-information');
   const infoFields = node('div', 'worksheet-fields');
-  [['Incident Name', 'incidentName'], ['Run / Incident #', 'incidentNumber'], ['Address / Area', 'address'], ['Date / Opened', 'startedAt'], ['Command', 'commanderName'], ['Strategy', 'operationalMode'], ['Operational Period Start', 'operationalPeriodStart'], ['Operational Period End', 'operationalPeriodEnd'], ['Prepared By / Report Author', 'preparedBy'], ['ICS Position / Title', 'preparedByPosition']].forEach(([label, key]) => field(infoFields, label, key, { readonly: ['startedAt', 'commanderName', 'operationalMode'].includes(key), type: key.startsWith('operationalPeriod') ? 'datetime-local' : 'text' }));
+  const periodFields = node('div', 'worksheet-period-fields');
+  [['Incident Name', 'incidentName'], ['Run / Incident #', 'incidentNumber'], ['Address / Area', 'address'], ['Date / Opened', 'startedAt'], ['Command', 'commanderName'], ['Strategy', 'operationalMode'], ['Operational Period Start', 'operationalPeriodStart'], ['Operational Period End', 'operationalPeriodEnd'], ['Prepared By / Report Author', 'preparedBy'], ['ICS Position / Title', 'preparedByPosition']].forEach(([label, key]) => {
+    field(key.startsWith('operationalPeriod') ? periodFields : infoFields, label, key, { readonly: ['startedAt', 'commanderName', 'operationalMode'].includes(key), type: key.startsWith('operationalPeriod') ? 'datetime-local' : 'text' });
+    if (key === 'operationalPeriodEnd') infoFields.append(periodFields);
+  });
   info.append(infoFields); grid.append(info);
   const chemical = card('Chemical / Release', 'wide', 'Hazard ID + Incident', 'chemical-release');
   const chemFields = node('div', 'worksheet-fields');

@@ -178,3 +178,14 @@
 #command-tactical-worksheet .worksheet-response-progress { margin-top: 15px; border-top: 1px solid #537b94; padding-top: 10px; }
 #command-tactical-worksheet .worksheet-response-progress > summary { margin-bottom: 10px; color: var(--gold); font-weight: 850; cursor: pointer; }
 @media (max-width: 600px) { #command-tactical-worksheet .worksheet-check-list { grid-template-columns: minmax(0,1fr); } }
+
+/* Inline operational-period actions without increasing card height. */
+#command-tactical-worksheet .worksheet-date-control { display:flex; align-items:stretch; gap:6px; min-width:0; }
+#command-tactical-worksheet .worksheet-date-control input { flex:1 1 0; min-width:0; width:0; }
+#command-tactical-worksheet .worksheet-date-control .worksheet-date-button { flex:0 0 auto; min-height:44px; padding:7px 10px; background:#e5e8ec; color:#102e47 !important; border:1px solid #799bb3; font-size:.85rem; }
+#command-tactical-worksheet .worksheet-date-button svg { display:block; width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+#command-tactical-worksheet .worksheet-date-button:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+@media print { #command-tactical-worksheet .worksheet-date-button { display:none; } }
+#command-tactical-worksheet .worksheet-period-fields { display:grid; grid-column:1 / -1; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+#command-tactical-worksheet .worksheet-date-control input { font-size:.85rem; }
+@media (max-width:600px) { #command-tactical-worksheet .worksheet-period-fields { grid-template-columns:minmax(0,1fr); } }
