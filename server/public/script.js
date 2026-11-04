@@ -5823,10 +5823,7 @@ function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = 
         page.append(pageHeading);
         const pageSections = (sectionDefinition.render() || []).filter(Boolean);
         pageSections.forEach((element) => page.append(element));
-        if (key !== 'sources') {
-          const sourceSummary = createChemicalProfileSourceSummary(profile, true);
-          if (sourceSummary) page.append(sourceSummary);
-        }
+        // Print source attribution once in Sources and the footer.
         if (pageSections.length) {
           renderedSections.push(page);
           fragment.append(page);
@@ -10607,7 +10604,13 @@ function startChemicalProfilePrint(pageKeys) {
   const selectedKeys = pageKeys.length ? pageKeys : [...document.querySelectorAll('#chemical-profile-tabs [data-tab]')].map((tab) => tab.dataset.tab);
   renderChemicalProfile(profileSnapshot, { printPageKeys: selectedKeys, printSnapshot: true });
   if (!buildChemicalProfilePrintRoot(profileSnapshot)) return;
-  chemicalProfilePrintState = { profile: profileSnapshot };
+  const printRoot = document.getElementById('chemical-profile-print-root');
+  chemicalProfilePrintState = {
+    profile: profileSnapshot,
+    parent: printRoot.parentNode,
+    next: printRoot.nextSibling
+  };
+  document.body.append(printRoot);
   setChemicalProfilePrintDialog(false);
   document.body.classList.add('printing-chemical-profile');
   window.setTimeout(() => window.print(), 0);
@@ -10619,6 +10622,9 @@ function cleanupChemicalProfilePrint() {
   if (root) {
     root.replaceChildren();
     root.setAttribute('aria-hidden', 'true');
+    if (chemicalProfilePrintState?.parent) {
+      chemicalProfilePrintState.parent.insertBefore(root, chemicalProfilePrintState.next);
+    }
   }
   const state = chemicalProfilePrintState;
   chemicalProfilePrintState = null;
