@@ -11,3 +11,8 @@ scripts
 sample
 docs
 *.md
+private-imports/
+*.tier2.csv
+*.tier2.xlsx
+tier2-facilities.csv
+tier2-details.csv

@@ -178,7 +178,9 @@ async function seed() {
     { key: "erg", edition: "2024", license: "Public Domain (PHMSA)", recordCount: ERG_TABLE_1.length },
     { key: "cameo", edition: "subset-2025-01", license: "Public Domain (NOAA)", recordCount: ALL_CHEMICALS.length },
     npgProjectionSource(),
-    { key: "tier2", edition: "demo-2024", license: "Public record", recordCount: FACILITIES.length },
+    // Legacy demo facilities are stored in `facilities`; normalized Tier II
+    // records arrive only through the explicit private import flow.
+    { key: "tier2", edition: "not-configured", license: "Authorized private import", recordCount: 0 },
     { key: "aeglErpgTeel", edition: "2024", license: "Public domain (EPA, AIHA, DOE)", recordCount: THRESHOLDS.length },
   ];
   for (const s of sources) {

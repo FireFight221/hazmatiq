@@ -58,6 +58,13 @@ import { getWeatherFloodHealth, normalizeNwpsStageflow, queryNwpsGauge, queryNwp
 const planningModelMode = PLUME_MODEL_MODES.HAZMATIQ_PLANNING_ESTIMATE;
 const ergModelMode = PLUME_MODEL_MODES.ERG_ISOLATION_PROTECTIVE_ACTION_OVERLAY;
 
+function safeRequestLogger(message: string, ...rest: string[]) {
+  // Facility names, source IDs, and search parameters are private operational
+  // data. Keep request logging useful without echoing those values to deploy logs.
+  const redacted = message.replace(/(\/api\/(?:tier2\/)?facilities)(?:\/[^\s]*)?(?:\?[^\s]*)?/g, "$1/[redacted]");
+  console.log(redacted, ...rest);
+}
+
 function numericValue(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const match = String(value ?? "").match(/-?\d+(?:\.\d+)?/);
@@ -199,7 +206,7 @@ function plumeBlockedFields(display = "Cannot Plot — Missing Required Data") {
 }
 
 const app = new Hono();
-app.use(logger());
+app.use(logger(safeRequestLogger));
 app.use("/api/*", accessGuard);
 app.route("/api/auth", accessRoutes);
 app.use("/service-worker.js", async (c, next) => { c.header("Cache-Control", "no-cache"); await next(); });

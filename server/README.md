@@ -94,7 +94,29 @@ docker compose up --build   # from the repo root
 ```
 
 `server/docker-entrypoint.sh` seeds the database on first boot if `$SQLITE_PATH` doesn't
-exist yet, then starts the server. See the root `Dockerfile`/`docker-compose.yml`.
+exist yet, then optionally imports private Tier II files before starting the server.
+The private import is opt-in and fail-closed: set `TIER2_PRIVATE_IMPORT_ENABLED=true`,
+`TIER2_FACILITY_FILE`, and `TIER2_DETAIL_FILE` to owner-only readable files (for
+example Render Secret Files). The importer rejects symlinks and files with any
+group/other permissions, and is safe to repeat on restart. An optional
+`TIER2_EXPECTED_FACILITY_COUNT` prevents loading an unexpected source export.
+
+Without those variables, no private dataset is loaded and manual facility entry remains
+available. Run the same flow locally with:
+
+```bash
+npm run import:tier2-private -- --facility-file /secure/facilities.csv --detail-file /secure/details.csv
+```
+
+For Render, upload the two authorized CSVs as Secret Files named
+`tier2-facilities.csv` and `tier2-details.csv`, then set
+`TIER2_PRIVATE_IMPORT_ENABLED=true`, `TIER2_FACILITY_FILE=/etc/secrets/tier2-facilities.csv`,
+and `TIER2_DETAIL_FILE=/etc/secrets/tier2-details.csv`. Set
+`TIER2_EXPECTED_FACILITY_COUNT` after validating the source export. Keep the existing
+`SQLITE_PATH=/data/local.db` and attach a persistent disk mounted at `/data` if the
+SQLite database and manual entries must survive restarts and deploys.
+
+See the root `Dockerfile`/`docker-compose.yml`.
 
 ## Backup
 

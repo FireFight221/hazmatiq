@@ -18,6 +18,7 @@
     "data:niosh": "node scripts/niosh/index.js",
     "import:tier2-facilities": "npm --prefix server run import:tier2-facilities --",
     "import:tier2-details": "npm --prefix server run import:tier2-details --",
+    "import:tier2-private": "npm --prefix server run import:tier2-private --",
     "verify:tier2-links": "npm --prefix server run verify:tier2-links",
     "sample:mock": "node sample/mock-server/server.js",
     "sample:client": "node sample/integration-sample/client.js",
