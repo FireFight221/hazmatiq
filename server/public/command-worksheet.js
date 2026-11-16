@@ -6,13 +6,13 @@
   const context = () => api()?.getWorksheetContext?.() || {};
   const organizationRoleDefinitions = [
     { roleId: 'incident-command', role: 'Incident Commander', section: 'incident-command', parentRoleId: '', accent: 'gold', level: 0 },
+    { roleId: 'public-information-officer', role: 'Public Information Officer', section: 'command-staff', parentRoleId: 'incident-command', accent: 'gold', level: 1 },
     { roleId: 'safety-officer', role: 'Safety Officer', section: 'command-staff', parentRoleId: 'incident-command', accent: 'gold', level: 1 },
     { roleId: 'liaison-officer', role: 'Liaison Officer', section: 'command-staff', parentRoleId: 'incident-command', accent: 'gold', level: 1 },
-    { roleId: 'public-information-officer', role: 'Public Information Officer', section: 'command-staff', parentRoleId: 'incident-command', accent: 'gold', level: 1 },
     { roleId: 'operations-chief', role: 'Operations Section Chief', section: 'operations', parentRoleId: 'incident-command', accent: 'red', level: 1 },
     { roleId: 'planning-chief', role: 'Planning Section Chief', section: 'planning', parentRoleId: 'incident-command', accent: 'blue', level: 1 },
     { roleId: 'logistics-chief', role: 'Logistics Section Chief', section: 'logistics', parentRoleId: 'incident-command', accent: 'white', level: 1 },
-    { roleId: 'finance-chief', role: 'Finance Section Chief', section: 'finance', parentRoleId: 'incident-command', accent: 'green', level: 1 },
+    { roleId: 'finance-chief', role: 'Finance / Administration Section Chief', section: 'finance', parentRoleId: 'incident-command', accent: 'green', level: 1 },
     { roleId: 'hazmat-group', role: 'HazMat Group Supervisor', section: 'operations', parentRoleId: 'operations-chief', accent: 'red', level: 2 },
     { roleId: 'entry-team', role: 'Entry Team Leader', section: 'operations', parentRoleId: 'operations-chief', accent: 'red', level: 2 },
     { roleId: 'decon-group', role: 'Decon Group Supervisor', section: 'operations', parentRoleId: 'operations-chief', accent: 'red', level: 2 },
@@ -20,6 +20,7 @@
     { roleId: 'responder-medical-rehab', role: 'Medical / Rehab', section: 'logistics', parentRoleId: 'logistics-chief', accent: 'white', level: 2 },
     { roleId: 'staging', role: 'Staging', section: 'logistics', parentRoleId: 'logistics-chief', accent: 'white', level: 2, staging: true },
   ];
+  const organizationTopRoleDefinitions = organizationRoleDefinitions.filter((definition) => definition.level < 2);
   const roleNames = organizationRoleDefinitions.map((definition) => definition.role);
   const roleKey = (role) => {
     const key = String(role || '').toLowerCase().replace(/section chief|officer|group supervisor|team leader/g, '').replace(/[^a-z]/g, '');
@@ -181,11 +182,13 @@
   const phaseBody = node('div', 'worksheet-phase-list'); phaseDetails.append(phaseBody); progress.append(checksBody, phaseDetails); grid.append(progress);
   const objectives = card('Incident Objectives', 'narrow', 'ICS 201 / 202', 'incident-objectives'); field(objectives, 'Command Objectives', 'objectives', { multiline: true }); grid.append(objectives);
   const org = card('Command Organization', 'full', 'Names Save Directly to Shared Assignments & ICS 201 / 203 / 214', 'command-organization');
+  const chartScroll = node('div', 'worksheet-org-scroll');
   const chart = node('div', 'worksheet-org-chart');
   const connectorLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   connectorLayer.classList.add('worksheet-org-connectors');
   connectorLayer.setAttribute('aria-hidden', 'true');
   chart.append(connectorLayer);
+  chartScroll.append(chart);
   function drawOrganizationConnectors() {
     const width = chart.clientWidth;
     const height = chart.clientHeight;
@@ -194,25 +197,99 @@
     connectorLayer.setAttribute('width', String(width)); connectorLayer.setAttribute('height', String(height));
     connectorLayer.replaceChildren();
     const chartRect = chart.getBoundingClientRect();
-    const cards = [...chart.querySelectorAll('.worksheet-role')];
-    cards.forEach((child) => {
-      const parentId = child.dataset.parentRoleId;
-      if (!parentId) return;
-      const parent = cards.find((candidate) => candidate.dataset.cardId === parentId || candidate.dataset.roleId === parentId);
-      if (!parent) return;
-      const parentRect = parent.getBoundingClientRect();
-      const childRect = child.getBoundingClientRect();
-      const startX = parentRect.left + parentRect.width / 2 - chartRect.left;
-      const startY = parentRect.bottom - chartRect.top;
-      const endX = childRect.left + childRect.width / 2 - chartRect.left;
-      const endY = childRect.top - chartRect.top;
-      const middleY = startY + Math.max(8, (endY - startY) / 2);
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M ${startX} ${startY} V ${middleY} H ${endX} V ${endY}`);
-      path.setAttribute('class', 'worksheet-org-connector');
-      connectorLayer.append(path);
+    const rect = (selector) => chart.querySelector(selector)?.getBoundingClientRect();
+    const point = (box, side, offset = 0) => box ? {
+      x: (side === 'left' ? box.left : side === 'right' ? box.right : box.left + box.width / 2) - chartRect.left,
+      y: (side === 'top' ? box.top : side === 'bottom' ? box.bottom : box.top + box.height / 2) - chartRect.top + offset,
+    } : null;
+    const path = (d) => {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      line.setAttribute('d', d); line.setAttribute('class', 'worksheet-org-connector'); connectorLayer.append(line);
+    };
+    const commander = rect('[data-role-id="incident-command"]');
+    const staff = [...chart.querySelectorAll('.worksheet-command-staff .worksheet-role')].map((element) => ({ element, box: element.getBoundingClientRect() }));
+    const chiefs = [...chart.querySelectorAll('.worksheet-section-chiefs > .worksheet-org-lane > .worksheet-role')].map((element) => ({ element, box: element.getBoundingClientRect() }));
+    if (commander && staff.length) {
+      const commandX = point(commander, 'center').x;
+      const busY = staff[0].box.top - chartRect.top - 12;
+      path(`M ${commandX} ${point(commander, 'bottom').y} V ${busY}`);
+      staff.forEach(({ box }) => {
+        const centerY = box.top + box.height / 2 - chartRect.top;
+        path(`M ${commandX} ${busY} H ${box.left - chartRect.left} M ${box.left - chartRect.left} ${busY} V ${centerY}`);
+      });
+    }
+    if (commander && chiefs.length) {
+      const commandX = point(commander, 'center').x;
+      const chiefY = chiefs[0].box.top - chartRect.top - 14;
+      const firstX = chiefs[0].box.left + chiefs[0].box.width / 2 - chartRect.left;
+      const lastX = chiefs[chiefs.length - 1].box.left + chiefs[chiefs.length - 1].box.width / 2 - chartRect.left;
+      path(`M ${commandX} ${point(commander, 'bottom').y} V ${chiefY} M ${firstX} ${chiefY} H ${lastX}`);
+      chiefs.forEach(({ box }) => {
+        const x = box.left + box.width / 2 - chartRect.left;
+        path(`M ${x} ${chiefY} V ${box.top - chartRect.top}`);
+      });
+    }
+    chart.querySelectorAll('.worksheet-org-lane').forEach((lane) => {
+      const chief = lane.querySelector(':scope > .worksheet-role');
+      const add = lane.querySelector('.worksheet-org-add');
+      if (!chief || !add) return;
+      const chiefBox = chief.getBoundingClientRect();
+      const addBox = add.getBoundingClientRect();
+      const x = chiefBox.left + chiefBox.width / 2 - chartRect.left;
+      path(`M ${x} ${chiefBox.bottom - chartRect.top} V ${addBox.top - chartRect.top}`);
     });
   }
+  const renderOrganizationRole = (definition, assignment, ctx) => {
+    const cardElement = node('label', `worksheet-role worksheet-role-accent-${definition.accent}`);
+    cardElement.dataset.cardId = definition.roleId;
+    cardElement.dataset.roleId = definition.roleId;
+    cardElement.dataset.section = definition.section;
+    cardElement.dataset.parentRoleId = definition.parentRoleId || '';
+    cardElement.dataset.assignmentId = assignment?.assignmentId || '';
+    cardElement.append(node('strong', '', definition.role));
+    const roleFields = node('span', 'worksheet-role-fields');
+    const inputControls = {};
+    const addRoleField = (labelText, key, placeholder) => {
+      const fieldLabel = node('span', 'worksheet-role-field');
+      fieldLabel.append(node('span', 'worksheet-role-field-label', labelText));
+      const input = node('input'); input.type = 'text'; input.placeholder = placeholder; input.setAttribute('aria-label', `${definition.role} ${labelText}`);
+      input.value = assignment?.[key] || (definition.roleId === 'incident-command' && key === 'personnel' ? ctx.incident?.commanderName || '' : '');
+      inputControls[key] = input; roles.set(`${definition.roleId}:${key}`, input);
+      fieldLabel.append(input); roleFields.append(fieldLabel);
+    };
+    addRoleField('Assigned name', 'personnel', 'Unassigned');
+    const saveOrganizationAssignment = () => {
+      const { incident, assignments: currentAssignments } = context();
+      if (!incident) return saved(false);
+      const allCurrentAssignments = [...(Array.isArray(currentAssignments) ? currentAssignments : []), ...(Array.isArray(incident.guidedResponseAssignments) ? incident.guidedResponseAssignments : [])]
+        .filter((item, index, list) => item && (!item.assignmentId || list.findIndex((candidate) => candidate?.assignmentId === item.assignmentId) === index));
+      const existing = findOrganizationAssignment(allCurrentAssignments, definition);
+      const values = Object.fromEntries(Object.entries(inputControls).map(([key, input]) => [key, input.value.trim()]));
+      const blank = Object.values(values).every((value) => !value);
+      if (blank) {
+        const result = existing ? api().removeIncidentAssignment(existing.assignmentId, existing.phaseId) : definition.roleId === 'incident-command' ? window.HazMatIQ.updateIncidentField('commanderName', '') : { ok: true };
+        saved(Boolean(result?.ok || result?.incidentId)); return;
+      }
+      const result = api().persistIncidentAssignment({
+        ...existing, ...values, assignmentId: existing?.assignmentId || `command-role-${incident.incidentId}-${definition.roleId}`,
+        kind: 'command-role', role: existing?.role || definition.role, responsibility: existing?.responsibility || definition.role,
+        phaseId: existing?.phaseId || 'identify-isolate-notify', status: 'Confirmed',
+        organizationRoleId: definition.roleId, organizationSection: definition.section, parentRoleId: definition.parentRoleId,
+      }, existing?.phaseId);
+      saved(Boolean(result?.ok));
+    };
+    Object.values(inputControls).forEach((input) => autosave(input, saveOrganizationAssignment));
+    cardElement.append(roleFields);
+    return cardElement;
+  };
+  const renderAssignmentCard = (assignment, definition) => {
+    const item = node('article', `worksheet-role worksheet-role-assignment worksheet-role-accent-${definition.accent}`);
+    item.dataset.assignmentId = assignment.assignmentId || '';
+    item.dataset.parentRoleId = definition.parentRoleId || '';
+    item.append(node('strong', '', assignment.role || definition.role));
+    item.append(node('span', 'worksheet-role-assignment', [assignment.personnel, assignment.unit, assignment.locationLabel || assignment.locationStatus].filter(Boolean).join(' · ') || 'Position recorded · Personnel not assigned'));
+    return item;
+  };
   function renderOrganization(ctx) {
     const assignments = Array.isArray(ctx.assignments) ? ctx.assignments : [];
     const renderKey = JSON.stringify([ctx.incident?.incidentId || '', assignments]);
@@ -220,75 +297,55 @@
     organizationRenderKey = renderKey;
     roles.clear(); chart.replaceChildren(connectorLayer);
     const usedAssignmentIds = new Set();
-    const cards = organizationRoleDefinitions.map((definition) => {
+    const topAssignments = organizationTopRoleDefinitions.map((definition) => {
       const assignment = findOrganizationAssignment(assignments, definition);
       if (assignment?.assignmentId) usedAssignmentIds.add(assignment.assignmentId);
       return { ...definition, assignment, cardId: definition.roleId, editable: true };
     });
+    const commandBand = node('div', 'worksheet-org-command-band');
+    commandBand.append(renderOrganizationRole(topAssignments[0], topAssignments[0].assignment, ctx));
+    const staff = node('div', 'worksheet-command-staff');
+    topAssignments.slice(1, 4).forEach((definition) => staff.append(renderOrganizationRole(definition, definition.assignment, ctx)));
+    commandBand.append(staff); chart.append(commandBand);
+    const chiefs = node('div', 'worksheet-section-chiefs');
+    const childAssignments = new Map();
+    const unmapped = [];
     assignments.forEach((assignment) => {
+      if (usedAssignmentIds.has(assignment.assignmentId)) return;
       const definition = organizationMetadata(assignment);
-      if (!definition || usedAssignmentIds.has(assignment.assignmentId)) return;
-      cards.push({ ...definition, role: assignment.role || definition.role, assignment, cardId: assignment.assignmentId || `${definition.roleId}-assignment`, editable: false, parentRoleId: assignment.parentRoleId || definition.parentRoleId });
+      if (!definition || !definition.parentRoleId || !['operations-chief', 'planning-chief', 'logistics-chief', 'finance-chief'].includes(definition.parentRoleId)) {
+        unmapped.push(assignment); return;
+      }
+      if (!childAssignments.has(definition.parentRoleId)) childAssignments.set(definition.parentRoleId, []);
+      childAssignments.get(definition.parentRoleId).push({ assignment, definition });
       if (assignment.assignmentId) usedAssignmentIds.add(assignment.assignmentId);
     });
-    cards.forEach((definition) => {
-      const editable = definition.editable;
-      const cardElement = node(editable ? 'label' : 'article', `worksheet-role worksheet-role-level-${definition.level} worksheet-role-accent-${definition.accent}`);
-      cardElement.dataset.cardId = definition.cardId;
-      cardElement.dataset.roleId = definition.roleId;
-      cardElement.dataset.section = definition.section;
-      cardElement.dataset.parentRoleId = definition.parentRoleId || '';
-      cardElement.dataset.assignmentId = definition.assignment?.assignmentId || '';
-      const heading = node('strong', '', definition.role);
-      cardElement.append(heading);
-      if (!editable) {
-        const assignment = definition.assignment || {};
-        const value = node('span', 'worksheet-role-assignment', [assignment.personnel, assignment.unit, assignment.locationStatus].filter(Boolean).join(' · ') || 'Not assigned');
-        cardElement.append(value);
-        return chart.append(cardElement);
-      }
-      const roleFields = node('span', 'worksheet-role-fields');
-      const inputControls = {};
-      const addRoleField = (labelText, key, placeholder) => {
-        const fieldLabel = node('span', 'worksheet-role-field');
-        fieldLabel.append(node('span', 'worksheet-role-field-label', labelText));
-        const input = node('input'); input.type = 'text'; input.placeholder = placeholder; input.setAttribute('aria-label', `${definition.role} ${labelText}`);
-        input.value = definition.assignment?.[key] || '';
-        inputControls[key] = input; roles.set(`${definition.roleId}:${key}`, input);
-        fieldLabel.append(input); roleFields.append(fieldLabel);
-      };
-      if (definition.staging) {
-        addRoleField('Staging Manager', 'personnel', 'Not assigned');
-        addRoleField('Unit / team', 'unit', 'Not recorded');
-        addRoleField('Staging location', 'locationStatus', 'Not recorded');
-      } else addRoleField('Assigned name', 'personnel', 'Unassigned');
-      const saveOrganizationAssignment = () => {
-        const { incident, assignments: currentAssignments } = context();
-        if (!incident) return saved(false);
-        const allCurrentAssignments = [...(Array.isArray(currentAssignments) ? currentAssignments : []), ...(Array.isArray(incident.guidedResponseAssignments) ? incident.guidedResponseAssignments : [])]
-          .filter((assignment, index, list) => assignment && (!assignment.assignmentId || list.findIndex((candidate) => candidate?.assignmentId === assignment.assignmentId) === index));
-        const existing = findOrganizationAssignment(allCurrentAssignments, definition);
-        const values = Object.fromEntries(Object.entries(inputControls).map(([key, input]) => [key, input.value.trim()]));
-        const blank = Object.values(values).every((value) => !value);
-        if (blank) {
-          const result = existing ? api().removeIncidentAssignment(existing.assignmentId, existing.phaseId) : definition.roleId === 'incident-command' ? window.HazMatIQ.updateIncidentField('commanderName', '') : { ok: true };
-          saved(Boolean(result?.ok || result?.incidentId)); return;
-        }
-        const result = api().persistIncidentAssignment({
-          ...existing, ...values, assignmentId: existing?.assignmentId || `command-role-${incident.incidentId}-${definition.roleId}`,
-          kind: 'command-role', role: existing?.role || definition.role, responsibility: existing?.responsibility || (definition.staging ? 'Staging Manager' : definition.role),
-          phaseId: existing?.phaseId || 'identify-isolate-notify', status: 'Confirmed',
-          organizationRoleId: definition.roleId, organizationSection: definition.section, parentRoleId: definition.parentRoleId,
-        }, existing?.phaseId);
-        saved(Boolean(result?.ok));
-      };
-      Object.values(inputControls).forEach((input) => autosave(input, saveOrganizationAssignment));
-      cardElement.append(roleFields); chart.append(cardElement);
+    topAssignments.slice(4).forEach((definition) => {
+      const lane = node('div', 'worksheet-org-lane');
+      lane.append(renderOrganizationRole(definition, definition.assignment, ctx));
+      const add = action('+', () => {
+        const current = context().incident;
+        if (!current || !api().renderOrganizationAssignmentEditor) return;
+        api().renderOrganizationAssignmentEditor({ ...current }, editor, definition, () => { organizationRenderKey = ''; schedule(); });
+      });
+      add.classList.add('worksheet-org-add'); add.setAttribute('aria-label', `Add assignment reporting to ${definition.role}`); add.title = `Add assignment reporting to ${definition.role}`;
+      lane.append(add);
+      (childAssignments.get(definition.roleId) || []).forEach(({ assignment, definition: childDefinition }) => lane.append(renderAssignmentCard(assignment, childDefinition)));
+      chiefs.append(lane);
     });
+    chart.append(chiefs);
+    if (unmapped.length) {
+      const unassigned = node('section', 'worksheet-org-unmapped');
+      unassigned.append(node('h3', '', 'Unmapped assignments'));
+      unassigned.append(node('p', '', 'These records remain available in Assignments because no reporting parent was recorded.'));
+      const list = node('ul');
+      unmapped.forEach((assignment) => list.append(node('li', '', [assignment.role, assignment.personnel, assignment.locationLabel || assignment.locationStatus].filter(Boolean).join(' · ') || 'Assignment without details')));
+      unassigned.append(list); chart.append(unassigned);
+    }
     window.requestAnimationFrame(drawOrganizationConnectors);
   }
   renderOrganization(context());
-  org.append(chart, action('Open ICS 203 Organization Assignment List', () => { const incident = context().incident; if (!incident) return; navigate('report'); void api().openIncidentIcsForm(incident.incidentId, '203'); })); grid.append(org);
+  org.append(chartScroll, action('Open ICS 203 Organization Assignment List', () => { const incident = context().incident; if (!incident) return; navigate('report'); void api().openIncidentIcsForm(incident.incidentId, '203'); })); grid.append(org);
   const live = card('Live Map', 'wide', 'Same Incident Location, Placed Resources, and Saved Plume', 'live-map-card');
   const mapElement = node('div', 'worksheet-map'); mapElement.id = 'worksheet-live-map'; mapElement.setAttribute('aria-label', 'Incident Live Map preview');
   const mapStatus = node('p', 'worksheet-map-status');

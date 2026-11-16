@@ -7613,7 +7613,7 @@ function persistGuidedPhaseAssignment(phaseId, assignment) {
   const current = readGuidedResponsePhaseState(incident, chemical);
   const assignments = Array.isArray(current[phaseId]?.assignments) ? current[phaseId].assignments : [];
   const required = [assignment.personnel, assignment.unit, assignment.responsibility].map((value) => String(value || '').trim());
-  if (required.some((value) => !value)) return { ok: false, error: 'Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.' };
+  if (required.some((value) => !value)) return { ok: false, error: assignment.kind === 'organization-assignment' ? 'Position is required before saving the assignment.' : 'Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.' };
   const assignmentId = assignment.assignmentId || `guided-${phaseId}-primary`;
   const existingIndex = assignments.findIndex((item) => item?.assignmentId === assignmentId);
   const action = existingIndex >= 0 ? 'updated' : 'assigned';
@@ -7649,7 +7649,9 @@ function persistGuidedPhaseAssignment(phaseId, assignment) {
 function persistIncidentAssignment(assignment, previousPhaseId = '') {
   const incident = getActiveIncident();
   if (!incident) return { ok: false, error: 'No active incident is selected.' };
-  const required = (assignment.kind === 'command-role' ? [assignment.personnel, assignment.responsibility] : [assignment.personnel, assignment.unit, assignment.responsibility]).map((value) => String(value || '').trim());
+  const required = assignment.kind === 'organization-assignment'
+    ? [assignment.role]
+    : (assignment.kind === 'command-role' ? [assignment.personnel, assignment.responsibility] : [assignment.personnel, assignment.unit, assignment.responsibility]).map((value) => String(value || '').trim());
   if (required.some((value) => !value)) return { ok: false, error: 'Enter Personnel / team, Unit / resource, and Responsibility before saving the assignment.' };
   const targetPhaseId = assignment.phaseId || previousPhaseId || guidedPhaseDefinitions[0]?.id;
   if (!targetPhaseId) return { ok: false, error: 'Select a response phase for this assignment.' };
@@ -7713,6 +7715,106 @@ function removeIncidentAssignment(assignmentId, phaseId = '') {
     },
   });
   return { ok: true, assignment: removed };
+}
+
+function renderOrganizationAssignmentEditor(incident, editor, parent, onSaved) {
+  if (!editor || !incident || !parent) return;
+  const dialog = document.createElement('dialog');
+  dialog.className = 'incident-organization-assignment-dialog';
+  dialog.setAttribute('aria-labelledby', 'organization-assignment-title');
+  const form = document.createElement('form');
+  form.className = 'incident-organization-assignment-form';
+  form.method = 'dialog';
+  const heading = document.createElement('h3');
+  heading.id = 'organization-assignment-title';
+  heading.textContent = 'Add Assignment';
+  const reports = document.createElement('p');
+  reports.className = 'incident-organization-assignment-reports-to';
+  reports.textContent = `Reports to ${parent.role}`;
+  const grid = document.createElement('div');
+  grid.className = 'guided-assignment-grid';
+  const controls = {};
+  const addField = (labelText, key, placeholder, required = false) => {
+    const label = document.createElement('label');
+    label.textContent = labelText;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder;
+    input.value = '';
+    input.required = required;
+    controls[key] = input;
+    label.append(input);
+    grid.append(label);
+  };
+  addField('Position', 'role', 'Position or ICS role', true);
+  addField('Personnel', 'personnel', 'Assigned person or team');
+  addField('Location', 'locationLabel', 'Named location or area');
+  const feedback = document.createElement('p');
+  feedback.className = 'guided-assignment-feedback';
+  feedback.setAttribute('role', 'status');
+  const actions = document.createElement('div');
+  actions.className = 'guided-assignment-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'ghost-btn';
+  cancel.textContent = 'Cancel';
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'ghost-btn guided-assignment-action';
+  save.textContent = 'Save Assignment';
+  let saving = false;
+  const close = () => {
+    if (dialog.open) dialog.close();
+    dialog.remove();
+  };
+  cancel.addEventListener('click', close);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (saving || !form.checkValidity()) {
+      if (!form.checkValidity()) form.reportValidity();
+      return;
+    }
+    saving = true;
+    save.disabled = true;
+    cancel.disabled = true;
+    feedback.dataset.state = '';
+    feedback.textContent = 'Saving…';
+    let result;
+    try {
+      result = persistIncidentAssignment({
+        role: controls.role.value.trim(),
+        personnel: controls.personnel.value.trim(),
+        locationLabel: controls.locationLabel.value.trim(),
+        unit: '',
+        responsibility: '',
+        kind: 'organization-assignment',
+        status: 'Planned',
+        phaseId: 'zones-resources',
+        organizationSection: parent.section,
+        parentRoleId: parent.roleId,
+      });
+    } catch (error) {
+      result = { ok: false, error: error instanceof Error ? error.message : 'Could not save. Keep the entered values and retry.' };
+    }
+    if (!result.ok) {
+      saving = false;
+      save.disabled = false;
+      cancel.disabled = false;
+      feedback.dataset.state = 'error';
+      feedback.textContent = result.error || 'Could not save. Keep the entered values and retry.';
+      return;
+    }
+    onSaved?.(result.assignment);
+    close();
+  });
+  form.addEventListener('cancel', (event) => { event.preventDefault(); close(); });
+  actions.append(cancel, save);
+  form.append(heading, reports, grid, actions, feedback);
+  dialog.append(form);
+  editor.append(dialog);
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  controls.role.focus();
 }
 
 function createGuidedRoleAssignment(phase, incident, record) {
@@ -20321,6 +20423,7 @@ window.HazMatIQ.incidentCommandLegacy = {
   persistIncidentAssignment,
   removeIncidentAssignment,
   renderIncidentAssignmentEditor,
+  renderOrganizationAssignmentEditor,
   persistGuidedResponsePhaseState,
   persistGuidedActionCheck,
   openIncidentIcsForm,

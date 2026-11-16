@@ -26,20 +26,29 @@ describe('Tactical worksheet shared facts',()=>{
   expect(script).toContain("detailItem.className = 'incident-assignment-detail';");
   expect(script).toContain("detail.textContent = value || 'Not recorded';");
  });
- it('uses explicit organization metadata for section accents, reporting lines, and shared staging fields',()=>{
+ it('uses explicit organization metadata and keeps saved child assignments under recorded parents',()=>{
   expect(worksheet).toContain("cardElement.dataset.parentRoleId");
   expect(worksheet).toContain("organizationRoleId: definition.roleId");
   expect(worksheet).toContain("organizationSection: definition.section");
   expect(worksheet).toContain("parentRoleId: definition.parentRoleId");
-  expect(worksheet).toContain("addRoleField('Staging Manager', 'personnel'");
-  expect(worksheet).toContain("addRoleField('Staging location', 'locationStatus'");
+  expect(worksheet).toContain("const organizationTopRoleDefinitions = organizationRoleDefinitions.filter((definition) => definition.level < 2);");
+  expect(worksheet).toContain("node('div', 'worksheet-section-chiefs')");
+  expect(worksheet).toContain("classList.add('worksheet-org-add')");
+  expect(worksheet).toContain("'Unmapped assignments'");
+  expect(worksheet).not.toContain("worksheet-role-level-2");
   expect(worksheet).toContain('worksheet-org-connectors');
+  expect(script).toContain("textContent = 'Add Assignment'");
+  expect(script).toContain('Reports to ${parent.role}');
+  expect(script).toContain("kind: 'organization-assignment'");
+  expect(script).toContain('saving || !form.checkValidity()');
   expect(worksheetStyles).toContain('[data-section="operations"]');
   expect(worksheetStyles).toContain('[data-section="planning"]');
   expect(worksheetStyles).toContain('[data-section="logistics"]');
   expect(worksheetStyles).toContain('[data-section="finance"]');
   expect(worksheetStyles).toContain('.worksheet-org-connector { fill: none; stroke: #fff;');
-  expect(worksheetStyles).not.toContain('worksheet-role-tier-');
+  expect(worksheetStyles).toContain('.worksheet-org-scroll');
+  expect(worksheetStyles).toContain('overflow-x: auto');
+  expect(worksheetStyles).toContain('grid-template-columns: repeat(4,minmax(0,1fr));');
   expect(worksheetStyles).not.toContain(':nth-child');
  });
  it('writes to the same incident and mirrors hidden legacy form values so later saves do not erase worksheet edits',()=>{

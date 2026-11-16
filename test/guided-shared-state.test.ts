@@ -47,6 +47,13 @@ describe('Shared operational plan state', () => {
     expect(app.run('guidedIncidentAssignments()')).toHaveLength(0);
     expect((app.incident().guidedResponseAssignmentHistory as unknown[])).toHaveLength(3);
   });
+  it('allows a position-only organization assignment while retaining its recorded section parent', () => {
+    const app = setup();
+    app.run("persistIncidentAssignment({role:'Air Monitoring Team', kind:'organization-assignment', phaseId:'zones-resources', status:'Planned', organizationSection:'operations', parentRoleId:'operations-chief'});");
+    expect(app.run('guidedIncidentAssignments()[0]')).toMatchObject({
+      role: 'Air Monitoring Team', status: 'Planned', organizationSection: 'operations', parentRoleId: 'operations-chief',
+    });
+  });
   it('preserves named assignment locations and resolves only the saved incident location', () => {
     const app = setup({ address: '100 Main Street', city: 'Birmingham', state: 'AL', latitude: 33.52, longitude: -86.8 });
     app.run("persistIncidentAssignment({assignmentId:'placed', phaseId:'zones-resources', personnel:'Entry 1', unit:'HM1', responsibility:'Prepare entry', locationLabel:'100 Main Street', status:'Confirmed'});");
