@@ -1520,7 +1520,6 @@
                 <section class="live-map-control-group live-map-ops-group" aria-label="Operational layer groups">
                   <span class="live-map-control-label">OPERATIONS</span>
                   <div class="live-map-control-buttons">
-                    <button class="live-map-parent-button" type="button" data-layer-group="incident" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg><span>INCIDENT</span><b data-layer-count="incident">0</b><i aria-hidden="true">⌄</i></button>
                     <button class="live-map-parent-button" type="button" data-layer-group="wildfire" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5c.8 3.2-1.5 4.2-1.5 6.6 0 1.2.8 2.2 2 2.2 1.8 0 2.7-2 2-4.2 3.1 2.2 4.7 5 4.7 7.5A6.7 6.7 0 1 1 7 10.8c.1 2 1 3.4 2.3 4.4-.1-4.2 1.6-7.9 4.2-11.7Z"/></svg><span>WILDFIRE</span><b data-layer-count="wildfire">0</b><i aria-hidden="true">⌄</i></button>
                     <button class="live-map-parent-button" type="button" data-layer-group="facilities" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM8 6V4h8v2M8 10h8M8 14h3m2 0h3"/><path d="M4 20h16"/></svg><span>FACILITIES</span><b data-layer-count="facilities">0</b><i aria-hidden="true">⌄</i></button>
                     <button class="live-map-parent-button" type="button" data-layer-group="more" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="10" cy="19" r="2"/></svg><span>MORE</span><i aria-hidden="true">⌄</i></button>
@@ -1530,41 +1529,33 @@
                   <div class="live-map-layer-menus">
                   <div class="live-map-layer-menu" data-layer-menu="incident" hidden>
                     <div class="live-map-menu-heading"><strong>INCIDENT LAYERS</strong><small>FIELD POSITIONS</small></div>
-                    <button type="button" data-live-layer="plume"><span class="live-map-toggle-icon">◈</span><span>Current Plume</span><em>AVAILABLE</em></button>
-                    <button type="button" data-live-layer="icp"><span class="live-map-toggle-icon">◎</span><span>ICP / Command Post</span><em>0</em></button>
-                    <button type="button" data-live-layer="entry"><span class="live-map-toggle-icon">↗</span><span>Entry Teams</span><em>0</em></button>
-                    <button type="button" data-live-layer="decon"><span class="live-map-toggle-icon">＋</span><span>Decon</span><em>0</em></button>
-                    <button type="button" data-live-layer="staging"><span class="live-map-toggle-icon">▣</span><span>Staging</span><em>0</em></button>
-                    <button type="button" data-live-layer="monitors"><span class="live-map-toggle-icon">⌁</span><span>Monitors</span><em>0</em></button>
-                    <button type="button" data-live-layer="medical"><span class="live-map-toggle-icon">✚</span><span>Medical / Rehab</span><em>0</em></button>
-                    <button type="button" data-live-layer="incidentResources"><span class="live-map-toggle-icon">▤</span><span>Incident Resources</span><em>ASSIGNMENTS</em></button>
+                    <button type="button" data-live-layer="plume"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/page-nav-icons.svg#nav-plume"></use></svg><span>Current Plume</span><em data-live-status-for="plume">NO ACTIVE INCIDENT</em></button>
+                    <button type="button" data-live-layer="icp"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V3"/><path d="M6 4h12l-2.5 4L18 12H6"/></svg><span>ICP / Command Post</span><em>0</em></button>
+                    <button type="button" data-live-layer="entry"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="2.5"/><path d="M4.5 18v-2.3a4.5 4.5 0 0 1 9 0V18M16 8.5a2.2 2.2 0 1 1 0 4.4M14.5 15a4 4 0 0 1 4.5 4"/></svg><span>Entry Teams</span><em>0</em></button>
+                    <button type="button" data-live-layer="decon"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7v4m4-4v4m4-4v4m4-4v4"/><path d="M5 11h14l-1 9H6l-1-9Z"/><path d="M8 3v2m4-2v2m4-2v2"/></svg><span>Decon</span><em>0</em></button>
+                    <button type="button" data-live-layer="staging"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5h14v14M3 19h18"/><path d="M9 8h6v5H9zM10 16h4"/><path d="M7 5V3h10v2"/></svg><span>Staging</span><em>0</em></button>
+                    <button type="button" data-live-layer="monitors"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/page-nav-icons.svg#nav-monitor"></use></svg><span>Monitors</span><em>0</em></button>
+                    <button type="button" data-live-layer="medical"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/></svg><span>Medical / Rehab</span><em>0</em></button>
+                    <button type="button" data-live-layer="incidentResources"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v17H6zM9 4V2h6v2M9 9h6M9 13h6M9 17h4"/></svg><span>Incident Resources</span><em>ASSIGNMENTS</em></button>
                   </div>
                   <div class="live-map-layer-menu" data-layer-menu="wildfire" hidden>
                     <div class="live-map-menu-heading"><strong>WILDFIRE</strong><small>EXTERNAL SOURCES</small></div>
-                    <button type="button" data-live-layer="wildfireFires" data-wildfire-source="firms"><span class="live-map-toggle-icon">◌</span><span>Active Fire Detections<small>NASA FIRMS</small></span><em data-wildfire-status="firms">CHECKING</em></button>
-                    <button type="button" data-live-layer="wildfirePerimeters" data-wildfire-source="perimeters"><span class="live-map-toggle-icon">⌁</span><span>Fire Perimeters<small>NIFC / WFIGS</small></span><em data-wildfire-status="perimeters">CHECKING</em></button>
-                    <button type="button" data-live-layer="wildfireSmoke" data-wildfire-source="smoke"><span class="live-map-toggle-icon">▱</span><span>Smoke Plumes<small>NOAA HMS</small></span><em data-wildfire-status="smoke">CHECKING</em></button>
+                    <button type="button" data-live-layer="wildfireFires" data-wildfire-source="firms"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3.5c.8 3.2-1.5 4.2-1.5 6.6 0 1.2.8 2.2 2 2.2 1.8 0 2.7-2 2-4.2 3.1 2.2 4.7 5 4.7 7.5A6.7 6.7 0 1 1 7 10.8c.1 2 1 3.4 2.3 4.4-.1-4.2 1.6-7.9 4.2-11.7Z"/></svg><span>Active Fire Detections<small>NASA FIRMS · thermal</small></span><em data-wildfire-status="firms">LOADING</em></button>
+                    <button type="button" data-live-layer="wildfirePerimeters" data-wildfire-source="perimeters"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 7 5-3 5 3 5-3v13l-5 3-5-3-5 3V7Z"/><path d="M9 4v13m5-10v13"/></svg><span>Fire Perimeters<small>NIFC / WFIGS · confirmed polygons</small></span><em data-wildfire-status="perimeters">LOADING</em></button>
+                    <button type="button" data-live-layer="wildfireSmoke" data-wildfire-source="smoke"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/page-nav-icons.svg#nav-weather"></use></svg><span>Smoke Plumes<small>NOAA HMS · satellite smoke</small></span><em data-wildfire-status="smoke">LOADING</em></button>
                   </div>
                   <div class="live-map-layer-menu" data-layer-menu="facilities" hidden>
                     <div class="live-map-menu-heading"><strong>FACILITIES</strong><small>HAZMAT INVENTORY</small></div>
-                    <button type="button" data-live-layer="tier2Facilities"><span class="live-map-toggle-icon">▦</span><span>Tier II / HazMat Facilities<small>E-Plan Tier II · authorized import</small></span><em>AVAILABLE</em></button>
+                    <button type="button" data-live-layer="tier2Facilities"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V6h16v14M8 6V3h8v3M8 10h8M8 14h3m2 0h3M8 18h8"/></svg><span>Tier II / HazMat Facilities<small>E-Plan Tier II · authorized import</small></span><em id="live-map-tier2-menu-status">NOT REQUESTED</em></button>
                     <div class="live-map-menu-foot">Facilities in view: <strong id="live-map-facility-count">0</strong></div>
                   </div>
                   <div class="live-map-layer-menu live-map-more-menu" data-layer-menu="more" hidden>
                     <div class="live-map-menu-heading"><strong>MORE OVERLAYS</strong><small>OPTIONAL FEEDS</small></div>
-                    <button type="button" data-live-layer="trafficCams"><span class="live-map-toggle-icon">▣</span><span>Traffic Cameras</span><em>0</em></button>
-                    <button type="button" data-live-layer="zones"><span class="live-map-toggle-icon">◇</span><span>Response Zones</span><em>0</em></button>
+                    <button type="button" data-live-layer="trafficCams"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14v12H5zM8 7V5h8v2M8 12h8M8 16h3m2 0h3"/></svg><span>Traffic Cameras</span><em>0</em></button>
+                    <button type="button" data-live-layer="zones"><svg class="live-map-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 6 8-3 8 3v12l-8 3-8-3V6Z"/><path d="m4 6 8 3 8-3M12 9v9"/></svg><span>Response Zones</span><em>0</em></button>
                   </div>
                   </div>
                 </div>
-              <div class="live-map-status-strip" aria-label="Live data status">
-                <span class="live-map-status-item" id="live-map-gps-status"><i class="status-dot is-gray"></i><b>GPS</b> STANDBY</span>
-                <span class="live-map-status-item"><i class="status-dot is-green"></i><b>TIER II</b> AVAILABLE</span>
-                <span class="live-map-status-item"><i class="status-dot is-yellow"></i><b>PLUME</b> READY</span>
-                <span class="live-map-status-item" id="live-map-firms-status"><i class="status-dot is-gray"></i><b>FIRMS</b> CHECKING</span>
-                <span class="live-map-status-item" id="live-map-wfigs-status"><i class="status-dot is-gray"></i><b>WFIGS</b> CHECKING</span>
-                <span class="live-map-status-item" id="live-map-hms-status"><i class="status-dot is-gray"></i><b>HMS</b> CHECKING</span>
-              </div>
             </div>
             <div class="live-map-stage">
               <div id="live-gis-map" aria-label="Interactive Live HazMat incident map"></div>
@@ -1576,7 +1567,16 @@
                 <button class="live-map-edge-button live-map-icon-button" type="button" data-map-action="recenter" title="Recenter on location" aria-label="Recenter on location"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/></svg></button>
                 <button class="live-map-edge-button live-map-icon-button" type="button" data-map-action="fullscreen" title="Fullscreen map" aria-label="Fullscreen map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
               </div>
-              <div class="live-map-edge-readout live-map-edge-readout-left"><span class="live-map-legend-swatch"></span><strong>LEGEND</strong><small>Hazard overlays</small></div>
+              <div class="live-map-legend" aria-label="Live Map overlay legend">
+                <strong>LEGEND</strong>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/page-nav-icons.svg#nav-plume"></use></svg>Plume</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V3"/><path d="M6 4h12l-2.5 4L18 12H6"/></svg>Command</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 18v-2.3a4.5 4.5 0 0 1 9 0V18"/><circle cx="9" cy="7" r="2.5"/></svg>Teams</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7v4m4-4v4m4-4v4m4-4v4"/><path d="M5 11h14l-1 9H6l-1-9Z"/></svg>Decon</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5h14v14M3 19h18"/><path d="M9 8h6v5H9z"/></svg>Staging</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/page-nav-icons.svg#nav-monitor"></use></svg>Monitors</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6V3Z"/></svg>Medical</span>
+              </div>
               <div class="live-map-edge-readout live-map-edge-readout-right"><strong id="live-map-coordinates">33.2900° N / 86.8100° W</strong><small id="live-map-scale">SCALE 1:24,000</small></div>
               <div class="live-map-panels">
                 <div data-live-panel="zones" hidden><strong>Zone placeholders</strong><p>Hot, Warm, Cold, Isolation, Evacuation, and Shelter-in-Place.</p><small>Zone drawing tools pending.</small></div>
@@ -1600,8 +1600,8 @@
                   <input id="live-radar-opacity" type="range" min="0.1" max="1" value="0.58" step="0.05" />
                   <small id="live-radar-source-status">Visual situational awareness only. Radar does not change plume calculations.</small>
                 </div>
-                <div data-live-panel="plume" hidden><strong id="live-plume-status">Plume Overlay Active</strong></div>
-                <div data-live-panel="tier2Facilities" class="tier2-live-map-panel" hidden aria-label="Tier II facility overlay"><strong>TIER II / HAZMAT FACILITIES</strong><span id="tier2-live-map-status">Overlay off</span></div>
+                <div data-live-panel="plume" hidden><strong id="live-plume-status">No active incident</strong></div>
+                <div data-live-panel="tier2Facilities" class="tier2-live-map-panel" hidden aria-label="Tier II facility overlay"><strong>TIER II / HAZMAT FACILITIES</strong><span id="tier2-live-map-status">Not requested</span></div>
                 <div data-live-panel="wildfireFires" class="wildfire-live-map-panel" hidden aria-label="NASA FIRMS fire detections"><strong>ACTIVE FIRE DETECTIONS</strong><span data-wildfire-panel-status="firms">Checking NASA FIRMS…</span></div>
                 <div data-live-panel="wildfirePerimeters" class="wildfire-live-map-panel" hidden aria-label="NIFC WFIGS fire perimeters"><strong>FIRE PERIMETERS</strong><span data-wildfire-panel-status="perimeters">Checking NIFC / WFIGS…</span></div>
                 <div data-live-panel="wildfireSmoke" class="wildfire-live-map-panel" hidden aria-label="NOAA HMS smoke plumes"><strong>SMOKE PLUMES</strong><span data-wildfire-panel-status="smoke">Checking NOAA HMS…</span></div>
@@ -1609,7 +1609,20 @@
                 <div id="live-map-selected" hidden></div>
               </div>
             </div>
-            <div class="live-map-status" id="live-map-status" role="status">LOCAL MAP CACHE <span>•</span> Map draft is stored only on this device.</div>
+            <div class="live-map-bottom-bar">
+              <div class="live-map-status-strip" aria-label="Live data status">
+                <span class="live-map-status-item" id="live-map-gps-status" data-state="empty"><i class="status-dot is-gray"></i><b>GPS</b> NOT REQUESTED</span>
+                <span class="live-map-status-item" id="live-map-tier2-status" data-state="empty"><i class="status-dot is-gray"></i><b>TIER II</b> NOT REQUESTED</span>
+                <span class="live-map-status-item" id="live-map-plume-status" data-state="empty"><i class="status-dot is-gray"></i><b>PLUME</b> NO ACTIVE INCIDENT</span>
+                <span class="live-map-status-item" id="live-map-firms-status" data-state="loading"><i class="status-dot is-yellow"></i><b>FIRMS</b> LOADING</span>
+                <span class="live-map-status-item" id="live-map-wfigs-status" data-state="loading"><i class="status-dot is-yellow"></i><b>WFIGS</b> LOADING</span>
+                <span class="live-map-status-item" id="live-map-hms-status" data-state="loading"><i class="status-dot is-yellow"></i><b>HMS</b> LOADING</span>
+              </div>
+              <div class="live-map-bottom-meta">
+                <div class="live-map-status" id="live-map-status" role="status">LOCAL MAP CACHE <span>•</span> Map draft is stored only on this device.</div>
+                <div class="live-map-attribution" id="live-map-attribution" aria-label="Map provider attribution">Basemap attribution follows the selected provider.</div>
+              </div>
+            </div>
 
             <dialog id="live-map-marker-dialog" class="live-map-marker-dialog">
               <form method="dialog" id="live-map-marker-form">

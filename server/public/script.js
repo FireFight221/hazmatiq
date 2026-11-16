@@ -18245,6 +18245,7 @@ const wildfireLayerDefinitions = {
   wildfireSmoke: { source: 'smoke', endpoint: '/api/wildfire/smoke', sourceId: 'wildfire-smoke', layerIds: ['wildfire-smoke-fill', 'wildfire-smoke-outline'] },
 };
 const wildfireData = { firms: [], perimeters: [], smoke: [] };
+const wildfireFeedResults = { firms: null, perimeters: null, smoke: null };
 let wildfireRequestToken = 0;
 let wildfireRefreshTimer = null;
 let wildfireFireMarkers = [];
@@ -18253,6 +18254,7 @@ const wildfireClientCacheMs = 7 * 60 * 1000;
 const wildfireErrorRetryMs = 30 * 1000;
 const wildfireRequestState = new Map();
 let wildfireStatusState = null;
+let liveMapTier2Status = { state: 'empty', message: 'NOT REQUESTED', updatedAt: null };
 
 function defaultLiveMapState() {
   return {
@@ -18333,6 +18335,15 @@ function updateLiveMapReadout() {
   setText('live-map-coordinates', `${latitude}° ${center.lat >= 0 ? 'N' : 'S'} / ${longitude}° ${center.lng >= 0 ? 'E' : 'W'}`);
   const zoom = Math.max(0, liveMap.getZoom?.() - 14 || 0);
   setText('live-map-scale', `SCALE 1:${Math.max(1000, Math.round(24000 / Math.pow(2, zoom))).toLocaleString()}`);
+}
+
+function updateLiveMapAttribution() {
+  const style = liveMap?.getStyle?.();
+  const attributions = Object.values(style?.sources || {})
+    .map((source) => source?.attribution)
+    .filter(Boolean)
+    .map((value) => String(value).replace(/<[^>]+>/g, '').trim());
+  setText('live-map-attribution', [...new Set(attributions)].join(' · ') || 'Provider attribution unavailable');
 }
 
 function enableLiveMapTerrain() {
@@ -18514,11 +18525,10 @@ function bindLiveMapControls() {
     });
   });
   document.querySelector('[data-map-action="layers"]')?.addEventListener('click', () => {
-    const incidentButton = document.querySelector('[data-layer-group="incident"]');
     const menu = document.querySelector('[data-layer-menu="incident"]');
-    if (incidentButton && menu) {
+    if (menu) {
       closeLiveMapLayerMenus(menu);
-      incidentButton.focus();
+      menu.querySelector('[data-live-layer]')?.focus();
     }
   });
   document.addEventListener('click', (event) => {
@@ -18557,21 +18567,59 @@ function bindLiveMapControls() {
   });
 }
 
-function setTier2MapStatus(message) {
+function formatLiveMapTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || !Number.isFinite(date.getTime())) return '';
+  return date.toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+}
+
+function liveMapStatusDot(state) {
+  if (state === 'available' || state === 'live') return 'is-green';
+  if (state === 'loading' || state === 'stale') return 'is-yellow';
+  if (state === 'failed') return 'is-red';
+  return 'is-gray';
+}
+
+function setLiveMapStatusItem(id, label, state, message, updatedAt = null) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  const timestamp = formatLiveMapTime(updatedAt);
+  element.dataset.state = state;
+  element.innerHTML = `<i class="status-dot ${liveMapStatusDot(state)}"></i><b>${label}</b> ${message}${timestamp ? ` · ${timestamp}` : ''}`;
+  element.title = timestamp ? `Last update: ${timestamp}` : message;
+}
+
+function setTier2MapStatus(message, state = 'empty', updatedAt = null) {
+  liveMapTier2Status = { state, message, updatedAt };
   setText('tier2-live-map-status', message);
+  setText('live-map-tier2-menu-status', `${message}${formatLiveMapTime(updatedAt) ? ` · ${formatLiveMapTime(updatedAt)}` : ''}`);
+  setLiveMapStatusItem('live-map-tier2-status', 'TIER II', state, message, updatedAt);
+}
+
+function syncLiveMapOperationalStatuses() {
+  const activeIncident = getActiveIncident();
+  const overlay = activeIncident ? readLatestPlumeOverlay() : null;
+  if (!activeIncident) {
+    setLiveMapStatusItem('live-map-plume-status', 'PLUME', 'empty', 'NO ACTIVE INCIDENT');
+    document.querySelector('[data-live-status-for="plume"]')?.replaceChildren(document.createTextNode('NO ACTIVE INCIDENT'));
+  } else if (overlay?.plumeGeometry?.features?.length) {
+    const updatedAt = overlay.updatedAt || overlay.createdAt || overlay.generatedAt || null;
+    setLiveMapStatusItem('live-map-plume-status', 'PLUME', 'available', 'AVAILABLE', updatedAt);
+    document.querySelector('[data-live-status-for="plume"]')?.replaceChildren(document.createTextNode(`AVAILABLE${formatLiveMapTime(updatedAt) ? ` · ${formatLiveMapTime(updatedAt)}` : ''}`));
+  } else {
+    setLiveMapStatusItem('live-map-plume-status', 'PLUME', 'empty', 'NO SAVED OVERLAY');
+    document.querySelector('[data-live-status-for="plume"]')?.replaceChildren(document.createTextNode('NO SAVED OVERLAY'));
+  }
 }
 
 function setLiveMapGpsStatus(state, message = '') {
-  const status = document.getElementById('live-map-gps-status');
-  if (!status) return;
-  const dot = state === 'live' ? 'is-green' : state === 'error' ? 'is-red' : 'is-yellow';
   const fixTime = liveMapGpsFixAt ? new Date(liveMapGpsFixAt) : null;
-  const timestamp = fixTime && Number.isFinite(fixTime.getTime())
-    ? ` · ${String(fixTime.getUTCHours()).padStart(2, '0')}${String(fixTime.getUTCMinutes()).padStart(2, '0')}Z`
-    : '';
-  status.innerHTML = `<i class="status-dot ${dot}"></i><b>GPS</b> ${state === 'live' ? `LIVE${timestamp}` : state === 'error' ? 'UNAVAILABLE' : 'LOCATING'}`;
-  status.dataset.gpsFixAt = state === 'live' && liveMapGpsFixAt ? liveMapGpsFixAt : '';
-  if (message) status.title = message;
+  const normalizedState = state === 'live' ? 'available' : state === 'error' ? 'failed' : state === 'loading' ? 'loading' : 'empty';
+  const label = state === 'live' ? 'AVAILABLE' : state === 'error' ? 'FAILED' : state === 'loading' ? 'LOADING' : 'NOT REQUESTED';
+  setLiveMapStatusItem('live-map-gps-status', 'GPS', normalizedState, label, normalizedState === 'available' && fixTime?.getTime() ? liveMapGpsFixAt : null);
+  const status = document.getElementById('live-map-gps-status');
+  if (status) status.dataset.gpsFixAt = state === 'live' && liveMapGpsFixAt ? liveMapGpsFixAt : '';
+  if (message && status) status.title = message;
 }
 
 function updateLiveMapGpsMarker(location) {
@@ -18875,23 +18923,23 @@ async function updateTier2FacilitiesOverlay() {
   if (!liveMap?.isStyleLoaded()) return;
   if (!liveMapState?.activeLayers?.tier2Facilities) {
     removeTier2FacilitiesOverlay();
-    setTier2MapStatus('Overlay off');
+    setTier2MapStatus('OFF', 'empty');
     return;
   }
   const bounds = liveMap.getBounds();
   const params = new URLSearchParams({ west: String(bounds.getWest()), east: String(bounds.getEast()), south: String(bounds.getSouth()), north: String(bounds.getNorth()) });
   const token = ++tier2FacilitiesRequestToken;
-  setTier2MapStatus('Loading facilities in current map bounds…');
+  setTier2MapStatus('LOADING', 'loading');
   try {
     const result = await fetchJson(`/api/tier2/facilities?${params}`);
     if (token !== tier2FacilitiesRequestToken || !liveMapState?.activeLayers?.tier2Facilities) return;
-    const features = (result.facilities || []).filter((facility) => Number.isFinite(Number(facility.latitude)) && Number.isFinite(Number(facility.longitude))).map((facility) => ({
+    const features = (result?.facilities || []).filter((facility) => Number.isFinite(Number(facility.latitude)) && Number.isFinite(Number(facility.longitude))).map((facility) => ({
       type: 'Feature', geometry: { type: 'Point', coordinates: [Number(facility.longitude), Number(facility.latitude)] }, properties: facility,
     }));
     addTier2FacilitiesLayers({ type: 'FeatureCollection', features });
-    setTier2MapStatus(`${features.length} facilities in current map bounds`);
+    setTier2MapStatus(features.length ? `AVAILABLE · ${features.length} IN VIEW` : 'EMPTY · 0 IN VIEW', features.length ? 'available' : 'empty', new Date().toISOString());
   } catch {
-    setTier2MapStatus('Facility overlay unavailable.');
+    setTier2MapStatus('FAILED', 'failed');
   }
 }
 
@@ -18941,31 +18989,38 @@ function shouldRefreshWildfireLayer(layer, bounds) {
 }
 
 function wildfireStatusText(status, count = 0) {
-  if (status === 'CONNECTED') return `CONNECTED • ${count} IN VIEW`;
+  if (status === 'CONNECTED') return count ? `AVAILABLE • ${count} IN VIEW` : 'EMPTY • 0 IN VIEW';
   if (status === 'STALE') return `STALE • ${count} IN VIEW`;
-  return status || 'CHECKING';
+  if (status === 'NOT CONFIGURED') return 'NOT CONFIGURED';
+  if (status === 'ERROR') return 'FAILED';
+  return status === 'CHECKING' ? 'LOADING' : status || 'LOADING';
 }
 
 function wildfirePanelStatusText(status, count = 0, error = '') {
-  if (status === 'CONNECTED') return `CONNECTED · ${count} ${count === 1 ? 'feature' : 'features'} in current view`;
+  if (status === 'CONNECTED') return count ? `AVAILABLE · ${count} ${count === 1 ? 'feature' : 'features'} in current view` : 'EMPTY · No features in current view';
   if (status === 'STALE') return `STALE · Showing ${count} cached ${count === 1 ? 'feature' : 'features'}${error ? ` · ${error}` : ''}`;
   if (status === 'NOT CONFIGURED') return 'NOT CONFIGURED · Add the server NASA_FIRMS_MAP_KEY to enable active fire detections.';
-  if (status === 'ERROR') return `ERROR · ${error || 'Authoritative source unavailable.'}`;
-  return 'CHECKING authoritative source…';
+  if (status === 'ERROR') return `FAILED · ${error || 'Authoritative source unavailable.'}`;
+  return 'LOADING authoritative source…';
 }
 
 function setWildfireStatus(source, result) {
   const status = result?.status || 'ERROR';
   const count = Number(result?.count || result?.features?.length || 0);
+  wildfireFeedResults[source] = result || { status, count, features: [] };
+  const updatedAt = result?.retrievedAt || null;
   const menuStatus = document.querySelector(`[data-wildfire-status="${source}"]`);
-  if (menuStatus) menuStatus.textContent = wildfireStatusText(status, count);
+  if (menuStatus) menuStatus.textContent = `${wildfireStatusText(status, count)}${formatLiveMapTime(updatedAt) ? ` · ${formatLiveMapTime(updatedAt)}` : ''}`;
   const panelStatus = document.querySelector(`[data-wildfire-panel-status="${source}"]`);
-  if (panelStatus) panelStatus.textContent = wildfirePanelStatusText(status, count, result?.error || '');
+  if (panelStatus) {
+    const sourceUse = result?.sourceUse ? ` · ${result.sourceUse}` : '';
+    panelStatus.textContent = `${wildfirePanelStatusText(status, count, result?.error || '')}${formatLiveMapTime(updatedAt) ? ` · Updated ${formatLiveMapTime(updatedAt)}` : ''}${sourceUse}`;
+  }
   const statusElement = document.getElementById(`live-map-${source === 'firms' ? 'firms' : source === 'perimeters' ? 'wfigs' : 'hms'}-status`);
   if (statusElement) {
     const label = source === 'firms' ? 'FIRMS' : source === 'perimeters' ? 'WFIGS' : 'HMS';
-    const dot = status === 'CONNECTED' ? 'is-green' : status === 'CHECKING' || status === 'STALE' ? 'is-yellow' : status === 'ERROR' ? 'is-red' : 'is-gray';
-    statusElement.innerHTML = `<i class="status-dot ${dot}"></i><b>${label}</b> ${wildfireStatusText(status, count)}`;
+    const uiState = status === 'CONNECTED' && count ? 'available' : status === 'STALE' ? 'stale' : status === 'CHECKING' ? 'loading' : status === 'ERROR' ? 'failed' : 'empty';
+    setLiveMapStatusItem(statusElement.id, label, uiState, wildfireStatusText(status, count), updatedAt);
   }
   const button = document.querySelector(`[data-wildfire-source="${source}"]`);
   button?.classList.toggle('is-unavailable', status === 'NOT CONFIGURED');
@@ -19081,6 +19136,19 @@ function addWildfireLayers(layer, geojson) {
   bindWildfireMapEvents();
 }
 
+function formatWildfireAcquisition(value) {
+  if (!value) return 'Not reported';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return String(value);
+  return `${date.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })} · ${date.toISOString()} UTC`;
+}
+
+function formatWildfireNumber(value, unit = '') {
+  if (value === null || value === undefined || value === '') return 'Not reported';
+  const number = Number(value);
+  return Number.isFinite(number) ? `${number.toLocaleString(undefined, { maximumFractionDigits: 3 })}${unit ? ` ${unit}` : ''}` : String(value);
+}
+
 function showWildfireFeature(feature, coordinates = null) {
   const panel = document.getElementById('live-map-selected');
   if (!panel) return;
@@ -19088,15 +19156,18 @@ function showWildfireFeature(feature, coordinates = null) {
   const source = properties.source || feature.source;
   panel.replaceChildren();
   const title = document.createElement('strong');
-  title.textContent = source === 'NASA FIRMS' ? 'ACTIVE FIRE DETECTION' : properties.incidentName || source || 'Wildfire intelligence';
+  title.textContent = source === 'NASA FIRMS' ? 'NASA FIRMS · ACTIVE FIRE DETECTION · THERMAL' : source === 'NIFC / WFIGS' ? `${properties.incidentName || 'FIRE'} · CONFIRMED PERIMETER` : source === 'NOAA HMS' ? 'NOAA HMS · SMOKE PLUME' : properties.incidentName || source || 'Wildfire intelligence';
   if (source === 'NASA FIRMS') {
     const details = document.createElement('dl');
     const fields = [
-      ['Detected', properties.detectedAt ? new Date(properties.detectedAt).toLocaleString() : 'Not reported'],
+      ['Acquired', formatWildfireAcquisition(properties.detectedAt)],
+      ['Coordinates', `${formatWildfireNumber(properties.latitude ?? feature.geometry?.coordinates?.[1], '°')} / ${formatWildfireNumber(properties.longitude ?? feature.geometry?.coordinates?.[0], '°')}`],
       ['Satellite', properties.satellite || 'Not reported'],
       ['Instrument', properties.instrument || 'Not reported'],
       ['Confidence', properties.confidence || 'Not reported'],
-      ['FRP', properties.frp == null ? 'Not reported' : `${properties.frp} MW`],
+      ['FRP', formatWildfireNumber(properties.frp, 'MW')],
+      ['Brightness temp.', formatWildfireNumber(properties.brightTi4, 'K')],
+      ['Scan / track', `${formatWildfireNumber(properties.scan, 'km')} / ${formatWildfireNumber(properties.track, 'km')}`],
       ['Day/Night', properties.dayNight || 'Not reported'],
       ['Source', 'NASA FIRMS'],
     ];
@@ -19110,13 +19181,13 @@ function showWildfireFeature(feature, coordinates = null) {
       details.appendChild(row);
     });
     const disclaimer = document.createElement('small');
-    disclaimer.textContent = 'Thermal detection does not necessarily represent a confirmed wildfire perimeter.';
+    disclaimer.textContent = 'Thermal detection does not necessarily represent a confirmed wildfire perimeter. Satellite thermal detection; confirm with field intelligence and the WFIGS perimeter layer.';
     panel.append(title, details, disclaimer);
   } else {
     const details = document.createElement('span');
     const values = source === 'NIFC / WFIGS'
-      ? [`${properties.acres ?? 'Acres not reported'} acres`, properties.updatedAt ? `Updated ${properties.updatedAt}` : 'Update time not reported']
-      : [`Density ${properties.density || 'not reported'}`, properties.startTime ? `Start ${properties.startTime}` : '', properties.endTime ? `End ${properties.endTime}` : ''];
+      ? [`${formatWildfireNumber(properties.acres, 'acres')}`, properties.updatedAt ? `Updated ${formatWildfireAcquisition(properties.updatedAt)}` : 'Update time not reported', 'Confirmed fire perimeter polygon']
+      : [`Density ${properties.density || 'not reported'}`, properties.startTime ? `Start ${formatWildfireAcquisition(properties.startTime)}` : '', properties.endTime ? `End ${formatWildfireAcquisition(properties.endTime)}` : '', 'Satellite smoke analysis; not a fire perimeter'];
     details.textContent = [source, ...values].filter(Boolean).join(' · ');
     panel.append(title, details);
   }
@@ -19154,13 +19225,15 @@ async function updateWildfireOverlay(layer) {
   const bounds = liveWildfireBounds();
   if (!bounds) return;
   if (!shouldRefreshWildfireLayer(layer, bounds)) {
+    const cachedResult = wildfireFeedResults[definition.source];
+    if (cachedResult) setWildfireStatus(definition.source, cachedResult);
     addWildfireLayers(layer, wildfireResultToGeoJson({ features: wildfireData[definition.source] }));
     return;
   }
   const params = new URLSearchParams({ west: String(bounds.west), east: String(bounds.east), south: String(bounds.south), north: String(bounds.north), hours: '24' });
   const token = ++wildfireRequestToken;
   wildfireRequestState.set(layer, { bounds, requestedAt: Date.now(), status: 'CHECKING' });
-  setWildfireStatus(definition.source, { status: 'CHECKING', count: 0 });
+    setWildfireStatus(definition.source, { status: 'CHECKING', count: 0, features: [] });
   try {
     const result = await fetchJson(`${definition.endpoint}?${params}`);
     if (token !== wildfireRequestToken || !liveMapState?.activeLayers?.[layer]) return;
@@ -19171,6 +19244,7 @@ async function updateWildfireOverlay(layer) {
     addWildfireLayers(layer, wildfireResultToGeoJson(result));
   } catch (error) {
     wildfireRequestState.set(layer, { bounds, requestedAt: Date.now(), status: 'ERROR' });
+    console.error('LIVE MAP WILDFIRE OVERLAY ERROR', { layer, error: error instanceof Error ? error.message : error, stack: error instanceof Error ? error.stack : '' });
     setWildfireStatus(definition.source, { status: 'ERROR', error: error.message, count: 0 });
   }
 }
@@ -19180,6 +19254,7 @@ async function refreshWildfireStatus() {
   const bounds = liveWildfireBounds();
   if (!bounds) return;
   if (wildfireStatusState && Date.now() - wildfireStatusState.requestedAt < wildfireClientCacheMs && mapBoundsContainBounds(wildfireStatusState.bounds, bounds)) {
+    Object.entries(wildfireFeedResults).forEach(([source, cachedResult]) => { if (cachedResult) setWildfireStatus(source, cachedResult); });
     restoreWildfireLayers();
     return;
   }
@@ -19350,7 +19425,16 @@ function renderLiveMapMarkers() {
     element.type = 'button';
     element.className = 'live-map-marker';
     element.dataset.layer = layer;
-    element.textContent = layer === 'trafficCams' ? '📷' : layer === 'medical' ? '+' : layer === 'monitors' ? 'M' : marker.type.charAt(0);
+    const sourceIcon = document.querySelector(`[data-live-layer="${layer}"] .live-map-toggle-icon`);
+    if (sourceIcon) {
+      const icon = sourceIcon.cloneNode(true);
+      icon.classList.add('live-map-marker-icon');
+      icon.removeAttribute('aria-hidden');
+      icon.setAttribute('focusable', 'false');
+      element.appendChild(icon);
+    } else {
+      element.textContent = marker.type.charAt(0);
+    }
     element.title = marker.name;
     element.addEventListener('click', () => selectLiveMapMarker(marker));
     const mapMarker = new window.maplibregl.Marker({ element, draggable: true })
@@ -19374,7 +19458,12 @@ function renderLiveMapMarkers() {
       element.type = 'button';
       element.className = 'live-map-marker emergenz-monitoring-marker';
       element.dataset.layer = 'monitors';
-      element.textContent = monitor.alarmState === 'Alarm' ? '!' : 'M';
+      const monitorIcon = document.querySelector('[data-live-layer="monitors"] .live-map-toggle-icon');
+      if (monitorIcon) {
+        const icon = monitorIcon.cloneNode(true);
+        icon.classList.add('live-map-marker-icon');
+        element.appendChild(icon);
+      } else element.textContent = monitor.alarmState === 'Alarm' ? '!' : 'M';
       element.title = monitor.deviceName + ' — ' + monitor.latestReadingSummary;
       element.addEventListener('click', () => {
         const panel = document.getElementById('live-map-selected');
@@ -19403,7 +19492,12 @@ function renderLiveMapMarkers() {
     element.type = 'button';
     element.className = 'live-map-marker live-map-assignment-marker';
     element.dataset.layer = 'incidentResources';
-    element.textContent = 'R';
+    const assignmentIcon = document.querySelector('[data-live-layer="incidentResources"] .live-map-toggle-icon');
+    if (assignmentIcon) {
+      const icon = assignmentIcon.cloneNode(true);
+      icon.classList.add('live-map-marker-icon');
+      element.appendChild(icon);
+    } else element.textContent = 'R';
     element.title = `${assignment.personnel || assignment.unit || 'Incident resource'} — ${assignment.role || 'Assigned resource'}`;
     element.addEventListener('click', () => selectLiveMapMarker({
       name: assignment.personnel || assignment.unit || 'Incident resource',
@@ -19445,11 +19539,11 @@ function readLatestPlumeOverlay() {
   const activeIncident = getActiveIncident();
   const activeChemicalId = activeIncident?.selectedChemicalId ?? activeIncident?.chemicalCompanionId ?? null;
   const isCurrent = (overlay) => Boolean(overlay?.plumeGeometry?.features?.length)
-    && (!activeIncident
-      || (activeChemicalId !== null && activeChemicalId !== undefined && String(activeChemicalId).trim() !== ''
-        && overlay.masterChemicalId !== null && overlay.masterChemicalId !== undefined
-        && String(overlay.incidentId || '') === String(activeIncident.incidentId || '')
-        && String(overlay.masterChemicalId || '') === String(activeChemicalId || '')));
+    && Boolean(activeIncident)
+    && activeChemicalId !== null && activeChemicalId !== undefined && String(activeChemicalId).trim() !== ''
+    && overlay.masterChemicalId !== null && overlay.masterChemicalId !== undefined
+    && String(overlay.incidentId || '') === String(activeIncident.incidentId || '')
+    && String(overlay.masterChemicalId || '') === String(activeChemicalId || '');
   if (isCurrent(window.HazMatIQ.latestPlumeOverlay)) return window.HazMatIQ.latestPlumeOverlay;
   try {
     const overlay = JSON.parse(window.localStorage.getItem(latestPlumeOverlayStorageKey) || 'null');
@@ -19467,15 +19561,22 @@ function updateLivePlumeOverlay() {
     if (liveMap.getLayer(livePlumeOutlineLayerId)) liveMap.removeLayer(livePlumeOutlineLayerId);
     if (liveMap.getLayer(livePlumeFillLayerId)) liveMap.removeLayer(livePlumeFillLayerId);
     if (liveMap.getSource(livePlumeSourceId)) liveMap.removeSource(livePlumeSourceId);
-    setText('live-plume-status', 'Plume Overlay Active');
+    setText('live-plume-status', 'Overlay off');
+    syncLiveMapOperationalStatuses();
     return;
   }
   const overlay = readLatestPlumeOverlay();
   if (!overlay?.plumeGeometry?.features?.length) {
-    setText('live-plume-status', 'Create a plume on the Plume Model page first.');
+    const message = getActiveIncident() ? 'No saved overlay for this incident.' : 'No active incident.';
+    setText('live-plume-status', message);
+    syncLiveMapOperationalStatuses();
+    if (liveMap.getLayer(livePlumeOutlineLayerId)) liveMap.removeLayer(livePlumeOutlineLayerId);
+    if (liveMap.getLayer(livePlumeFillLayerId)) liveMap.removeLayer(livePlumeFillLayerId);
+    if (liveMap.getSource(livePlumeSourceId)) liveMap.removeSource(livePlumeSourceId);
     return;
   }
   setText('live-plume-status', 'Plume Overlay Active');
+  syncLiveMapOperationalStatuses();
   if (liveMap.getSource(livePlumeSourceId)) {
     liveMap.getSource(livePlumeSourceId).setData(overlay.plumeGeometry);
     return;
@@ -19763,9 +19864,11 @@ function initializeLiveMap(context = {}) {
       return;
     }
     liveMap.addControl(new window.maplibregl.NavigationControl(), 'bottom-right');
+    if (window.maplibregl.AttributionControl) liveMap.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-left');
     liveMap.on('move', updateLiveMapReadout);
     liveMap.on('style.load', () => {
       restoreLiveMapOverlays();
+      updateLiveMapAttribution();
       document.querySelector('.live-map-stage')?.classList.add('map-ready');
       setText('live-map-status', liveMap.getStyle()?.sources?.[plumeSatelliteSourceId] ? 'Satellite basemap ready.' : 'Street map ready.');
       if (!liveMapStoredStyleApplied) {
@@ -19833,6 +19936,7 @@ function initializeLiveMap(context = {}) {
     if (layer !== 'monitors' && liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
   });
   updateLiveMapPanels();
+  syncLiveMapOperationalStatuses();
   restoreLiveMapOverlays();
   focusLiveMapOnPlanningPlan(effectiveContext);
   // Deferred navigation from Monitoring: page transition can precede MapLibre creation.
@@ -19858,12 +19962,13 @@ function initializeLiveMap(context = {}) {
   window.setTimeout(() => liveMap.resize(), 150);
   if (!liveMapGpsRequested && !effectiveContext?.planningPlan && window.HazMatIQ.preferences?.get('autoLocation') !== false && window.HazMatIQ.preferences?.get('locationEnabled') !== false) {
     liveMapGpsRequested = true;
+    setLiveMapGpsStatus('loading');
     setText('live-map-status', 'Locating current GPS position…');
     getCurrentGps().then((gps) => {
       liveMap.jumpTo({ center: [gps.lon, gps.lat], zoom: Math.max(liveMap.getZoom(), 15) });
       updateLiveMapGpsMarker(gps);
       setLiveMapGpsStatus('live');
-      saveLiveMapState(`Map centered on current GPS: ${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}.`);
+      saveLiveMapState('Map centered on current GPS position.');
       void fetchWeatherSources(gps.lat, gps.lon).then(({ openMeteo, nws }) => {
         latestPlumeWeather = selectPlumeWeather(openMeteo, nws);
       }).catch(() => {});
