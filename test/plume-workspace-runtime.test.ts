@@ -28,6 +28,7 @@ describe('Plume workspace initialization', () => {
   it('does not convert empty saved coordinates to a false location at zero, zero', async () => {
     const gps = vi.fn().mockResolvedValue({ lat: 34, lon: -87 });
     const result = await runInNewContext(`${declaration('parseGpsCoordinate')}\n${declaration('getIncidentCoordinates')}\ngetIncidentCoordinates()`, {
+      window: { HazMatIQ: { preferences: { get: () => true } } },
       document: { getElementById: () => ({ value: '' }) },
       getActiveIncident: () => ({ latitude: '', longitude: '' }),
       getIncidentAddressValue: () => '', getCurrentGps: gps,
