@@ -27,6 +27,52 @@ const run = {
 };
 
 describe('Threat Zone distinct panels', () => {
+  it('replays older saved zone distances and endpoints without inventing missing release inputs', () => {
+    const saved = {
+      id: 'saved-run', generatedAt: '2026-10-26T21:02:03.682Z',
+      chemical: { chemicalName: 'Ammonia (anhydrous)' },
+      endpoint: { selectedDuration: 60, value: { aegl1: 30, aegl2: 160, aegl3: 1100 }, units: 'ppm', endpointSource: 'EPA AEGL' },
+      release: { duration: null },
+      output: { threatZones: [{ thresholdKind: 'AEGL', thresholdLevel: 3, maxDownwindM: 786.5708377066387, maxCrosswindM: 48.845395536838936 }] },
+    };
+    const restored = runInNewContext(`${declaration('savedPlumeDisplayResult')}; savedPlumeDisplayResult(saved)`, { saved, plumeRecordPayload: (value: unknown) => value });
+    expect(restored.id).toBe('saved-run');
+    expect(restored.computedAt).toBe(saved.generatedAt);
+    expect(restored.isopleths).toEqual(saved.output.threatZones);
+    expect(restored.submittedInputs).toEqual({});
+    const data = panelData(restored);
+    expect(data.rows[0]).toMatchObject({ threshold: '1,100 ppm', duration: '60 min', downwind: '786.571 m' });
+    expect(data.details).toContainEqual(['Release Duration', 'Not recorded']);
+  });
+
+  it('keeps the submitted duration and weather snapshot omitted by model normalization', async () => {
+    const inputs = { releaseDurationSec: 600, weatherSource: 'Manual Weather Entry', weatherObservationTime: '2026-11-17T19:48:25.531Z', lat: 34, lng: -81, windSpeedMps: 2.2352, windDirDeg: 270, tempC: 20 };
+    const result = { ...run, inputs: { ...run.inputs }, submittedInputs: undefined, isopleths: [{ polygon: [[1, 1], [2, 2]], maxDownwindM: 365.77762996728325 }] };
+    const backend = runInNewContext(`${declaration('runBackendPlume')}; runBackendPlume`, {
+      getActiveIncident: () => null, getIncidentChemicalContext: () => ({ chemical: { selectedChemicalId: 10 } }),
+      normalizePlumeLocation: () => ({ lat: 34, lon: -81 }),
+      fetch: async () => ({ ok: true, json: async () => result }),
+    });
+    const completed = await backend(inputs);
+    inputs.releaseDurationSec = 5940;
+    expect(completed.result.submittedInputs.releaseDurationSec).toBe(600);
+    expect(panelData(completed.result).details).toContainEqual(['Release Duration', '600 s']);
+  });
+
+  it('uses the completed duration in the summary and never substitutes the editable 99-minute control', () => {
+    const displayed = new Map();
+    const context = {
+      result: run, setText: (id: string, value: string) => displayed.set(id, value),
+      updatePlumeRightRailZoneResults: vi.fn(), currentThreatZoneGeoJson: null,
+      noCurrentDataText: 'Not recorded', degreesToCompass: () => 'E',
+      document: { getElementById: () => { throw new Error('Completed summary must not read controls'); } },
+    };
+    runInNewContext(`${declaration('updatePlumeCommandPanel')}; updatePlumeCommandPanel(result)`, context);
+    expect(displayed.get('plume-command-release-duration')).toBe('10 minutes');
+    runInNewContext(`${declaration('updatePlumeCommandPanel')}; updatePlumeCommandPanel({...result, submittedInputs: {}})`, context);
+    expect(displayed.get('plume-command-release-duration')).toBe('Not recorded');
+  });
+
   it('uses completed-run inputs and distinguishes crosswind half-width, duration, and truncated distance', () => {
     const data = panelData(run);
     expect(data.rows[0]).toMatchObject({ threshold: '1,100 ppm', duration: '60 min', crosswind: '30 m', downwind: '1,000 m (lower bound)' });

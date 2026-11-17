@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 const script = readFileSync(new URL('../server/public/script.js', import.meta.url), 'utf8');
 const command = readFileSync(new URL('../server/public/incident-command.js', import.meta.url), 'utf8');
@@ -16,6 +16,39 @@ function plumeIdentityApi() {
 }
 
 describe('Incident Command plume ownership', () => {
+  it('does not label a stale saved map-image reference as PLOTTED', () => {
+    const nodes = new Map<string, { textContent: string; hidden: boolean; dataset: Record<string, string>; removeAttribute: ReturnType<typeof vi.fn>; replaceChildren: ReturnType<typeof vi.fn>; append: ReturnType<typeof vi.fn> }>();
+    const node = () => ({ textContent: '', hidden: false, dataset: {}, removeAttribute: vi.fn(), replaceChildren: vi.fn(), append: vi.fn() });
+    const render = vi.fn(() => true);
+    const code = command.slice(command.indexOf('  function renderPlumeSummary('), command.indexOf('  function hydratePlumePreview('));
+    runInNewContext(`${code}; renderPlumeSummary(state)`, {
+      state: { plume: { status: 'PLUME REQUIRES RECALCULATION', result: null }, raw: { plumeMapImageRef: 'old-snapshot' } },
+      NO_DATA: 'Not recorded', window: { HazMatIQ: { commandPlumePreview: { render } } },
+      document: { createElement: node, getElementById: (id: string) => { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); } },
+    });
+    expect(nodes.get('ic-plume-status')?.textContent).toBe('PLUME REQUIRES RECALCULATION');
+    expect(nodes.get('ic-plume-preview-map')?.hidden).toBe(true);
+    expect(render).not.toHaveBeenCalled();
+  });
+  it('rejects a saved result invalidated by changed release or weather inputs', () => {
+    const isCurrent = plumeIdentityApi();
+    const incident = { incidentId: 'audit-ammonia', selectedChemicalId: 10, chemicalName: 'Ammonia (anhydrous)' };
+    const plume = { incidentId: incident.incidentId, chemical: { masterChemicalId: 10, chemicalName: incident.chemicalName } };
+    expect(isCurrent(plume, incident)).toBe(true);
+    expect(isCurrent({ ...plume, requiresRecalculation: true }, incident)).toBe(false);
+    expect(isCurrent({ ...plume, plumeResult: plume, requiresRecalculation: true }, incident)).toBe(false);
+  });
+
+  it('detects incident-side weather and release edits while allowing unrelated notes', () => {
+    const start = script.indexOf('function normalizedChemicalName');
+    const end = script.indexOf('function cleanIncidentOperationalMode');
+    const incident = { incidentId: 'audit', selectedChemicalId: 10, chemicalName: 'Ammonia (anhydrous)', quantity: '10 lb/min', windSpeed: '5' };
+    const context = { normalizeChemicalSelectionId: (value: unknown) => value, incident };
+    const check = runInNewContext(`${script.slice(start, end)}; const plume={incidentId:incident.incidentId,chemical:{masterChemicalId:10,chemicalName:incident.chemicalName},incidentInputSnapshot:plumeIncidentInputSnapshot(incident)}; (patch)=>isIncidentPlumeCurrent(plume,{...incident,...patch})`, context);
+    expect(check({ notes: 'Unrelated note' })).toBe(true);
+    expect(check({ windSpeed: '15' })).toBe(false);
+    expect(check({ quantity: '20 lb/min' })).toBe(false);
+  });
   it('rejects a Hydrazine plume when Ammonia is the active incident', () => {
     const isCurrent = plumeIdentityApi();
     expect(isCurrent({

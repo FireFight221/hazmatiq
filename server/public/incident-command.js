@@ -292,7 +292,7 @@
   function renderPlumeSummary(state) {
     const result = state?.plume?.result;
     const plumeNeedsRecalculation = state?.plume?.status === 'PLUME REQUIRES RECALCULATION';
-    const hasPlume = Boolean(result || state?.plume?.mapImage || state?.raw?.plumeMapImageRef);
+    const hasPlume = !plumeNeedsRecalculation && Boolean(result || state?.plume?.mapImage || state?.raw?.plumeMapImageRef);
     const status = document.getElementById('ic-plume-status');
     const image = document.getElementById('ic-plume-preview-image');
     const map = document.getElementById('ic-plume-preview-map');
@@ -326,11 +326,25 @@
     const weather = result?.weather || result?.plumeResult?.weather || {};
     const location = result?.location || {};
     const zones = result?.output?.threatZones || result?.plumeOutput?.threatZones || result?.threatZone?.threatZones || [];
+    const completed = result?.plumeResult || result || {};
+    const endpoint = completed.endpoint || {};
+    const exposureMinutes = endpoint.selectedDurationMinutes ?? endpoint.selectedDuration;
+    const releaseSeconds = completed.submittedInputs?.releaseDurationSec ?? completed.inputs?.releaseDurationSec;
+    const releaseDuration = releaseSeconds !== null && releaseSeconds !== undefined && releaseSeconds !== '' && Number.isFinite(Number(releaseSeconds))
+      ? `${Number(releaseSeconds)} s` : 'Not recorded';
     const rows = [
       ['Location', location.address || (location.latitude !== undefined && location.longitude !== undefined ? `${location.latitude}, ${location.longitude}` : state?.location)],
       ['Wind', weather.windDirection ? `${weather.windSpeed || '—'} mph from ${weather.windDirection}°` : state?.weather?.windDirection ? `from ${state.weather.windDirection}°` : NO_DATA],
       ['Zones', zones.length ? `${zones.length} source-backed zone${zones.length === 1 ? '' : 's'}` : (hasPlume ? 'Saved geometry available' : NO_DATA)],
       ['Assessment', result?.model?.confidenceStatus || result?.confidenceLevel || (hasPlume ? 'Planning Estimate' : NO_DATA)],
+      ...(result ? [
+        ['Completed run', completed.id || completed.computedAt || completed.generatedAt || 'Not recorded'],
+        ['Endpoint', [endpoint.endpointSource, exposureMinutes ? `${exposureMinutes}-minute` : null, endpoint.units].filter(Boolean).join(' · ') || 'Not recorded'],
+        ['Release duration', releaseDuration],
+        ['Weather observation', weather.observationTime || 'Not recorded'],
+        ...zones.map((zone) => [zone.label || 'Zone', zone.maxDownwindM !== null && zone.maxDownwindM !== undefined && Number.isFinite(Number(zone.maxDownwindM))
+          ? `${zone.rangeTruncated ? 'At least ' : ''}${Number(zone.maxDownwindM).toLocaleString(undefined, { maximumFractionDigits: 3 })} m` : 'Not recorded']),
+      ] : []),
     ];
     facts.replaceChildren(...rows.map(([label, value]) => {
       const row = document.createElement('div');
@@ -475,6 +489,8 @@
     if (mirror) mirror.value = value;
     incidents[index] = {
       ...previous, [field]: value, updatedAt: now,
+      ...(previous.plumeModelResults && ['quantity', 'amountReleased', 'releaseQuantityUnit', 'containerType', 'containerSize', 'windSpeed', 'windDirection', 'temperature', 'weather', 'latitude', 'longitude', 'address'].includes(field)
+        ? { plumeModelResults: { ...previous.plumeModelResults, requiresRecalculation: true } } : {}),
       incidentTimeline: [...(previous.incidentTimeline || []), { type: 'command-field-updated', label: field, changedAt: now, changedBy: api.incidentResponderIdentity?.() || 'Local responder', source: 'commander' }],
     };
     api.writeIncidents(incidents);

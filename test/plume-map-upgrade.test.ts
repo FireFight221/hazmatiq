@@ -48,7 +48,7 @@ describe('Plume Model Tactical 3D map restoration', () => {
   it('keeps Satellite, Street, 3D Terrain, and 3D Plume paths separate', () => {
     expect(script).toContain("const targetStyle = viewName === 'plume3d'");
     expect(script).toContain("activePlumeMapView === 'plume3d') return;");
-    expect(script).toContain("activePlumeMapView === 'street' ? 'none' : 'visible'");
+    expect(script).toContain("activePlumeMapView === 'street' && hasPlumeVectorBasemap(plumeMap.getStyle()) ? 'none' : 'visible'");
     expect(script).toContain("type: 'raster-dem'");
     expect(script).toContain("encoding: 'terrarium'");
     expect(script).toContain("const plume3dCustomLayerId = 'hazmat-plume-3d-mesh'");

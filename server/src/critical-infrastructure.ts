@@ -1,4 +1,9 @@
 export type CriticalFacilityCategory =
+  | "residential"
+  | "business"
+  | "government"
+  | "doctor_office"
+  | "rail_crossing"
   | "hospital"
   | "healthcare"
   | "school"
@@ -64,9 +69,12 @@ export interface ThreatZoneFacilityLookup {
   affectedFacilities: Array<CriticalFacility & { zone: string; zoneLabel: string; threatRank: number }>;
   sourceStatuses: FacilitySourceStatus[];
   errors: string[];
+  coverageGaps: string[];
 }
 
 type FacilitySource = {
+  format?: "cms";
+  datasetDate?: string;
   id: string;
   label: string;
   source: string;
@@ -83,6 +91,23 @@ type ArcgisFeature = {
 
 const HIFLD_ASSETS = "https://services9.arcgis.com/FF3qnCUixr5w9JQi/ArcGIS/rest/services/US_HIFLD_Assets/FeatureServer";
 const FACILITY_SOURCES: FacilitySource[] = [
+  {
+    id: "cms-nursing-homes", label: "CMS Nursing Home Provider Information",
+    source: "CMS Provider Data Catalog — Nursing Home Provider Information",
+    queryUrl: "https://data.cms.gov/provider-data/api/1/datastore/query/4pq5-n9py/0",
+    sourceCatalogUrl: "https://data.cms.gov/provider-data/dataset/4pq5-n9py",
+    usageNote: "CMS-reported coordinates only; missing geocodes are not inferred. Certified beds and historical residents are not current occupancy. Dataset processing date is retained when supplied.",
+    category: "nursing_home", format: "cms",
+  },
+  {
+    id: "fra-rail-crossings", label: "USDOT / FRA Railroad Grade Crossings",
+    source: "USDOT BTS / FRA National Transportation Atlas Database",
+    queryUrl: "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Railroad_Grade_Crossings/FeatureServer/0/query",
+    sourceCatalogUrl: "https://www.arcgis.com/home/item.html?id=f51a402931a04fe890a568ef88fb81a6",
+    datasetDate: "2026-10-09",
+    usageNote: "Inventory crossing points inside the footprint; not road-segment intersection analysis, a closure, or a current traffic condition. Verify with the responsible road/rail authority.",
+    category: "rail_crossing",
+  },
   {
     id: "nces-schools-current",
     label: "NCES EDGE School Characteristics - Current",
@@ -130,6 +155,7 @@ const FACILITY_SOURCES: FacilitySource[] = [
 ];
 
 const FACILITY_CATEGORIES: CriticalFacilityCategory[] = [
+  "residential", "business", "government", "doctor_office", "rail_crossing",
   "hospital",
   "healthcare",
   "school",
@@ -143,6 +169,7 @@ const STALE_CACHE_MS = 30 * 60 * 1000;
 const sourceCache = new Map<string, { fetchedAt: number; facilities: CriticalFacility[] }>();
 
 function finiteNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -162,6 +189,7 @@ function facilityCategory(source: FacilitySource, attributes: Record<string, unk
   if (source.category === "critical_facility") {
     if (/ems|ambulance|emergency medical|rescue squad/.test(type)) return "ems";
     if (/fire station|fire department/.test(type)) return "fire_station";
+    if (/government|department of|state |county |city |town |courthouse|emergency operations|senate|representatives/.test(type)) return "government";
     return "critical_facility";
   }
   if (source.category !== "medical_facility") return source.category;
@@ -176,8 +204,9 @@ function normalizeArcgisFeature(source: FacilitySource, feature: ArcgisFeature, 
   const longitude = finiteNumber(feature.geometry?.x ?? attributes.LONCOD ?? attributes.longitude ?? attributes.LONGITUDE);
   const latitude = finiteNumber(feature.geometry?.y ?? attributes.LATCOD ?? attributes.latitude ?? attributes.LATITUDE);
   if (longitude === null || latitude === null || Math.abs(longitude) > 180 || Math.abs(latitude) > 90) return null;
-  const rawId = textValue(attributes, ["NCESSCH", "GlobalID", "OBJECTID", "ID"]) || `${latitude}:${longitude}`;
-  const name = textValue(attributes, ["SCH_NAME", "NAME", "Name", "FACILITYNAME", "LEA_NAME"]) || `${source.label} ${rawId}`;
+  const rawId = textValue(attributes, ["NCESSCH", "CrossingID", "cms_certification_number_ccn", "GlobalID", "OBJECTID", "ID"]) || `${latitude}:${longitude}`;
+  const name = textValue(attributes, ["SCH_NAME", "provider_name", "NAME", "Name", "FACILITYNAME", "LEA_NAME"])
+    || (source.category === "rail_crossing" ? `${textValue(attributes, ["STREET", "HighwayName"]) || 'Unnamed roadway'} · FRA crossing ${rawId}` : `${source.label} ${rawId}`);
   const category = facilityCategory(source, attributes);
   return {
     id: `${source.id}:${rawId}`,
@@ -186,15 +215,18 @@ function normalizeArcgisFeature(source: FacilitySource, feature: ArcgisFeature, 
     latitude,
     longitude,
     source: source.source,
-    sourceUpdatedAt: null,
+    sourceUpdatedAt: textValue(attributes, ["processing_date"]) || source.datasetDate || null,
     retrievedAt: fetchedAt,
     metadata: {
       sourceId: source.id,
       sourceRecordId: rawId,
-      address: textValue(attributes, ["ADDRESS", "LSTREET1"]),
-      city: textValue(attributes, ["CITY", "LCITY"]),
+      address: textValue(attributes, ["provider_address", "ADDRESS", "LSTREET1", "STREET"]),
+      city: textValue(attributes, ["citytown", "CITY", "LCITY", "CITYNAME"]),
       state: textValue(attributes, ["STATE", "LSTATE", "STATE_ABB"]),
       facilityType: textValue(attributes, ["FacilityType", "SCHOOL_LEVEL", "Type", "AssetType"]),
+      datasetDate: textValue(attributes, ["processing_date", "SURVYEAR"]) || source.datasetDate || 'Not published by source',
+      sourceCatalogUrl: source.sourceCatalogUrl || '',
+      crossingPosition: textValue(attributes, ["CrossingPosition"]),
     },
   };
 }
@@ -216,6 +248,11 @@ function preferFacility(current: CriticalFacility, candidate: CriticalFacility):
   // fire-station HIFLD layers. Keep the more operationally specific category
   // so a fire station is not hidden behind a generic healthcare/EMS record.
   const categoryPriority: Record<CriticalFacilityCategory, number> = {
+    residential: 1,
+    business: 1,
+    government: 2,
+    doctor_office: 3,
+    rail_crossing: 2,
     fire_station: 7,
     hospital: 6,
     school: 6,
@@ -368,14 +405,33 @@ async function querySource(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   try {
-    const response = await fetchImpl(`${source.queryUrl}?${params}`, { signal: controller.signal });
+    let requestParams = params;
+    if (source.format === "cms") {
+      requestParams = new URLSearchParams({ limit: '2000', offset: '0' });
+      [['longitude', '>=', envelope.west], ['longitude', '<=', envelope.east], ['latitude', '>=', envelope.south], ['latitude', '<=', envelope.north]].forEach(([field, operator, value], index) => {
+        requestParams.set(`conditions[${index}][property]`, String(field));
+        requestParams.set(`conditions[${index}][operator]`, String(operator));
+        requestParams.set(`conditions[${index}][value]`, String(value));
+      });
+    }
+    const response = await fetchImpl(`${source.queryUrl}?${requestParams}`, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json() as { error?: { message?: string }; features?: ArcgisFeature[]; exceededTransferLimit?: boolean };
+    const payload = await response.json() as { error?: { message?: string }; features?: ArcgisFeature[]; exceededTransferLimit?: boolean; results?: Record<string, unknown>[] };
     if (payload.error) throw new Error(payload.error.message || "ArcGIS query failed");
+    if (source.format === "cms") {
+      if (!Array.isArray(payload.results)) throw new Error('CMS returned no result collection');
+      if (payload.results.length >= 2000) throw new Error('CMS result reached the query limit; coverage is incomplete');
+      payload.features = payload.results.map((attributes) => ({ attributes, geometry: { x: attributes.longitude, y: attributes.latitude } }));
+    }
+    if (!Array.isArray(payload.features)) throw new Error("Source returned no feature collection");
+    if (payload.exceededTransferLimit) throw new Error("Source result truncated; target coverage is incomplete");
     const fetchedAt = new Date().toISOString();
-    const facilities = dedupeFacilities((payload.features || []).map((feature) => normalizeArcgisFeature(source, feature, fetchedAt)).filter((facility): facility is CriticalFacility => Boolean(facility)));
+    const locatedFacilities = payload.features.map((feature) => normalizeArcgisFeature(source, feature, fetchedAt)).filter((facility): facility is CriticalFacility => Boolean(facility));
+    const facilities = dedupeFacilities(locatedFacilities);
     sourceCache.set(key, { fetchedAt: now, facilities });
-    return { facilities, status: "available", candidateCount: payload.features?.length || 0, sourceUpdatedAt: null, retrievedAt: fetchedAt };
+    const missingCoordinates = payload.features.length - locatedFacilities.length;
+    return { facilities, status: missingCoordinates > 0 ? "stale" : "available", candidateCount: payload.features.length, sourceUpdatedAt: source.datasetDate || null, retrievedAt: fetchedAt,
+      ...(missingCoordinates > 0 ? { error: 'Some source records could not be located or were duplicates; verify coverage.' } : {}) };
   } catch (error) {
     if (cached && now - cached.fetchedAt <= STALE_CACHE_MS) {
       return {
@@ -459,7 +515,14 @@ export async function lookupCriticalInfrastructure(
       errors,
     });
   }
-  return { status, generatedAt, queryEnvelope: envelope, ...classified, sourceStatuses, errors };
+  return { status, generatedAt, queryEnvelope: envelope, ...classified, sourceStatuses, errors,
+    coverageGaps: [
+      'Residential parcels, homes, businesses and doctor-office inventories are not provided by these government layers.',
+      'NCES covers public schools; private schools and childcare coverage is incomplete.',
+      'Crossings are point records; road/rail segments and waterways require separate intersection layers.',
+      'Beds, school enrollment and Census totals are not current occupancy or confirmed people in the zone.',
+    ],
+  };
 }
 
 export function clearCriticalInfrastructureCache(): void {

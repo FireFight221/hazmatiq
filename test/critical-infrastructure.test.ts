@@ -75,11 +75,12 @@ describe("critical infrastructure threat-zone classification", () => {
   });
 
   it("returns zero for a successful empty query", async () => {
-    const fetchEmpty = async () => new Response(JSON.stringify({ features: [] }), { status: 200 });
+    const fetchEmpty = async () => new Response(JSON.stringify({ features: [], results: [] }), { status: 200 });
     const result = await lookupCriticalInfrastructure([redZone], fetchEmpty);
     expect(result.status).toBe("available");
     expect(result.affectedFacilities).toEqual([]);
     expect(result.zones[0].facilityCounts).toEqual({
+      residential: 0, business: 0, government: 0, doctor_office: 0, rail_crossing: 0,
       hospital: 0,
       healthcare: 0,
       school: 0,
@@ -98,7 +99,7 @@ describe("critical infrastructure threat-zone classification", () => {
         : url.includes("Hospitals_hifld")
           ? [{ attributes: { OBJECTID: 7, NAME: "HIFLD Hospital" }, geometry: { x: 6, y: 6 } }]
           : [];
-      return new Response(JSON.stringify({ features }), { status: 200 });
+      return new Response(JSON.stringify({ features, results: [] }), { status: 200 });
     };
     const result = await lookupCriticalInfrastructure([redZone], fetchSources);
     expect(result.status).toBe("available");
@@ -116,5 +117,29 @@ describe("critical infrastructure threat-zone classification", () => {
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.sourceStatuses.every((source) => source.status === "unavailable")).toBe(true);
     expect(result.zones[0].facilities).toEqual([]);
+  });
+
+  it('lists CMS nursing homes and named FRA crossings against the exact zone, preserving dates and source gaps', async () => {
+    const fetchSources = async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('data.cms.gov')) return new Response(JSON.stringify({ results: [{ cms_certification_number_ccn: 'audit-home', provider_name: 'Audit Skilled Nursing', provider_address: '12 Test Street', latitude: 5, longitude: 5, processing_date: '2026-10-01' }] }));
+      if (url.includes('NTAD_Railroad_Grade_Crossings')) return new Response(JSON.stringify({ features: [{ attributes: { CrossingID: '123456A', STREET: 'Test Highway' }, geometry: { x: 6, y: 6 } }, { attributes: { CrossingID: 'outside', STREET: 'Outside Highway' }, geometry: { x: 50, y: 50 } }] }));
+      return new Response(JSON.stringify({ features: [] }));
+    };
+    const result = await lookupCriticalInfrastructure([redZone], fetchSources);
+    expect(result.zones[0].facilityCounts).toMatchObject({ nursing_home: 1, rail_crossing: 1 });
+    expect(result.affectedFacilities.map(x => x.name)).toEqual(['Audit Skilled Nursing', 'Test Highway · FRA crossing 123456A']);
+    expect(result.affectedFacilities[0].sourceUpdatedAt).toBe('2026-10-01');
+    expect(result.affectedFacilities[1].sourceUpdatedAt).toBe('2026-10-09');
+    expect(result.coverageGaps.join(' ')).toContain('Residential');
+  });
+
+  it('reports CMS access denial and truncated official layers without presenting a complete empty inventory', async () => {
+    const result = await lookupCriticalInfrastructure([redZone], async (input) => String(input).includes('data.cms.gov')
+      ? new Response('Access Denied', { status: 403 })
+      : new Response(JSON.stringify({ features: [], exceededTransferLimit: true })));
+    expect(result.status).toBe('error');
+    expect(result.sourceStatuses.find(x => x.id === 'cms-nursing-homes')?.status).toBe('unavailable');
+    expect(result.errors.join(' ')).toContain('truncated');
   });
 });

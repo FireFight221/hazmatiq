@@ -43,7 +43,7 @@ describe("plume map views", () => {
     expect(plumeUi).toContain("plumeMap.setStyle(plumeFallbackMapStyle);");
     expect(plumeUi).toContain('applyPlumeFallbackMapStyle');
     expect(plumeUi).toContain("syncPlumeBasemapLayer();");
-    expect(plumeUi).toContain("activePlumeMapView === 'street' ? 'none' : 'visible'");
+    expect(plumeUi).toContain("activePlumeMapView === 'street' && hasPlumeVectorBasemap(plumeMap.getStyle()) ? 'none' : 'visible'");
     expect(plumeUi).toContain("activePlumeMapView === 'plume3d'");
     expect(plumeUi).toContain("plumeMap.setLayoutProperty(");
     expect(plumeUi).toContain("await setPlumeMapView('plume3d')");

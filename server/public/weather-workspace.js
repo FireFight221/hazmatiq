@@ -118,15 +118,16 @@
     if (frameTime) frameTime.textContent = state.timestamp ? new Date(state.timestamp).toLocaleString() : 'Latest frame unavailable';
     if (play) { play.textContent = state.animationPlaying ? 'Pause Radar' : 'Play Radar'; play.disabled = !state.enabled || !state.supportsAnimation; }
     const status = state.enabled ? `${state.providerName || 'Radar'} · ${state.status || 'Connected'}${state.fallbackMessage ? ` · ${state.fallbackMessage}` : ''}` : 'Radar is off';
-    if (sourceStatus) sourceStatus.textContent = status;
+    if (sourceStatus) sourceStatus.textContent = `${status}${state.zoomStatus ? ` · ${state.zoomStatus}` : ''}`;
     const radarButton = document.getElementById('weather-layer-radar');
     if (radarButton) {
       radarButton.classList.toggle('active', Boolean(state.enabled));
       radarButton.setAttribute('aria-pressed', String(Boolean(state.enabled)));
     }
-    writeText('weather-radar-service-status', state.enabled ? (state.error ? 'Unavailable' : 'Connected') : 'Off');
+    writeText('weather-radar-service-status', state.enabled ? (state.error ? 'Unavailable' : state.tilesReady ? 'Connected' : 'Loading tiles') : 'Off');
     if (state.error) writeText('weather-map-status', 'Radar temporarily unavailable · basemap remains available.');
-    else if (state.enabled && Number(state.frameCount) > 0) writeText('weather-map-status', `${state.providerName || 'Weather radar'} ready · latest frame loaded.`);
+    else if (state.enabled && state.tilesReady) writeText('weather-map-status', `${state.providerName || 'Weather radar'} ready · radar tiles loaded.${state.zoomStatus ? ` ${state.zoomStatus}` : ''}`);
+    else if (state.enabled) writeText('weather-map-status', 'Radar tiles loading · basemap and other overlays remain available.');
   }
 
   function ensureRadar() {
@@ -135,7 +136,6 @@
       prefix: 'weather-radar',
       onStateChange: radarState,
       onFallback: () => setLocationStatus('Radar fallback active. Basemap and current weather remain available.'),
-      onAvailability: (available) => writeText('weather-radar-service-status', available ? 'Connected' : 'Unavailable'),
     });
     weatherRadar.setOpacity(document.getElementById('weather-radar-opacity')?.value || 0.58);
     return weatherRadar;

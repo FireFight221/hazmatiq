@@ -66,6 +66,7 @@ describe('Plume workspace initialization', () => {
       restoreSelectedChemical: vi.fn().mockResolvedValue(undefined),
       ensurePlumeMap: vi.fn().mockResolvedValue(undefined),
       getIncidentAddressValue: () => '', getActiveIncident: () => null,
+      isIncidentPlumeCurrent: () => false,
       getIncidentChemicalContext: () => ({ matchesGlobal: false, record: null }),
       getIncidentCoordinates: vi.fn(), setText: vi.fn(), activeChemical: null,
       fetchWeatherSources: vi.fn(() => new Promise(() => {})),
@@ -160,6 +161,9 @@ describe('Plume workspace initialization', () => {
       plumeSatelliteTileUrls: ['https://imagery.example/{z}/{y}/{x}'],
     };
     runInNewContext(`${declaration('syncPlumeBasemapLayer')}\nsyncPlumeBasemapLayer()`, syncContext);
+    expect(layerState.get('satellite')).toBe('visible');
+    syncContext.activePlumeMapView = 'street';
+    runInNewContext(`${declaration('hasPlumeVectorBasemap')}\n${declaration('syncPlumeBasemapLayer')}\nsyncPlumeBasemapLayer()`, syncContext);
     expect(layerState.get('satellite')).toBe('visible');
   });
 });
