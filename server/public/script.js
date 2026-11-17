@@ -4782,12 +4782,14 @@ function chemicalFrontlineRows(profile) {
     isolation.protectiveActionDistance,
   ], () => true, 3));
 
-  add('Fire considerations', chemicalFrontlineValues([
+  const fireConsiderations = chemicalFrontlineValues([
     fire.flammability,
     fire.firefightingPrecautions,
-    fire.explosionHazards,
     fire.runoffConcerns,
-  ], () => true, 3));
+  ], () => true, 3);
+  add('Fire considerations', fireConsiderations.length
+    ? fireConsiderations
+    : 'No fire-specific information is available from current sources.');
 
   add('Entry Cautions', chemicalEntryCautionValues(profile));
 
@@ -4799,6 +4801,15 @@ function chemicalFrontlineRows(profile) {
     profile.fieldIdentification,
   ], () => true, 3));
   return rows;
+}
+
+function hasChemicalSourceData(profile) {
+  const sourceData = profileObject(profile?.reactivity);
+  return hasMeaningfulChemicalProfileData([
+    sourceData.incompatibilities,
+    sourceData.chemicalMixtureReactivity,
+    sourceData.oxidizerReducerConcerns,
+  ]);
 }
 
 function createChemmMedicalGuidance(profile) {
@@ -5525,6 +5536,17 @@ function formatHazardClassLines(value) {
   })).values()];
 }
 
+function createChemicalProfileTabLink(label, tab) {
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'chemical-profile-inline-link';
+  link.dataset.profileTabLink = tab;
+  link.textContent = label;
+  return link;
+}
+
+const seeProfileLinkLabel = 'See Reactivity Profile';
+
 function createReactivityProfileSection(profile) {
   const section = document.createElement('section');
   section.className = 'chemical-profile-section chemical-profile-reactivity-panel';
@@ -5536,43 +5558,82 @@ function createReactivityProfileSection(profile) {
   heading.append(createChemicalProfileIcon('reactivity'), headingText);
   section.append(heading);
 
-  const addBlock = (parent, label, values, className = '') => {
-    const items = profileListItems(values);
+  const incompatibilities = profileListItems(profile?.reactivity?.incompatibilities);
+  const categoryLabels = [...new Set(incompatibilities
+    .filter((item) => item.length <= 96 && !/[.!?]/.test(item))
+    .map((item) => normalizeDataSourceOutput(item))
+    .filter(Boolean))];
+  const redoxConcerns = [...new Set(profileListItems(profile?.reactivity?.oxidizerReducerConcerns)
+    .filter((item) => /\b(?:oxidiz(?:er|ing|ed)|reduc(?:er|ing|ed)|peroxid|permangan|perchlorat|chlorat|nitrates?|hypochlorite|halogen)\b/i.test(item))
+    .map((item) => normalizeDataSourceOutput(item))
+    .filter(Boolean))];
+
+  const appendLabelBlock = (parent, label, items, className = '') => {
+    if (!items.length) return;
     const block = document.createElement('div');
     block.className = `chemical-profile-reactivity-block${className ? ` ${className}` : ''}`;
     block.dataset.field = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const title = document.createElement('h5');
     title.textContent = label;
-    block.append(title);
-    if (items.length) {
-      const list = document.createElement('ul');
-      list.className = 'chemical-profile-reactivity-list';
-      items.forEach((item) => {
-        const li = document.createElement('li');
-        li.textContent = normalizeDataSourceOutput(item);
-        list.append(li);
-      });
-      block.append(list);
-    } else {
-      const empty = document.createElement('p');
-      empty.className = 'chemical-profile-reactivity-empty';
-      empty.textContent = 'Not available';
-      block.append(empty);
-    }
+    const labels = document.createElement('div');
+    labels.className = 'chemical-profile-reactivity-labels';
+    items.forEach((item) => {
+      const labelEl = document.createElement('span');
+      labelEl.className = 'chemical-profile-reactivity-label';
+      labelEl.textContent = item;
+      labels.append(labelEl);
+    });
+    block.append(title, labels);
     parent.append(block);
   };
 
-  const main = document.createElement('div');
-  main.className = 'chemical-profile-reactivity-main';
-  addBlock(main, 'Incompatibilities', profile?.reactivity?.incompatibilities, 'chemical-profile-reactivity-primary');
-  section.append(main);
+  const categories = document.createElement('div');
+  categories.className = 'chemical-profile-reactivity-categories';
+  appendLabelBlock(categories, 'Incompatibilities', categoryLabels, 'chemical-profile-reactivity-primary');
+  if (!categoryLabels.length) {
+    const empty = document.createElement('p');
+    empty.className = 'chemical-profile-reactivity-empty';
+    empty.textContent = 'No short incompatibility categories are available in the current sources.';
+    categories.append(empty);
+  }
+  section.append(categories);
 
-  const secondary = document.createElement('div');
-  secondary.className = 'chemical-profile-reactivity-secondary';
-  addBlock(secondary, 'Polymerization risk', profile?.reactivity?.polymerizationRisk);
-  addBlock(secondary, 'Water reactivity', profile?.reactivity?.waterReactivity);
-  addBlock(secondary, 'Oxidizer / reducer concerns', profile?.reactivity?.oxidizerReducerConcerns);
-  section.append(secondary);
+  appendLabelBlock(section, 'Oxidizer / reducer concerns', redoxConcerns, 'chemical-profile-reactivity-redox');
+
+  const additionalWarnings = [
+    ['Polymerization risk', profileListItems(profile?.reactivity?.polymerizationRisk)],
+    ['Water reactivity', profileListItems(profile?.reactivity?.waterReactivity)],
+  ].filter(([, items]) => items.length);
+  if (additionalWarnings.length) {
+    const warnings = document.createElement('div');
+    warnings.className = 'chemical-profile-reactivity-warnings';
+    additionalWarnings.forEach(([label, items]) => appendLabelBlock(warnings, label, items));
+    section.append(warnings);
+  }
+
+  if (incompatibilities.length) {
+    const details = document.createElement('details');
+    details.className = 'chemical-profile-reactivity-details';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Full incompatibility details';
+    const content = document.createElement('div');
+    content.className = 'chemical-profile-reactivity-details-content';
+    incompatibilities.forEach((item) => {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = normalizeDataSourceOutput(item);
+      content.append(paragraph);
+    });
+    const sourceLabels = chemicalProfileSources(profile);
+    if (sourceLabels.length) {
+      const sourceNote = document.createElement('p');
+      sourceNote.className = 'chemical-profile-reactivity-source-note';
+      sourceNote.textContent = `Sources: ${sourceLabels.join(', ')}`;
+      content.append(sourceNote);
+    }
+    details.append(summary, content);
+    section.append(details);
+  }
+
   return section;
 }
 
@@ -5613,7 +5674,13 @@ function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = 
           exposureSummary,
         ]),
         createChemicalProfileColumn('operations', [
-          createProfileSection('Frontline Considerations', chemicalFrontlineRows(profile)),
+          (() => {
+            const frontlineSection = createProfileSection('Frontline Considerations', chemicalFrontlineRows(profile));
+            if (frontlineSection && hasChemicalSourceData(profile)) {
+              frontlineSection.append(createChemicalProfileTabLink(seeProfileLinkLabel, 'response'));
+            }
+            return frontlineSection;
+          })(),
         ]),
       ];
     } },
@@ -5669,16 +5736,7 @@ function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = 
     ] },
     { key: 'detectors', title: 'Detectors', render: () => createDetailedMonitoringSections(profile) },
     { key: 'reactivity', title: 'Reactivity', render: () => [
-      (() => {
-        const section = createProfileSection('Reactivity profile', [
-          { label: 'Incompatibilities', value: profileArray(profile?.reactivity?.incompatibilities).join(' · ') || 'Not available' },
-          { label: 'Polymerization risk', value: profileArray(profile?.reactivity?.polymerizationRisk).join(' · ') || 'Not available' },
-          { label: 'Water reactivity', value: profileArray(profile?.reactivity?.waterReactivity).join(' · ') || 'Not available' },
-          { label: 'Oxidizer / reducer concerns', value: profileArray(profile?.reactivity?.oxidizerReducerConcerns).join(' · ') || 'Not available' },
-        ]);
-        section?.classList.add('chemical-profile-reactivity-compact');
-        return section;
-      })(),
+      createReactivityProfileSection(profile),
       createProfileSection('Stability and decomposition', [
         { label: 'Overall stability', value: profile?.reactivity?.stabilityNotes || 'Not available' },
         { label: 'Mixing risk', value: profile?.reactivity?.chemicalMixtureReactivity || 'Not available' },

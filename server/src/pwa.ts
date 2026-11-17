@@ -6,7 +6,17 @@ import { createHash } from 'node:crypto';
 export async function offlineWorker(publicDirectory: string) {
   const html = await readFile(path.join(publicDirectory, 'index.html'), 'utf8');
   const links = [...html.matchAll(/(?:src|href)="([^"]+\.(?:css|js)(?:\?[^"]*)?)"/g)].map((match) => match[1].replaceAll('&amp;', '&'));
-  const core = [...new Set(['/', '/manifest.webmanifest', '/assets/emergenz-app-32-v2.png', '/assets/emergenz-app-192-v2.png', '/assets/emergenz-app-512-v2.png', '/assets/emergenz-app-maskable-512-v2.png', ...links.map((link) => {
+  // These shared visuals must travel with the cached HTML/CSS. Otherwise an
+  // installed shell can load successfully offline with blank branding/cards.
+  const sharedVisuals = [
+    '/assets/emergenz-compass-tight.png?v=1',
+    '/assets/emergenz-wordmark-tight.png?v=1',
+    '/assets/page-nav-icons.svg',
+    '/assets/home-action-incident-v2.png?v=1',
+    '/assets/home-action-planning-v2.png?v=3',
+    '/assets/home-action-reports-v2.png?v=3',
+  ];
+  const core = [...new Set(['/', '/manifest.webmanifest', '/assets/emergenz-app-32-v2.png', '/assets/emergenz-app-192-v2.png', '/assets/emergenz-app-512-v2.png', '/assets/emergenz-app-maskable-512-v2.png', ...sharedVisuals, ...links.map((link) => {
     const url = new URL(link, 'https://shell.invalid/');
     return url.origin === 'https://shell.invalid' ? `${url.pathname}${url.search}` : '';
   }).filter(Boolean)])];

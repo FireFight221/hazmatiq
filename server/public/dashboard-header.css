@@ -663,6 +663,12 @@ body {
   display: none !important;
 }
 
+/* Keep the shared brand and icon navigation available on internal mobile
+   pages as well; the older internal-header hide rule has higher specificity. */
+.app-shell:not(:has(#overview.view.active)) > .command-header.app-header-row {
+  display: grid !important;
+}
+
 /* One spacing contract for every page below the shared navigation. Keep the
    page-root surfaces responsible for their own internal content rhythm. */
 .app-shell > .layout {

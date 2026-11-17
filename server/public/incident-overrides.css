@@ -732,16 +732,16 @@
   box-shadow: 0 24px 70px rgba(1, 15, 28, .65);
 }
 #incident-facility-inventory-dialog::backdrop { background: rgba(1, 11, 20, .76); backdrop-filter: blur(2px); }
-#incident-facility-inventory-dialog .ghost-btn,
-#incident-facility-inventory-dialog .ghost-btn:hover,
-#incident-facility-inventory-dialog .ghost-btn:active,
-#incident-facility-inventory-dialog .ghost-btn:focus-visible {
+#incident-facility-inventory-dialog #close-incident-facility-inventory-btn,
+#incident-facility-inventory-dialog #close-incident-facility-inventory-btn:hover,
+#incident-facility-inventory-dialog #close-incident-facility-inventory-btn:active,
+#incident-facility-inventory-dialog #close-incident-facility-inventory-btn:focus-visible {
   background: #e3e6e9 !important;
   color: #10283f !important;
   font-weight: 800;
 }
-#incident-facility-inventory-dialog .ghost-btn:focus-visible {
-  outline: 3px solid var(--gold) !important;
+#incident-facility-inventory-dialog #close-incident-facility-inventory-btn:focus-visible {
+  outline: 3px solid #f6c343 !important;
   outline-offset: 2px;
 }
 .incident-facility-inventory-shell { display: flex; flex-direction: column; max-height: min(90dvh, 900px); }

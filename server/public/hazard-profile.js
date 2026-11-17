@@ -113,6 +113,14 @@
     const state = getActiveHazardState();
     const api = legacyApi();
     if (!button || !state || !api) return;
+    if (button.dataset.profileTabLink) {
+      const profile = api.normalizeProfileForUi?.(state.profile) || state.profile || {};
+      api.renderChemicalProfile({ ...profile, activeTab: button.dataset.profileTabLink });
+      window.requestAnimationFrame(() => {
+        document.querySelector('[data-section="reactivity-profile"]')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+      return;
+    }
     if (button.closest('#chemical-profile-tabs')) {
       const profile = api.normalizeProfileForUi?.(state.profile) || state.profile || {};
       api.renderChemicalProfile({ ...profile, activeTab: button.dataset.tab });
@@ -139,7 +147,7 @@
     if (!root) return;
     if (!initialized) {
       root.addEventListener('click', (event) => {
-        const button = event.target.closest('#chemical-profile-tabs [data-tab], #hazard-profile-tabs [data-profile-fields]');
+        const button = event.target.closest('#chemical-profile-tabs [data-tab], #hazard-profile-tabs [data-profile-fields], [data-profile-tab-link]');
         if (button) selectProfileTab(button);
       });
       initialized = true;

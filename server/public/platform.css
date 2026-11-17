@@ -9,6 +9,8 @@
 .em-platform-dialog button{margin:5px 6px 5px 0}.em-platform-dialog p{margin:10px 0}.em-platform-dialog article{border-top:1px solid #476276;padding:12px 0}
 @media print{.em-platform-bar,.em-platform-dialog{display:none!important}}
 /* Compact connection indicator; installation and account details live in Settings. */
+.em-platform-bar-spacer{height:34px;box-sizing:border-box;background:#081d30;border-bottom:1px solid #476276}
+.em-platform-bar{position:absolute;top:0;right:0;left:0;z-index:10}
 .em-platform-bar{padding:3px 12px;gap:10px;font-size:12px;min-height:27px}
 .em-platform-connection{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .em-platform-dot{display:inline-block;width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#aab8c5}

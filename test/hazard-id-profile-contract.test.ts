@@ -209,7 +209,7 @@ describe("Hazard ID profile contract and routing", () => {
     expect(JSON.stringify(rows)).not.toMatch(/Provide oxygen|monitor ABCs/i);
   });
 
-  it("returns no frontline card rows when the chemical has no operational evidence", () => {
+  it("states that fire-specific evidence is unavailable instead of substituting reactivity", () => {
     const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalFrontlineRows"]
       .map(declaration).join("\n");
     const meaningful = (value: unknown): boolean => Array.isArray(value)
@@ -219,7 +219,9 @@ describe("Hazard ID profile contract and routing", () => {
       hasMeaningfulChemicalProfileData: meaningful,
       normalizeDataSourceOutput: (value: unknown) => Array.isArray(value) ? value.join(" · ") : String(value ?? ""),
     } as Record<string, unknown>;
-    expect(runInNewContext(`${source}; chemicalFrontlineRows({})`, context)).toEqual([]);
+    expect(runInNewContext(`${source}; chemicalFrontlineRows({})`, context)).toEqual([
+      { label: 'Fire considerations', value: 'No fire-specific information is available from current sources.' },
+    ]);
   });
 
   it.each([[102, "Sulfur dioxide"], [22, "Chlorine"], [10, "Ammonia (anhydrous)"]]) ("keeps EMS content out of frontline rows for %s", async (id, name) => {

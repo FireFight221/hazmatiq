@@ -28,6 +28,12 @@
   };
   const findRole = (assignments, role) => (assignments || []).find((item) => roleKey(item.role) === roleKey(role));
   const organizationDefinition = (roleId) => organizationRoleDefinitions.find((definition) => definition.roleId === roleId);
+  const commandRoleTitle = (assignment, incident) => {
+    const activeCommandMode = [assignment?.role, incident?.commandMode, incident?.commandType, incident?.commandStructure]
+      .filter(Boolean)
+      .join(' ');
+    return /unified\s+command/i.test(activeCommandMode) ? 'Unified Command' : 'Incident Command';
+  };
   const organizationMetadata = (assignment) => {
     const explicitId = String(assignment?.organizationRoleId || assignment?.roleId || '').trim();
     const explicit = organizationDefinition(explicitId);
@@ -209,17 +215,17 @@
     const commander = rect('[data-role-id="incident-command"]');
     const staff = [...chart.querySelectorAll('.worksheet-command-staff .worksheet-role')].map((element) => ({ element, box: element.getBoundingClientRect() }));
     const chiefs = [...chart.querySelectorAll('.worksheet-section-chiefs > .worksheet-org-lane > .worksheet-role')].map((element) => ({ element, box: element.getBoundingClientRect() }));
+    const commandX = commander ? point(commander, 'center').x : 0;
+    const commandBottom = commander ? point(commander, 'bottom').y : 0;
     if (commander && staff.length) {
-      const commandX = point(commander, 'center').x;
-      const busY = staff[0].box.top - chartRect.top - 12;
-      path(`M ${commandX} ${point(commander, 'bottom').y} V ${busY}`);
+      const lastStaffCenterY = staff.at(-1).box.top + staff.at(-1).box.height / 2 - chartRect.top;
+      path(`M ${commandX} ${commandBottom} V ${lastStaffCenterY}`);
       staff.forEach(({ box }) => {
         const centerY = box.top + box.height / 2 - chartRect.top;
-        path(`M ${commandX} ${busY} H ${box.left - chartRect.left} M ${box.left - chartRect.left} ${busY} V ${centerY}`);
+        path(`M ${commandX} ${centerY} H ${box.left - chartRect.left}`);
       });
     }
     if (commander && chiefs.length) {
-      const commandX = point(commander, 'center').x;
       const chiefY = chiefs[0].box.top - chartRect.top - 14;
       const firstX = chiefs[0].box.left + chiefs[0].box.width / 2 - chartRect.left;
       const lastX = chiefs[chiefs.length - 1].box.left + chiefs[chiefs.length - 1].box.width / 2 - chartRect.left;
@@ -240,13 +246,13 @@
     });
   }
   const renderOrganizationRole = (definition, assignment, ctx) => {
-    const cardElement = node('label', `worksheet-role worksheet-role-accent-${definition.accent}`);
+    const cardElement = node('label', `worksheet-role worksheet-role-primary worksheet-role-accent-${definition.accent}`);
     cardElement.dataset.cardId = definition.roleId;
     cardElement.dataset.roleId = definition.roleId;
     cardElement.dataset.section = definition.section;
     cardElement.dataset.parentRoleId = definition.parentRoleId || '';
     cardElement.dataset.assignmentId = assignment?.assignmentId || '';
-    cardElement.append(node('strong', '', definition.role));
+    cardElement.append(node('strong', '', definition.displayRole || definition.role));
     const roleFields = node('span', 'worksheet-role-fields');
     const inputControls = {};
     const addRoleField = (labelText, key, placeholder) => {
@@ -300,7 +306,13 @@
     const topAssignments = organizationTopRoleDefinitions.map((definition) => {
       const assignment = findOrganizationAssignment(assignments, definition);
       if (assignment?.assignmentId) usedAssignmentIds.add(assignment.assignmentId);
-      return { ...definition, assignment, cardId: definition.roleId, editable: true };
+      return {
+        ...definition,
+        assignment,
+        cardId: definition.roleId,
+        editable: true,
+        displayRole: definition.roleId === 'incident-command' ? commandRoleTitle(assignment, ctx.incident) : definition.role,
+      };
     });
     const commandBand = node('div', 'worksheet-org-command-band');
     commandBand.append(renderOrganizationRole(topAssignments[0], topAssignments[0].assignment, ctx));

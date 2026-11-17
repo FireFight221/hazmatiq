@@ -158,16 +158,11 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
 
 #incident .incident-command-hero .incident-command-subtitle { margin-inline: 0 !important; }
 
-/* Keep the live tactical/weather/alerts feed below the dashboard rather than
-   allowing it to become a second header row. */
+/* Keep the live tactical/weather/alerts feed in the Home page flow. */
 .home-status-bar {
-  display: none !important;
-}
-
-.app-shell:has(#overview.view.active) > .layout > .content-area > .home-status-bar {
   display: block !important;
   width: 100% !important;
-  margin: 10px 0 0 !important;
+  margin: 6px 0 0 !important;
   padding: 0 !important;
 }
 
@@ -176,6 +171,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   inset: auto !important;
   display: block !important;
   width: 100% !important;
+  height: auto !important;
   min-height: 0 !important;
   margin: 0 !important;
   padding: 7px !important;
@@ -206,6 +202,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   text-align: center !important;
   min-width: 0 !important;
   min-height: 58px !important;
+  height: 58px !important;
   margin: 0 !important;
   padding: 7px 12px !important;
   border: 1px solid rgba(78, 132, 174, 0.5) !important;
@@ -214,6 +211,11 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   box-shadow: none !important;
   transform: none !important;
   z-index: auto !important;
+}
+
+.home-status-bar .notification-system {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
 }
 
 .home-status-bar .notification-item > span,
@@ -260,6 +262,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
 .home-status-bar .notification-system-message {
   grid-column: 1 !important;
   grid-row: 2 !important;
+  max-height: 2.4em !important;
 }
 
 .home-status-bar .notification-alerts-item {
