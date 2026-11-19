@@ -241,6 +241,8 @@ let notificationHistory = [];
 try {
   notificationHistory = JSON.parse(window.localStorage.getItem(notificationHistoryStorageKey) || '[]');
   if (!Array.isArray(notificationHistory)) notificationHistory = [];
+  // Drop transient status entries saved by earlier versions.
+  notificationHistory = notificationHistory.filter((entry) => !/^(?:loading|checking|refreshing|retrieving)\b/i.test(String(entry?.message || '').trim()));
 } catch {
   notificationHistory = [];
 }
@@ -249,7 +251,8 @@ function classifyNotification(message) {
   const text = String(message || '');
   if (/\b(critical|danger|evacuat|life safety|alarm)\b/i.test(text)) return 'critical';
   if (/\b(warning|alert|failed|failure|lost|disconnect|conflict|error)\b/i.test(text) && !/no alerts?/i.test(text)) return 'warning';
-  if (/\b(loading|awaiting|needed|stale|verify|unavailable)\b/i.test(text)) return 'advisory';
+  if (/^(?:loading|checking|refreshing|retrieving)\b/i.test(text)) return 'normal';
+  if (/\b(awaiting|needed|stale|verify|unavailable)\b/i.test(text)) return 'advisory';
   return 'normal';
 }
 
@@ -322,6 +325,9 @@ function renderNotificationStrip() {
 
 function recordNotification(sourceKey, message, metadata = {}) {
   const normalized = String(message || '').trim();
+  // Transient system status ("Loading live weather…") is not an alert and must
+  // not be logged to history or counted in the Alerts badge.
+  if (!normalized || /^(?:loading|checking|refreshing|retrieving)\b/i.test(normalized)) return;
   const source = notificationSources[sourceKey];
   const previous = metadata.type === 'WEATHER_BRIEF' ? null : notificationHistory.find((entry) => entry.source === source && !entry.resolved);
   if (previous?.message === normalized) return;
@@ -1933,6 +1939,9 @@ function canonicalIncidentChemicalFields(chemical, profileRecord = null) {
   return {
     selectedChemicalId: Number(selectedId),
     chemicalCompanionId: Number(selectedId),
+    // A ChemicalCompanion product replaces any prior CBRNE primary hazard.
+    cbrneCanonicalId: null,
+    canonicalHazardId: null,
     chemicalName,
     casNumber: firstChemicalDataValue(
       header.cas,
@@ -2277,7 +2286,7 @@ function incidentCommandMonitoringState(incident) {
 function buildIncidentCommandViewModel() {
   const incident = getActiveIncident();
   if (!incident) return { hasActiveIncident: false };
-  const location = [incident.facilityName, incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', ');
+  const location = joinLocationParts([incident.facilityName, incident.address, incident.city, incident.state, incident.zip]);
   // Incident Command reads only the plume workflow persisted on this incident.
   // The latest overlay is a map/planning transport artifact, not an incident
   // summary source and may belong to another workspace.
@@ -2359,14 +2368,15 @@ function buildIncidentCommandViewModel() {
     incidentName: incidentCommandValue(incident.incidentName, 'Incident not named'),
     status: incidentCommandValue(incident.status, 'Active'),
     location: incidentCommandValue(location, 'Location not set'),
-    sceneLocation: incidentCommandValue([incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', '), 'No Current Data Exists'),
+    sceneLocation: incidentCommandValue(joinLocationParts([incident.address, incident.city, incident.state, incident.zip]), 'No Current Data Exists'),
     facilityName: incidentCommandValue(incident.facilityName, 'Not specified'),
-    facilityAddress: incidentCommandValue([incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', '), 'Not specified'),
+    facilityAddress: incidentCommandValue(joinLocationParts([incident.address, incident.city, incident.state, incident.zip]), 'Not specified'),
     facilityType: incidentCommandValue(incident.facilityType, 'Not specified'),
     facilityVerified,
     facilityVerificationStatus: facilityVerified ? 'Verified facility record' : incident.selectedFacility?.name ? 'Manual entry — not verified' : 'No facility selected',
     chemical: {
       name: incidentCommandValue(chemicalData.chemicalName),
+      casNumber: incidentCommandValue(chemicalData.casNumber),
       unNumber: incidentCommandValue(chemicalData.unNumber),
       ergGuide: incidentCommandValue(chemicalData.ergGuide),
       hazardClass: incidentCommandValue(chemicalData.hazardClass),
@@ -2560,7 +2570,7 @@ function renderIncidentCommandDashboard() {
   [
     ['Incident Name', model.incidentName], ['Status', model.status], ['Location', model.location],
     ['Date / Time Started', model.startTime ? new Date(model.startTime).toLocaleString() : noCurrentDataText],
-    ['Elapsed Time', model.elapsedTime], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)],
+    ['Elapsed Time', model.elapsedTime, false, 'elapsed'], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)],
     ['IDLH', model.idlh, true, 'idlh'], ['Operational Strategy', model.operationalStrategy], ['Last Updated', model.lastUpdated],
   ].forEach(([labelText, value, lifeSafety, field]) => {
     const row = document.createElement('div');
@@ -2882,6 +2892,9 @@ function renderIncidentTimer() {
   const timer = document.getElementById('active-incident-timer');
   if (timer) timer.textContent = elapsed;
   setText('ic-summary-elapsed', elapsed);
+  // Keep the Incident Brief on the same one-second clock as the header timer.
+  const briefElapsed = document.querySelector('#ic-brief-list [data-field="elapsed"] dd');
+  if (briefElapsed) briefElapsed.textContent = elapsed;
 
   // The clock is a narrow, once-per-second update. Keep the tactical status
   // current without rebuilding the Command dashboard or recording a new
@@ -3082,7 +3095,7 @@ function renderIncidentCard(container, incident, activeId, { deletable = false }
   const name = document.createElement('strong');
   name.textContent = incident.incidentName || 'New Incident';
   const summary = document.createElement('small');
-  const place = [incident.facilityName, incident.address, incident.city, incident.state].filter(Boolean).join(', ');
+  const place = joinLocationParts([incident.facilityName, incident.address, incident.city, incident.state]);
   summary.textContent = [incident.startDate, incident.startTime, place].filter(Boolean).join(' · ');
   const status = document.createElement('span');
   status.className = 'status-pill';
@@ -7435,7 +7448,7 @@ function validAssignmentCoordinatePair(latitude, longitude) {
 
 function savedIncidentLocation(incident) {
   const coordinates = validAssignmentCoordinatePair(incident?.latitude, incident?.longitude);
-  const label = [incident?.facilityName, incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', ')
+  const label = joinLocationParts([incident?.facilityName, incident?.address, incident?.city, incident?.state, incident?.zip])
     || incident?.selectedFacility?.name || '';
   return coordinates ? { ...coordinates, label } : null;
 }
@@ -7470,7 +7483,7 @@ function resolveAssignmentLocation(incident, assignment) {
     incidentLocation?.label,
     incident?.facilityName,
     incident?.address,
-    [incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', '),
+    joinLocationParts([incident?.address, incident?.city, incident?.state, incident?.zip]),
     incident?.selectedFacility?.name,
     incident?.selectedFacility?.address,
   ].map(normalize).filter(Boolean);
@@ -9330,6 +9343,7 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
         ['Alternate / common name', profile.identifiers?.aliases],
         ['Scientific name', profile.scientificName || profile.identifiers?.scientificName],
         ['ERG Guide', profile.identifiers?.ergGuide],
+        ['ERG isolation / protective action', profile.identifiers?.ergProtectiveActionDistances],
         ['CWC classification', profile.identifiers?.opcwSchedule],
         ['Hazard Class', category || noCurrentDataText],
       ];
@@ -9396,6 +9410,48 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   renderStarterHazardTab(profile, activeTabFields);
 }
 
+let cbrneReferenceLookup = null;
+
+function cbrneLookupWouldReplaceIncidentChemical(result) {
+  if (!hasActiveIncident()) return false;
+  const incident = getActiveIncident();
+  if (!incident || !hasCanonicalIncidentChemicalIdentity(incident)) return false;
+  const identity = incidentChemicalIdentity(incident);
+  const incidentName = String(identity?.name || incident.chemicalName || '').trim().toLowerCase();
+  const resultName = String(result?.displayName || '').trim().toLowerCase();
+  return Boolean(resultName) && incidentName !== resultName;
+}
+
+function setCbrneReferenceLookup(lookup) {
+  cbrneReferenceLookup = lookup || null;
+  const banner = document.getElementById('cbrne-reference-banner');
+  if (!banner) return;
+  if (!lookup) {
+    banner.hidden = true;
+    return;
+  }
+  const incident = getActiveIncident();
+  const incidentChemicalName = incidentChemicalIdentity(incident)?.name || incident?.chemicalName || 'its current chemical';
+  setText(
+    'cbrne-reference-text',
+    `Reference lookup only. ${lookup.result?.displayName || 'This agent'} has not been added to ${incident?.incidentName || 'the active incident'}. Command, Plot Plume, and Guided Response still use ${incidentChemicalName}.`,
+  );
+  banner.hidden = false;
+}
+
+document.getElementById('cbrne-reference-assign-btn')?.addEventListener('click', () => {
+  const lookup = cbrneReferenceLookup;
+  if (!lookup) return;
+  const incident = getActiveIncident();
+  const previousName = incidentChemicalIdentity(incident)?.name || incident?.chemicalName || 'the current chemical';
+  const nextName = lookup.result?.displayName || 'this agent';
+  const confirmed = window.confirm(`Add ${nextName} to ${incident?.incidentName || 'the active incident'} as the primary hazard?\n\nThis replaces ${previousName} as the incident's primary hazard.`);
+  if (!confirmed) return;
+  setCbrneReferenceLookup(null);
+  window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(lookup.result, lookup.profile);
+  setChemicalSearchStatus(`${nextName} assigned to the active incident.`, 'success');
+});
+
 async function openStarterHazard(result, { profileTab = 'overview' } = {}) {
   const requestId = ++latestStarterHazardRequest;
   const lane = result?.lane || result?.routingLane || activeHazardSearchLane;
@@ -9408,7 +9464,14 @@ async function openStarterHazard(result, { profileTab = 'overview' } = {}) {
   }
   renderStarterHazardProfile(profile, { profileTab });
   window.HazMatIQ?.setActiveHazardState?.(result, { profile, status: 'ready' });
-  window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(result, profile);
+  // Same rule as chemical lookups (C2): looking up a CBRNE agent during an
+  // incident that already has a chemical is a reference lookup. Only an
+  // explicit, confirmed Assign changes the incident.
+  if (cbrneLookupWouldReplaceIncidentChemical(result)) setCbrneReferenceLookup({ result, profile });
+  else {
+    setCbrneReferenceLookup(null);
+    window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(result, profile);
+  }
   hazardProfileResults?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -11775,9 +11838,11 @@ async function fitPlumeToView() {
   if (currentErgIsolationGeoJson?.features?.length) {
     forEachCoordinate(currentErgIsolationGeoJson, (coordinate) => bounds.extend(coordinate));
   }
+  const releasePoint = plumeSourceMarker?.getLngLat?.();
+  if (!bounds.isEmpty() && releasePoint) bounds.extend([releasePoint.lng, releasePoint.lat]);
   if (!bounds.isEmpty()) {
     plumeMap.fitBounds(bounds, {
-      padding: 70,
+      padding: plumeMapFitPadding(),
       maxZoom: 15,
       pitch: plumeViewIsPlume() ? 60 : (plumeMap.getPitch?.() || 0),
       bearing: plumeMap.getBearing?.() || 0,
@@ -12163,7 +12228,7 @@ async function toggleErgIsolationOverlay() {
       chemicalId: String(activeChemical.selectedChemicalId ?? activeChemical.id),
       endpointDurationMinutes: document.getElementById('plume-endpoint-duration')?.value || '60',
       ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-      ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+      ergPeriod: resolveErgPeriod(),
       ergOnly: 'true',
     });
     const response = await fetch(`/api/plume/availability?${query}`);
@@ -12652,7 +12717,7 @@ async function renderErgOverlay(geojson, label) {
   if (ergIsolationVisible) addErgIsolationLayer();
   const bounds = new window.maplibregl.LngLatBounds();
   forEachCoordinate(geojson, (coordinate) => bounds.extend(coordinate));
-  if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 500 });
+  if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: plumeMapFitPadding(), maxZoom: 15, duration: 500 });
   setText('plume-overlay-status', label);
   return Boolean(isolationFeatures.length || protectiveFeatures.length);
 }
@@ -13154,7 +13219,7 @@ async function renderThreatZones(geojson, label) {
   if (plumeViewIsPlume()) {
     updatePlume3dEnvelope();
     setPlumeGroundView();
-  } else if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 500 });
+  } else if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: plumeMapFitPadding(), maxZoom: 15, duration: 500 });
   setText('plume-overlay-status', label);
   return true;
 }
@@ -14168,7 +14233,7 @@ async function setPlumeMapView(viewName) {
   if (!cameraBeforeSwitch && activeZones?.features?.length) {
     const bounds = new window.maplibregl.LngLatBounds();
     forEachCoordinate(activeZones, (coordinate) => bounds.extend(coordinate));
-    if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, pitch: view.pitch, bearing: cameraBearing, duration: 400 });
+    if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: plumeMapFitPadding(), maxZoom: 15, pitch: view.pitch, bearing: cameraBearing, duration: 400 });
   } else {
     plumeMap.easeTo(camera);
   }
@@ -14345,7 +14410,7 @@ async function getIncidentCoordinates({ requestGps = true, allowPlumeManual = fa
   if (entered) return useFallbackLocation({ ...entered, source: 'Incident Dashboard' });
   const incident = getActiveIncident();
   const address = getIncidentAddressValue();
-  const savedAddress = [incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', ');
+  const savedAddress = joinLocationParts([incident?.address, incident?.city, incident?.state, incident?.zip]);
   const saved = incident?.latitude !== '' && incident?.longitude !== ''
     && incident?.latitude != null && incident?.longitude != null
     ? parseGpsCoordinate(`${incident.latitude}, ${incident.longitude}`) : null;
@@ -15315,7 +15380,7 @@ function readPlumeModelInputs(location) {
     weatherObservationTime: getPlumeWeatherObservationTime(),
     terrainElevationM: Number(String(document.getElementById('plume-elevation')?.value || '').replace(/,/g, '')) * 0.3048 || null,
     ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-    ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+    ergPeriod: resolveErgPeriod(),
   };
 }
 
@@ -15370,7 +15435,7 @@ async function getPlumeModeAvailability() {
     ...(chemical.un ? { unNumber: String(chemical.un) } : {}),
     endpointDurationMinutes: document.getElementById('plume-endpoint-duration')?.value || '60',
     ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-    ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+    ergPeriod: resolveErgPeriod(),
   });
   try {
     const response = await fetch(`/api/plume/availability?${query}`);
@@ -15404,7 +15469,7 @@ async function getErgIsolationAvailability() {
     ...(chemical.un ? { unNumber: String(chemical.un) } : {}),
     endpointDurationMinutes: document.getElementById('plume-endpoint-duration')?.value || '60',
     ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-    ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+    ergPeriod: resolveErgPeriod(),
     ergOnly: 'true',
   });
   try {
@@ -15454,6 +15519,65 @@ async function capturePlumeMapImage() {
   } catch {
     return '';
   }
+}
+
+// Fit padding that keeps the release point and zone edges clear of the
+// compass / zoom cluster drawn over the top-right of the plume map.
+function plumeMapFitPadding(base = 70) {
+  const padding = { top: base, bottom: base, left: base, right: base };
+  const control = document.getElementById('plume-compass-control');
+  const container = plumeMap?.getContainer?.();
+  if (!control || !container || control.offsetParent === null) return padding;
+  const controlRect = control.getBoundingClientRect();
+  const mapRect = container.getBoundingClientRect();
+  const intrusion = Math.max(0, mapRect.right - controlRect.left);
+  if (intrusion > 0 && intrusion < mapRect.width / 2) padding.right = Math.max(base, Math.round(intrusion + 60)); // clear the compass plus the release pin width
+  return padding;
+}
+
+// ERG 2024 "day" means sunrise to sunset. Resolve Auto from the sun's
+// elevation at the incident location; fall back to Night (the larger, more
+// protective distance) when location or time cannot be determined.
+function solarElevationDegrees(lat, lon, date = new Date()) {
+  const rad = Math.PI / 180;
+  const days = date.getTime() / 86400000 - 10957.5; // days since J2000.0
+  const meanLongitude = (280.46 + 0.9856474 * days) % 360;
+  const meanAnomaly = ((357.528 + 0.9856003 * days) % 360) * rad;
+  const eclipticLongitude = (meanLongitude + 1.915 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly)) * rad;
+  const obliquity = (23.439 - 0.0000004 * days) * rad;
+  const declination = Math.asin(Math.sin(obliquity) * Math.sin(eclipticLongitude));
+  const rightAscension = Math.atan2(Math.cos(obliquity) * Math.sin(eclipticLongitude), Math.cos(eclipticLongitude));
+  const siderealDegrees = (280.46061837 + 360.98564736629 * days + lon) % 360;
+  const hourAngle = siderealDegrees * rad - rightAscension;
+  const latitude = lat * rad;
+  return Math.asin(Math.sin(latitude) * Math.sin(declination) + Math.cos(latitude) * Math.cos(declination) * Math.cos(hourAngle)) / rad;
+}
+
+function resolveErgPeriod(date = new Date()) {
+  const selected = document.getElementById('plume-erg-period')?.value || 'auto';
+  if (selected === 'day' || selected === 'night') return selected;
+  const incident = typeof getActiveIncident === 'function' ? getActiveIncident() : null;
+  const lat = Number(incident?.latitude);
+  const lon = Number(incident?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) return 'night';
+  return solarElevationDegrees(lat, lon, date) > -0.833 ? 'day' : 'night';
+}
+
+// Join address parts without repeating a place already present, so an
+// incident saved with address "Alabaster" and city "Alabaster" reads
+// "Alabaster, AL" instead of "Alabaster, Alabaster, AL".
+function joinLocationParts(parts) {
+  const seen = new Set();
+  const output = [];
+  parts.forEach((part) => {
+    const value = String(part ?? '').trim();
+    if (!value) return;
+    const segments = value.split(',').map((segment) => segment.trim().toLowerCase()).filter(Boolean);
+    if (segments.every((segment) => seen.has(segment))) return;
+    segments.forEach((segment) => seen.add(segment));
+    output.push(value);
+  });
+  return output.join(', ');
 }
 
 function controlValue(id, { selectedLabel = false } = {}) {

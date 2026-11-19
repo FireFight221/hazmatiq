@@ -357,7 +357,7 @@ describe("plume map views", () => {
     expect(plumeHtml).toContain('id="plume-weather-data-panel"');
     expect(plumeHtml).not.toContain('id="plume-weather-data-panel" hidden');
     expect(plumeHtml).toContain('id="plume-erg-spill-size" type="hidden" value="large"');
-    expect(plumeHtml).toContain('id="plume-erg-period" type="hidden" value="night"');
+    expect(plumeHtml).toContain('<select id="plume-erg-period"><option value="auto" selected>');
     expect(plumeUi).toContain("availability.result?.mode === 'aegl-plume'");
     expect(plumeUi).toContain("availability.result?.mode === 'erg-protective-action'");
   });

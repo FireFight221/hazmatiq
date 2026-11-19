@@ -847,6 +847,10 @@
                     <button class="ghost-btn" id="hazard-profile-save-btn" type="button">Save to My Hazards</button>
                   </div>
                 </header>
+                <div id="cbrne-reference-banner" class="hazard-reference-banner" role="status" aria-live="polite" hidden>
+                  <p id="cbrne-reference-text"></p>
+                  <button class="chemical-action-button" id="cbrne-reference-assign-btn" type="button">Assign to incident</button>
+                </div>
                 <article class="hazard-profile-header-card">
                   <div class="hazard-profile-emblem" id="hazard-profile-emblem" aria-hidden="true"></div>
                   <div class="hazard-profile-identity">
@@ -1276,7 +1280,7 @@
                       <summary>Advanced Criteria <small>ERG fallback controls</small></summary>
                       <div class="plume-criteria-note">These retained settings apply only when verified AEGL/LOC data is unavailable and the ERG fallback is selected.</div>
                       <input id="plume-erg-spill-size" type="hidden" value="large" />
-                      <input id="plume-erg-period" type="hidden" value="night" />
+                      <label for="plume-erg-period">ERG day / night<select id="plume-erg-period"><option value="auto" selected>Auto (local sunrise / sunset)</option><option value="day">Day</option><option value="night">Night</option></select></label>
                     </details>
                     <details class="plume-advanced-details">
                       <summary>Advanced Details</summary>

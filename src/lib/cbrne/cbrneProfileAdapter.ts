@@ -13,6 +13,7 @@ import { authoritativeFactsForRecord } from "../../data/cbrne/authoritative/auth
 import { findRadionuclidePhysicsRecord } from "../../data/cbrne/authoritative/radionuclidePhysics.js";
 import { guidedResponseEvidenceForRecord, guidedResponseReadinessForRecord } from "./guidedResponseReadiness.js";
 import { buildRadiologicalProfile } from "./radiologicalProfile.js";
+import { ergCwaReference, ergCwaSummary } from "./ergChemicalWarfareAgents.js";
 
 const SECTION_GROUPS = Object.freeze({
   overviewFacts: ["IDENTITY"] as readonly CbrneFieldGroup[],
@@ -149,6 +150,8 @@ export function adaptCbrneProfile(
       agentCodes: record.agentCodes ?? [],
       cas: record.cas ?? [],
       unNaNumbers: record.unNaNumbers ?? [],
+      ergGuide: ergCwaReference(record.category)?.guide ?? null,
+      ergProtectiveActionDistances: ergCwaSummary(ergCwaReference(record.category)),
       radionuclideSymbol: record.radionuclideSymbol ?? null,
       isotopeMassNumber: record.isotopeMassNumber ?? null,
       opcwSchedule: record.opcwSchedule ?? (scheduleOneFact ? "Schedule 1 · CWC identity/classification" : null),

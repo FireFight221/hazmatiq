@@ -721,6 +721,17 @@
 .hazard-reference-banner[hidden] { display: none; }
 .hazard-reference-banner p { margin: 0; font-weight: 600; line-height: 1.4; }
 .hazard-reference-banner button { flex: 0 0 auto; min-height: 44px; }
+.hazard-reference-banner .chemical-action-button {
+  padding: 0 16px;
+  border: 1px solid #f2b84b;
+  border-radius: 8px;
+  background: #f2b84b;
+  color: #111827;
+  font-weight: 800;
+  cursor: pointer;
+}
+.hazard-reference-banner .chemical-action-button:hover,
+.hazard-reference-banner .chemical-action-button:focus-visible { background: #ffd27a; }
 @media (max-width: 560px) {
   .hazard-reference-banner { flex-direction: column; align-items: stretch; }
 }
