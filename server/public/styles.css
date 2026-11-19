@@ -2020,7 +2020,7 @@ h1 { font-weight: 800; }
   background-color: #f8fbff;
   background-image:
     linear-gradient(rgba(238, 247, 255, 0.18), rgba(238, 247, 255, 0.18)),
-    url("assets/chemical-id-search-background-v2.png");
+    url("assets/chemical-id-search-background-v2.webp");
   background-position: center, center right;
   background-size: cover, cover;
   background-repeat: no-repeat;
@@ -6114,7 +6114,7 @@ input, select, textarea {
     min-height: 400px;
     background-image:
       linear-gradient(rgba(238, 247, 255, 0.26), rgba(238, 247, 255, 0.26)),
-      url("assets/chemical-id-search-background-v2.png");
+      url("assets/chemical-id-search-background-v2.webp");
   }
 
   .chemical-id-search-content {
@@ -6640,7 +6640,7 @@ textarea {
   background-color: #0a2943;
   background-image:
     linear-gradient(115deg, rgba(235, 248, 255, 0.32), rgba(174, 220, 247, 0.16)),
-    url("assets/chemical-id-search-background-v2.png");
+    url("assets/chemical-id-search-background-v2.webp");
   background-blend-mode: screen, normal;
   box-shadow: inset 0 0 0 1px rgba(142, 203, 241, 0.16), 0 16px 36px rgba(2, 15, 27, 0.28);
 }
@@ -7560,29 +7560,29 @@ body.workspace-drawer-open { overflow: hidden; }
 .hazmat-hero-eyebrow { text-shadow: 0 2px 5px rgba(0, 0, 0, 0.65); }
 
 .variant-planning {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98) 0%, rgba(8, 37, 64, 0.86) 42%, rgba(8, 37, 64, 0.18) 78%), url("assets/home-card-scenes-v5.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98) 0%, rgba(8, 37, 64, 0.86) 42%, rgba(8, 37, 64, 0.18) 78%), url("assets/home-card-scenes-v5.webp") !important;
   background-position: center, center center;
   background-size: cover, 100% 300% !important;
 }
 
 .variant-incident {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98) 0%, rgba(8, 37, 64, 0.82) 48%, rgba(8, 37, 64, 0.2) 100%), url("assets/chemical-id-search-background-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98) 0%, rgba(8, 37, 64, 0.82) 48%, rgba(8, 37, 64, 0.2) 100%), url("assets/chemical-id-search-background-v2.webp") !important;
   background-position: center, center 60%;
 }
 
 .variant-chemical,
 .variant-chemical-profile {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.99) 0%, rgba(8, 37, 64, 0.88) 48%, rgba(8, 37, 64, 0.22) 100%), url("assets/chemical-id-search-background-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.99) 0%, rgba(8, 37, 64, 0.88) 48%, rgba(8, 37, 64, 0.22) 100%), url("assets/chemical-id-search-background-v2.webp") !important;
   background-position: center, center 50%;
 }
 
 .variant-guided-response {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.99) 0%, rgba(8, 37, 64, 0.84) 48%, rgba(8, 37, 64, 0.18) 100%), url("assets/guided-response-hero.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.99) 0%, rgba(8, 37, 64, 0.84) 48%, rgba(8, 37, 64, 0.18) 100%), url("assets/guided-response-hero.webp") !important;
   background-position: center, center 45%;
 }
 
 .variant-monitoring {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.99), rgba(8, 37, 64, 0.74) 56%, rgba(8, 37, 64, 0.22)), url("assets/home-card-scenes-v5.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.99), rgba(8, 37, 64, 0.74) 56%, rgba(8, 37, 64, 0.22)), url("assets/home-card-scenes-v5.webp") !important;
   background-position: center, center bottom;
   background-size: cover, 100% 300% !important;
 }
@@ -7862,7 +7862,7 @@ body.workspace-drawer-open { overflow: hidden; }
 
 .incident-overview-actions .overview-action-btn::before {
   z-index: -2;
-  background-image: url("assets/home-card-scenes-v5.png");
+  background-image: url("assets/home-card-scenes-v5.webp");
   background-repeat: no-repeat;
   background-size: 100% 300%;
   transition: transform 0.25s ease, filter 0.25s ease;
@@ -10256,16 +10256,16 @@ body.workspace-drawer-open { overflow: hidden; }
 }
 
 .overview-action-incident::before,
-.overview-action-active::before { background-image: url("assets/incident-command-hero-v2.png") !important; }
-.overview-action-chemical::before { background-image: url("assets/chemical-id-search-background-v2.png") !important; }
-.overview-action-plume::before { background-image: url("assets/plume-model-hero-v2.png") !important; }
-.overview-action-map::before { background-image: url("assets/live-map-hero-v2.png") !important; }
-.overview-action-reports::before { background-image: url("assets/reports-hero-v2.png") !important; }
+.overview-action-active::before { background-image: url("assets/incident-command-hero-v2.webp") !important; }
+.overview-action-chemical::before { background-image: url("assets/chemical-id-search-background-v2.webp") !important; }
+.overview-action-plume::before { background-image: url("assets/plume-model-hero-v2.webp") !important; }
+.overview-action-map::before { background-image: url("assets/live-map-hero-v2.webp") !important; }
+.overview-action-reports::before { background-image: url("assets/reports-hero-v2.webp") !important; }
 
-.variant-incident { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.78) 50%, rgba(8, 37, 64, 0.12)), url("assets/incident-command-hero-v2.png") !important; }
-.variant-reports { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.68) 48%, rgba(8, 37, 64, 0.06)), url("assets/reports-hero-v2.png") !important; }
-.variant-monitoring { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.68) 48%, rgba(8, 37, 64, 0.06)), url("assets/equipment-hero-v2.png") !important; }
-.variant-my-chemicals { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.68) 48%, rgba(8, 37, 64, 0.06)), url("assets/my-chemicals-hero-v2.png") !important; }
+.variant-incident { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.78) 50%, rgba(8, 37, 64, 0.12)), url("assets/incident-command-hero-v2.webp") !important; }
+.variant-reports { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.68) 48%, rgba(8, 37, 64, 0.06)), url("assets/reports-hero-v2.webp") !important; }
+.variant-monitoring { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.68) 48%, rgba(8, 37, 64, 0.06)), url("assets/equipment-hero-v2.webp") !important; }
+.variant-my-chemicals { background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.68) 48%, rgba(8, 37, 64, 0.06)), url("assets/my-chemicals-hero-v2.webp") !important; }
 
 @media (max-width: 1180px) {
   .hazmat-command-bar.topbar { grid-template-columns: 48px minmax(350px, 1fr) minmax(330px, 1fr) 46px; }
@@ -10563,17 +10563,17 @@ body,
 }
 
 .overview-command-incident {
-  background-image: url("assets/home-new-incident-hero-v5.png");
+  background-image: url("assets/home-new-incident-hero-v5.webp");
 }
 
 .overview-command-planning {
   --panel-accent: var(--gold);
-  background-image: url("assets/home-planning-tools-hero-v4.png");
+  background-image: url("assets/home-planning-tools-hero-v4.webp");
 }
 
 .overview-command-reports {
   --panel-accent: #fff;
-  background-image: url("assets/home-incident-reports-hero-v4.png");
+  background-image: url("assets/home-incident-reports-hero-v4.webp");
 }
 
 .overview-command-panel:hover,
@@ -10916,7 +10916,7 @@ body,
   border-radius: 12px;
   background:
     linear-gradient(90deg, rgba(3, 22, 37, 0.98), rgba(5, 36, 59, 0.86) 58%, rgba(6, 49, 78, 0.58)),
-    url("assets/chemical-id-search-background-v2.png") center 46% / cover !important;
+    url("assets/chemical-id-search-background-v2.webp") center 46% / cover !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
 
@@ -11275,7 +11275,7 @@ body,
   border-radius: 0;
   background-image:
     linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(6, 26, 46, 0.46) 54%, rgba(6, 26, 46, 0.85)),
-    url("assets/incident-command-hero-v2.png") !important;
+    url("assets/incident-command-hero-v2.webp") !important;
   background-position: center;
   background-size: cover;
 }
@@ -11350,7 +11350,7 @@ body,
   border-radius: 0;
   background:
     linear-gradient(90deg, rgba(3, 16, 29, 0.96) 0%, rgba(4, 25, 44, 0.78) 42%, rgba(4, 25, 44, 0.42) 100%),
-    url("assets/incident-command-hero-v2.png") center 44% / cover;
+    url("assets/incident-command-hero-v2.webp") center 44% / cover;
   box-shadow: inset 0 -1px 0 rgba(91, 170, 222, 0.4);
 }
 
@@ -11970,7 +11970,7 @@ button[data-command-view="guided-response"]:not([data-incident-flow-action]):dis
 
 #overview .incident-overview-actions .overview-action-btn::before {
   z-index: -2;
-  background-image: url("assets/home-card-scenes-v5.png") !important;
+  background-image: url("assets/home-card-scenes-v5.webp") !important;
   background-position: center top !important;
   background-size: 100% 300%;
   background-repeat: no-repeat;
@@ -12117,7 +12117,7 @@ button[data-command-view="guided-response"]:not([data-incident-flow-action]):dis
 
 #overview .incident-overview-actions .overview-action-btn::before {
   z-index: 0;
-  background-image: url("assets/home-card-scenes-v5.png") !important;
+  background-image: url("assets/home-card-scenes-v5.webp") !important;
   background-repeat: no-repeat !important;
   background-position: center top !important;
   background-size: 100% 300% !important;
@@ -12195,7 +12195,7 @@ button[data-command-view="guided-response"]:not([data-incident-flow-action]):dis
 }
 
 #overview .incident-overview-actions .overview-action-reports::before {
-  background-image: url("assets/home-card-scenes-v5.png") !important;
+  background-image: url("assets/home-card-scenes-v5.webp") !important;
   background-position: center bottom !important;
 }
 
@@ -13139,7 +13139,7 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
     image-rendering: auto;
   }
   #overview .overview-action-incident::before {
-    background-image: url("assets/home-action-incident-v2.png") !important;
+    background-image: url("assets/home-action-incident-v2.webp") !important;
     background-position: center center !important;
     transform: none !important;
     filter: saturate(1.05) contrast(1.12) brightness(1.06);
@@ -13147,8 +13147,8 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   #overview .overview-action-incident::after {
     background: linear-gradient(180deg, rgba(2,11,20,.08) 0%, rgba(2,11,20,.42) 55%, rgba(2,11,20,.92) 100%) !important;
   }
-  #overview .overview-action-planning::before { background-image: url("assets/home-action-planning-v2.png") !important; }
-  #overview .overview-action-reports::before { background-image: url("assets/home-action-reports-v2.png") !important; }
+  #overview .overview-action-planning::before { background-image: url("assets/home-action-planning-v2.webp") !important; }
+  #overview .overview-action-reports::before { background-image: url("assets/home-action-reports-v2.webp") !important; }
   #overview .overview-action-copy { width: 100%; max-width: none; }
   #overview .overview-action-title { color: #f8fafc; text-shadow: 0 4px 18px rgba(0,0,0,.65); }
   #overview .overview-action-description { color: #dde7f2; text-shadow: 0 2px 8px rgba(0,0,0,.72); }
@@ -13208,13 +13208,13 @@ body:has(#overview.view.active) .workspace-navigation-drawer.workspace-drawer-ho
   transform: none !important;
 }
 #overview .incident-overview-actions .overview-action-incident::before {
-  background-image: url("assets/home-action-incident-v2.png?v=1") !important;
+  background-image: url("assets/home-action-incident-v2.webp?v=1") !important;
 }
 #overview .incident-overview-actions .overview-action-planning::before {
-  background-image: url("assets/home-action-planning-v2.png?v=3") !important;
+  background-image: url("assets/home-action-planning-v2.webp?v=3") !important;
 }
 #overview .incident-overview-actions .overview-action-reports::before {
-  background-image: url("assets/home-action-reports-v2.png?v=3") !important;
+  background-image: url("assets/home-action-reports-v2.webp?v=3") !important;
 }
 #overview .incident-overview-actions .overview-action-planning::after,
 #overview .incident-overview-actions .overview-action-reports::after {

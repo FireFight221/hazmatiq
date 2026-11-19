@@ -960,7 +960,19 @@
 
   function initializeWeatherPage() {
     if (!initialized) { bind(); initialized = true; }
-    const saved = readWeatherLocationState();
+    let saved = readWeatherLocationState();
+    // With an active incident, open on the incident location unless the user
+    // has deliberately chosen a different Weather location (manual or GPS).
+    const incident = window.HazMatIQ?.incidentCommandLegacy?.getActiveIncident?.();
+    const incidentLocation = validLocation({
+      lat: incident?.latitude,
+      lon: incident?.longitude,
+      displayAddress: [incident?.address, incident?.city, incident?.state].map((part) => String(part ?? '').trim()).filter((part, index, parts) => part && parts.findIndex((other) => other.toLowerCase() === part.toLowerCase()) === index).join(', '),
+      source: 'Active incident location',
+    });
+    const incidentHasLocation = incidentLocation && !(incidentLocation.lat === 0 && incidentLocation.lon === 0)
+      && String(incident?.latitude ?? '').trim() !== '' && String(incident?.longitude ?? '').trim() !== '';
+    if (incidentHasLocation && (!saved || saved.source === 'Active incident location')) saved = incidentLocation;
     if (saved) { weatherLocation = saved; weatherLocationSource = saved.source; void refreshWeather({ locationOverride: saved }); }
     else { updateLocationDisplay(null); setLocationStatus('Enter a location or use Current GPS to begin.'); writeText('weather-map-status', 'Weather map awaits a location.'); writeText('weather-radar-service-status', 'Awaiting location'); }
   }

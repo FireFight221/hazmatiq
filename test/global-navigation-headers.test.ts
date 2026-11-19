@@ -75,8 +75,8 @@ describe('global navigation and page header contract', () => {
     expect(html).not.toContain('class="internal-command-menu"');
     expect(html).not.toContain('class="app-header-status"');
     expect(html).toContain('class="brand-logo-mark"');
-    expect(html).toContain('class="brand-logo-emblem" src="assets/emergenz-compass-tight.png?v=1"');
-    expect(html).toContain('class="brand-logo-wordmark" src="assets/emergenz-wordmark-tight.png?v=1"');
+    expect(html).toContain('class="brand-logo-emblem" src="assets/emergenz-compass-tight.webp?v=1"');
+    expect(html).toContain('class="brand-logo-wordmark" src="assets/emergenz-wordmark-tight.webp?v=1"');
     expect(html).toContain('aria-label="Return to the EMERGENZ Home Page"');
     expect(html).toContain('>Pre-Incident Planning</h1>');
     expect(html).toContain('>Incident Command</h1>');

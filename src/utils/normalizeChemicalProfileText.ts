@@ -19,7 +19,7 @@ export function normalizeChemicalProfileText(text: unknown): string {
     .replace(/[\r\n\t]+/g, " ")
     .replace(/\*\*(.*?)\*\*/g, "$1")
     .replace(/__(.*?)__/g, "$1")
-    .replace(/^\s*(?:#{1,6}|[-*•]+)\s*/, "")
+    .replace(/^\s*(?:#{1,6}|[*•]+|-+(?![\d.]))\s*/, "")
     .replace(/([.!?])["']\s*\.\s*$/, "$1")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/\s{2,}/g, " ")

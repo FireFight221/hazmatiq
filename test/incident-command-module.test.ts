@@ -93,6 +93,12 @@ describe('Incident Command operational hub', () => {
     expect(activeCommand).toContain('M12 10 24 6l12 4v11');
     expect(activeCommand).toContain('m16 14 16 16M32 14 16 30');
     expect(activeCommand).toContain('<span class="incident-command-panel-title">Operational Guidance</span>');
+    // Decision Support is a single Guided Response launcher with live phase status.
+    expect(activeCommand).toContain('id="ic-guided-launch-btn" type="button" data-command-view="guided-response"');
+    expect(activeCommand).toContain('id="ic-guided-launch-status"');
+    expect(activeCommand).toContain('class="incident-guided-launch-icon"');
+    // Guided Response leads; the supporting tool buttons stay beneath it.
+    expect(activeCommand.indexOf('id="ic-guided-launch-btn"')).toBeLessThan(activeCommand.indexOf('class="incident-command-guided-links"'));
     for (const [view, label] of [['lookup', 'Chemical / PPE'], ['plume', 'Plume Model'], ['map', 'Live Map'], ['report', 'Incident Reports']]) {
       expect(activeCommand).toContain(`data-command-view="${view}"`);
       expect(activeCommand).toContain(`>${label}</button>`);

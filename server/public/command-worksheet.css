@@ -199,3 +199,13 @@
 #command-tactical-worksheet .worksheet-period-fields { display:grid; grid-column:1 / -1; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 #command-tactical-worksheet .worksheet-date-control input { font-size:.85rem; }
 @media (max-width:600px) { #command-tactical-worksheet .worksheet-period-fields { grid-template-columns:minmax(0,1fr); } }
+
+/* Command Staff: still hangs below the Incident Commander, but offset to the
+   right of the IC trunk (standard ICS chart placement) and compacted so the
+   General Staff row moves up the screen. Connectors branch right from the
+   IC trunk into each staff card. */
+#command-tactical-worksheet .worksheet-org-command-band { row-gap: 16px; }
+#command-tactical-worksheet .worksheet-command-staff { grid-column: 3; grid-row: 2; justify-self: start; width: min(100%, var(--org-staff-width, 340px)); margin-left: 32px; gap: 8px; }
+#command-tactical-worksheet .worksheet-command-staff .worksheet-role-primary { height: auto; min-height: 0; gap: 4px; padding: 7px 9px; }
+#command-tactical-worksheet .worksheet-command-staff .worksheet-role-field-label { font-size: .7rem; }
+#command-tactical-worksheet .worksheet-command-staff .worksheet-role-field input { min-height: 32px; padding: 4px 6px; }

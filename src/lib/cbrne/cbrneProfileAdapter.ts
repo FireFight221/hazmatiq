@@ -13,6 +13,8 @@ import { authoritativeFactsForRecord } from "../../data/cbrne/authoritative/auth
 import { findRadionuclidePhysicsRecord } from "../../data/cbrne/authoritative/radionuclidePhysics.js";
 import { guidedResponseEvidenceForRecord, guidedResponseReadinessForRecord } from "./guidedResponseReadiness.js";
 import { buildRadiologicalProfile } from "./radiologicalProfile.js";
+import { ergCwaReference, ergCwaSummary } from "./ergChemicalWarfareAgents.js";
+import { cbrnePrimaryThreat } from "./cbrnePrimaryThreat.js";
 
 const SECTION_GROUPS = Object.freeze({
   overviewFacts: ["IDENTITY"] as readonly CbrneFieldGroup[],
@@ -149,11 +151,15 @@ export function adaptCbrneProfile(
       agentCodes: record.agentCodes ?? [],
       cas: record.cas ?? [],
       unNaNumbers: record.unNaNumbers ?? [],
+      ergGuide: ergCwaReference(record.category)?.guide ?? null,
+      ergProtectiveActionDistances: ergCwaSummary(ergCwaReference(record.category)),
+      ergInitialIsolationM: ergCwaReference(record.category)?.initialIsolationM ?? null,
       radionuclideSymbol: record.radionuclideSymbol ?? null,
       isotopeMassNumber: record.isotopeMassNumber ?? null,
       opcwSchedule: record.opcwSchedule ?? (scheduleOneFact ? "Schedule 1 · CWC identity/classification" : null),
     },
     ...sections,
+    primaryThreat: selectedLane === "RADIOLOGICAL" ? null : cbrnePrimaryThreat(record.category, facts),
     sourceFacts,
     actionCards: actionTitles(record).map((title, index) => actionCard(title, actionSources[index])),
     limitations: [...safetyLimitationsForDomain(record.domain)],

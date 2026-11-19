@@ -65,12 +65,12 @@ describe('EMERGENZ Monitoring V1', () => {
   it('keeps manufacturer variants honest, and the device panel independently scrollable', () => {
     expect(consoleSource).toContain('MODEL PHOTO PENDING');
     expect(consoleSource).toContain('manufacturer reference product photograph');
-    expect(consoleSource).toContain("'AreaRAE': {src:'assets/monitor-arearae-pro.png'");
-    expect(consoleSource).toContain("'Ludlum RAD': {src:'assets/monitor-ludlum-rad.png'");
-    expect(consoleSource).toContain("'RadEye': {src:'assets/monitor-radeye-prd4.png'");
-    expect(consoleSource).toContain("'ToxiRAE': {src:'assets/monitor-toxirae-pro.png'");
-    expect(consoleSource).toContain("'Rigaku Raman': {src:'assets/monitor-rigaku-raman.png'");
-    expect(consoleSource).toContain("'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.png'");
+    expect(consoleSource).toContain("'AreaRAE': {src:'assets/monitor-arearae-pro.webp'");
+    expect(consoleSource).toContain("'Ludlum RAD': {src:'assets/monitor-ludlum-rad.webp'");
+    expect(consoleSource).toContain("'RadEye': {src:'assets/monitor-radeye-prd4.webp'");
+    expect(consoleSource).toContain("'ToxiRAE': {src:'assets/monitor-toxirae-pro.webp'");
+    expect(consoleSource).toContain("'Rigaku Raman': {src:'assets/monitor-rigaku-raman.webp'");
+    expect(consoleSource).toContain("'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.webp'");
     expect(consoleSource).toContain("if(n.includes('rigaku') || n.includes('cql max id') || n.includes('raman')) return 'Rigaku Raman'");
     expect(consoleSource).toContain("if(n.includes('hazmatid') || /smiths\\s+detection.*ftir/.test(n)) return 'HazMatID FTIR'");
     expect(consoleCss).toContain('object-fit:contain');

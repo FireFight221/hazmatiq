@@ -160,7 +160,7 @@ describe("Hazard ID profile contract and routing", () => {
   });
 
   it("builds frontline evidence without copying EMS treatment guidance", () => {
-    const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalFrontlineRows"]
+    const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalVaporBehaviorNote", "chemicalFrontlineRows"]
       .map(declaration).join("\n");
     const meaningful = (value: unknown): boolean => Array.isArray(value)
       ? value.some((item) => meaningful(item))
@@ -210,7 +210,7 @@ describe("Hazard ID profile contract and routing", () => {
   });
 
   it("states that fire-specific evidence is unavailable instead of substituting reactivity", () => {
-    const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalFrontlineRows"]
+    const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalVaporBehaviorNote", "chemicalFrontlineRows"]
       .map(declaration).join("\n");
     const meaningful = (value: unknown): boolean => Array.isArray(value)
       ? value.some((item) => meaningful(item))
@@ -229,7 +229,7 @@ describe("Hazard ID profile contract and routing", () => {
       expect(response.status).toBe(200);
       const profile = await response.json();
       expect(profile.header.name).toBe(name);
-      const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalFrontlineRows"]
+      const source = ["profileObject", "profileArray", "chemicalFrontlineValues", "chemicalEntryCautionValues", "chemicalVaporBehaviorNote", "chemicalFrontlineRows"]
         .map(declaration).join("\n");
       const meaningful = (value: unknown): boolean => Array.isArray(value)
         ? value.some((item) => meaningful(item))

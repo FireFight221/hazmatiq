@@ -847,10 +847,17 @@
       }),
       stage({
         id: 'tactical-mode', number: 5, title: 'TACTICAL MODE',
-        status: mitigation.tacticalPosture ? 'ACTION REQUIRED' : 'VERIFY',
-        action: mitigation.tacticalPosture ? mitigation.tacticalPosture.toUpperCase() : 'VERIFY TACTICAL MODE',
+        // A derived posture is a recommendation, not a decision. Do not display it
+        // as if Incident Command had already selected a mode.
+        status: mitigation.selectedTacticalMode ? 'IC SELECTED' : mitigation.tacticalPosture ? 'ACTION REQUIRED' : 'VERIFY',
+        action: mitigation.selectedTacticalMode
+          ? `${mitigation.selectedTacticalMode.toUpperCase()} · SELECTED BY INCIDENT COMMAND`
+          : mitigation.tacticalPosture === 'Defensive'
+            ? 'IC TO SELECT MODE · RECOMMENDED START: DEFENSIVE'
+            : 'IC TO SELECT TACTICAL MODE',
         criticalFacts: [
-          { label: 'Mode', value: mitigation.tacticalPosture || NO_DATA, emphasis: true },
+          { label: 'Mode', value: mitigation.selectedTacticalMode || 'Not selected by Incident Command', emphasis: true },
+          ...(mitigation.selectedTacticalMode ? [] : [{ label: 'Recommended start', value: mitigation.tacticalPosture || NO_DATA }]),
           { label: 'Mode set', value: 'DEFENSIVE · OFFENSIVE · NON-INTERVENTION · TRANSITION / LIMITED OFFENSIVE' },
           { label: 'Entry posture', value: mitigation.entryDecision || NO_DATA, emphasis: true },
           { label: 'Initial actions', value: itemList(mitigationFacts).join(' · ') },

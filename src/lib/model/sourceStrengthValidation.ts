@@ -43,9 +43,14 @@ export interface SourceStrengthValidationResult {
   sourceStrengthLimitations: string[];
 }
 
+// UI placeholders ("Select", "Unknown / verify", "No Current Data Exists")
+// are not operator input and must not satisfy a required field.
+const PLACEHOLDER_INPUT = /^(?:select|unknown|unknown \/ verify|unknown \/ custom|not available|n\/a|none|no current data exists\.?)$/i;
+
 function present(value: unknown): boolean {
   if (typeof value === "number") return Number.isFinite(value) && value > 0;
-  return Boolean(String(value ?? "").trim());
+  const text = String(value ?? "").trim();
+  return Boolean(text) && !PLACEHOLDER_INPUT.test(text);
 }
 
 export function validateSourceStrength(input: SourceStrengthValidationInput): SourceStrengthValidationResult {

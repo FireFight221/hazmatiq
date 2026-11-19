@@ -44,18 +44,25 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     const flowStart = html.indexOf('<section class="incident-command-flow"');
     const flow = html.slice(flowStart, html.indexOf('</section>', flowStart));
 
-    expect(flow.match(/<article>/g)).toHaveLength(5);
+    expect(flow.match(/<article data-flow-step="/g)).toHaveLength(5);
     for (const title of [
-      "1. Scene Size-Up",
+      "1. Scene Size&#8209;Up",
       "2. Public Protection",
       "3. Plume Model",
       "4. Tactical Decision",
       "5. Document / Report",
     ]) expect(flow).toContain(title);
-    expect(flow).not.toContain('class="incident-flow-status"');
-    expect(flow).not.toContain('class="incident-flow-details"');
+    // Command Flow 2.0: every step carries live status, a state pill, and a Done override.
+    expect(flow.match(/data-flow-live/g)).toHaveLength(5);
+    expect(flow.match(/data-flow-state-label/g)).toHaveLength(5);
+    expect(flow.match(/data-flow-done="/g)).toHaveLength(5);
+    expect(flow).toContain('id="incident-flow-progress-bar"');
+    expect(flow).toContain('id="incident-flow-next"');
+    expect(flow).toContain('class="flow-insignia-chevron-lead"');
+    expect(script).toContain('function renderIncidentCommandFlow()');
+    expect(script).toContain("markCommandFlowEvent('ergReviewed')");
     expect(incidentStyles).toContain('border: 1px solid #374151;');
-    expect(flow).toMatch(/1\. Scene Size-Up[\s\S]*data-incident-command-action="chemical-profile"[^>]*>Open Hazard Profile/);
+    expect(flow).toMatch(/1\. Scene Size&#8209;Up[\s\S]*data-incident-command-action="chemical-profile"[^>]*>Open Hazard Profile/);
     for (const action of [
       'data-incident-command-action="erg-review"[^>]*>Review ERG Distances',
       'data-command-view="plume"[^>]*>Open Plume Model',
@@ -91,7 +98,8 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
 
     expect(loader).toContain("chemical.guidanceEligible === false");
     expect(loader).toContain("const recordPromise = buildFullChemicalRecord(chemical).catch");
-    expect(loader).toContain("profileResponse = await fetchJson(profileUrl);");
+    expect(loader).toContain("const profilePromise = fetchHazardProfileCached(profileUrl);");
+    expect(loader).toContain("profileResponse = await profilePromise;");
     expect(loader.indexOf("updateChemicalCard(profileRecord);")).toBeLessThan(loader.indexOf("void recordPromise.then((record) =>"));
     expect(loader).toContain("const isCurrentProfileRequest = () => profileRequestId === latestChemicalProfileRequest");
     expect(loader).toContain("if (!profile) {");
@@ -154,7 +162,9 @@ describe("Incident decision flow and Hazard ID profile loading", () => {
     expect(script).toContain("const chemicalData = selectedChemicalOperationalData({ ...chemicalContext, profile: chemicalProfile });");
     expect(script).toContain("const chemicalData = selectedChemicalOperationalData({");
     expect(script).toContain("nioshSourceId: firstChemicalDataValue(niosh.sourceRecordId, incidentHasCanonicalIdentity ? incident?.nioshSourceId : null)");
-    expect(script).toContain("model.nioshSourceId ? `Source NIOSH · ${model.nioshSourceId}` : 'Source / review not available'");
+    expect(script).toContain("['Source', model.nioshSourceId ? `NIOSH · ${model.nioshSourceId}` : 'Not available']");
+    expect(script).toContain('function setOperationalDetailFields(');
+    expect(html).toContain('class="incident-command-detail-grid incident-op-form"');
     expect(script).toContain("chemicalSources: chemicalProfile ? chemicalProfileSources(chemicalProfile) : (existingIncident?.chemicalSources || [])");
     expect(script).toContain("const ppeSource = profile.ppeRecommendation || profile.ppeRespiratory || incident.ppeSummary;");
     expect(script).toContain("const persistedMedicalSource = incident.medicalSummary || profile.medical;");

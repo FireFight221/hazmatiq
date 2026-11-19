@@ -42,6 +42,17 @@ describe("API routes", () => {
     expect(res.status).toBe(200);
   });
 
+  it("lists the ICS Forms Library in numerical order with 213RR and Command Notes last (3 rows of 5)", async () => {
+    const res = await app.request("/api/ics-forms");
+    const { forms } = (await res.json()) as { forms: Array<{ id: string }> };
+    expect(forms.map((f) => f.id)).toEqual(["201", "202", "203", "204", "205", "205A", "206", "208", "208HM", "209", "213RR", "214", "215", "215A", "NOTES"]);
+    for (const id of ["213RR", "NOTES"]) {
+      const blank = await app.request(`/api/ics-forms/${id}/blank`);
+      expect(blank.status).toBe(200);
+      expect(blank.headers.get("content-type")).toContain("pdf");
+    }
+  });
+
   it("exposes optional Tactical 3D configuration from deployment environment", async () => {
     const res = await app.request("/api/map/config");
     expect(res.status).toBe(200);

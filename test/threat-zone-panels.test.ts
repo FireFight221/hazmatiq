@@ -63,7 +63,7 @@ describe('Threat Zone distinct panels', () => {
     const displayed = new Map();
     const context = {
       result: run, setText: (id: string, value: string) => displayed.set(id, value),
-      updatePlumeRightRailZoneResults: vi.fn(), currentThreatZoneGeoJson: null,
+      updatePlumeRightRailZoneResults: vi.fn(), updatePlumeDenseGasWarning: vi.fn(), currentThreatZoneGeoJson: null,
       noCurrentDataText: 'Not recorded', degreesToCompass: () => 'E',
       document: { getElementById: () => { throw new Error('Completed summary must not read controls'); } },
     };
