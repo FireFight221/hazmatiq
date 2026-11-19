@@ -1788,3 +1788,260 @@ padding: 4px 6px; border-radius: 3px; width: 100%; box-sizing: border-box; }
 #plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row b {
   color:inherit;
 }
+
+/* Dense-gas limitation: shown beside the result, not buried in Model Details. */
+.plume-dense-gas-warning { margin: 0 0 8px; padding: 8px 10px; border: 1px solid #f59e0b; border-left-width: 4px; border-radius: 6px; background: rgba(245, 158, 11, 0.12); color: #fde68a; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.plume-dense-gas-warning[hidden] { display: none; }
+.plume-dense-gas-chip { margin-right: 12px; padding: 2px 8px; border: 1px solid #f59e0b; border-radius: 4px; background: rgba(245, 158, 11, 0.16); color: #fde68a; font-weight: 700; }
+.plume-dense-gas-chip[hidden] { display: none; }
+
+/* ERG initial isolation ring labels (DOM markers; work on every basemap). */
+.initial-isolation-label {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(122, 13, 13, 0.92);
+  border: 1px solid #ff3b30;
+  color: #fff;
+  font: 800 11px/1.3 system-ui, sans-serif;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.initial-isolation-label-large { background: rgba(110, 58, 0, 0.92); border-color: #ff9d00; }
+.initial-isolation-label-fire { background: rgba(92, 76, 0, 0.92); border-color: #ffd60a; }
+
+/* Compact map navigator (round 2): one slim vertical pill.
+   Compass = click to reset north/flat, drag to rotate (x) and tilt (y). */
+#plume.view.active .plume-compass-control.plume-nav-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 38px;
+  min-width: 38px;
+  padding: 4px 3px;
+  border: 1px solid rgba(143, 185, 208, .55);
+  border-radius: 19px;
+  background: rgba(4, 24, 42, .9);
+  box-shadow: 0 4px 12px rgba(3, 14, 25, .35);
+  backdrop-filter: blur(4px);
+}
+#plume.view.active .plume-nav-compact .plume-nav-compass {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+#plume.view.active .plume-nav-compact .plume-nav-compass:active { cursor: grabbing; }
+#plume.view.active .plume-nav-compact .plume-compass-ring {
+  position: relative;
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid #8fb9d0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0d3354 0%, #071d33 75%);
+}
+#plume.view.active .plume-nav-compact .plume-compass-arrow {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  background:
+    linear-gradient(to bottom, transparent 18%, #ff3942 18%, #ff3942 50%, #dfe9f1 50%, #dfe9f1 82%, transparent 82%) center / 3px 100% no-repeat;
+  transform-origin: 50% 50%;
+  transition: transform .2s ease;
+}
+#plume.view.active .plume-nav-compact .plume-compass-north {
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gold, #f5c518);
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+}
+#plume.view.active .plume-nav-compact .plume-compass-button {
+  width: 30px;
+  min-width: 30px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  grid-column: auto;
+  grid-row: auto;
+}
+#plume.view.active .plume-nav-compact .plume-compass-button.tilt-toggle { font-size: 10px; letter-spacing: .02em; }
+#plume.view.active .plume-nav-compact .plume-compass-button:hover,
+#plume.view.active .plume-nav-compact .plume-nav-compass:hover { background: rgba(255, 255, 255, .1); }
+#plume.view.active .plume-nav-compact .plume-compass-button:focus-visible,
+#plume.view.active .plume-nav-compact .plume-nav-compass:focus-visible { outline: 2px solid var(--gold, #f5c518); outline-offset: 0; }
+#plume.view.active .plume-nav-compact .plume-compass-button.tilt-toggle[aria-pressed="true"] { color: var(--gold, #f5c518); }
+#plume.view.active .plume-nav-compact .plume-nav-divider { width: 20px; height: 1px; background: rgba(143, 185, 208, .35); }
+#plume.view.active .plume-nav-compact #plume-bearing-output.plume-nav-readout {
+  display: none;
+  color: #cfe1ec;
+  font-size: 8px;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}
+#plume.view.active .plume-nav-compact.is-rotated #plume-bearing-output.plume-nav-readout { display: block; }
+
+/* Advanced Details (Modeling Criteria): readable on the dark navy panel. */
+html:not([data-theme="light"]) #plume.view.active .plume-advanced-details > summary { color: #fff; font-weight: 800; }
+html:not([data-theme="light"]) #plume.view.active .plume-advanced-details .plume-review-list > div { border-top-color: rgba(143, 185, 208, .25); }
+html:not([data-theme="light"]) #plume.view.active .plume-advanced-details .plume-review-list dt { color: #fff; font-weight: 700; }
+html:not([data-theme="light"]) #plume.view.active .plume-advanced-details .plume-review-list dd { color: #fff; }
+
+/* Weather Details wind flag: larger, high-contrast, same navy/gold/red schema.
+   The arrow points where the wind is blowing TO (downwind). */
+#plume.view.active .plume-weather-wind-indicator { gap: 12px; padding: 9px 10px; }
+#plume.view.active .plume-weather-wind-compass {
+  width: 64px;
+  height: 64px;
+  border: 2px solid #8fb9d0;
+  background: radial-gradient(circle, #0d3354 0%, #061a2e 78%);
+  font-size: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .4);
+}
+#plume.view.active .plume-weather-wind-compass > span {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gold, #f5c518);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+#plume.view.active .plume-weather-wind-compass::after {
+  inset: 8px;
+  border: 1px dashed rgba(143, 185, 208, .4);
+}
+#plume.view.active .plume-weather-wind-compass i {
+  width: 5px;
+  height: 40px;
+  border-radius: 3px;
+  background: linear-gradient(to top, #ff3942 0%, #ff3942 70%, transparent 70%);
+  transform-origin: 50% 50%;
+  transition: transform .3s ease;
+}
+#plume.view.active .plume-weather-wind-compass i::before {
+  /* Arrowhead at the downwind end. */
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 14px solid #ff3942;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, .6));
+}
+#plume.view.active .plume-weather-wind-compass i::after {
+  /* Tail feather marks where the wind is coming FROM. */
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 11px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: #fff;
+}
+#plume.view.active .plume-weather-wind-copy strong { font-size: 14px; line-height: 1.25; }
+#plume.view.active .plume-weather-wind-copy small { color: #cfe1ec; font-size: 11px; }
+
+/* Chemical Release panel (round 2): required-field titles are red bars with
+   bright white titles; inputs keep neutral text so red is reserved for alerts. */
+#plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row > label {
+  color: #fff;
+  background: #b3131b;
+  border-left: 3px solid #ff5a4f;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+#plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row b {
+  color: #fff;
+  opacity: .82;
+  font-size: .82em;
+  font-weight: 700;
+}
+#plume.view.active .plume-release-grid > .plume-required-field.is-complete .plume-field-label-row > label::after {
+  content: '✓';
+  float: right;
+  color: #fff;
+  font-weight: 900;
+}
+#plume.view.active .plume-release-grid > .plume-required-field input,
+#plume.view.active .plume-release-grid > .plume-required-field select { color: #0b1f33; }
+#plume.view.active .plume-release-grid > .plume-required-field input::placeholder { color: #64748b; }
+
+/* Release-rate calculator */
+#plume.view.active .plume-release-calculator {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border: 1px solid #b3131b;
+  border-radius: 7px;
+  background: #071d32;
+}
+#plume.view.active .plume-release-calculator > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+#plume.view.active .plume-release-calculator > summary::-webkit-details-marker { display: none; }
+#plume.view.active .plume-release-calculator > summary small { color: #cfe1ec; font-size: 10px; font-weight: 600; }
+#plume.view.active .plume-release-calculator > summary::after { content: '⌄'; margin-left: auto; color: #fff; }
+#plume.view.active .plume-release-calculator[open] > summary::after { transform: rotate(180deg); }
+#plume.view.active .plume-release-calc-note,
+#plume.view.active .plume-release-calc-basis { display: block; margin: 0 12px 8px; color: #cfe1ec; font-size: 11px; line-height: 1.35; }
+#plume.view.active .plume-release-calc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 8px; padding: 0 12px; }
+#plume.view.active .plume-release-calc-grid label { display: grid; gap: 3px; color: #fff; font-size: 11px; font-weight: 700; }
+#plume.view.active .plume-release-calc-grid label[hidden] { display: none; }
+#plume.view.active .plume-release-calc-grid :is(input, select) { min-height: 32px; padding: 4px 8px; border: 1px solid #5488aa; border-radius: 5px; background: #fff; color: #0b1f33; font-size: 13px; }
+#plume.view.active .plume-release-calc-actions { display: flex; gap: 8px; padding: 10px 12px 6px; }
+#plume.view.active .plume-release-calc-actions button { flex: 1; min-height: 34px; border-radius: 6px; font-weight: 800; cursor: pointer; }
+#plume.view.active .plume-release-calc-run { border: 1px solid #ff5a4f; background: #b3131b; color: #fff; }
+#plume.view.active .plume-release-calc-apply { border: 1px solid var(--gold, #f5c518); background: transparent; color: var(--gold, #f5c518); }
+#plume.view.active .plume-release-calc-apply:disabled { opacity: .45; cursor: not-allowed; }
+#plume.view.active .plume-release-calc-result { display: block; margin: 0 12px 8px; padding: 8px 10px; border-radius: 6px; background: #0d3354; color: #fff; font-size: 12px; line-height: 1.4; }
+#plume.view.active .plume-release-calc-result strong { color: var(--gold, #f5c518); font-size: 15px; }
+
+/* Advanced Criteria (ERG fallback): readable select and note on dark navy. */
+html:not([data-theme="light"]) #plume.view.active .plume-criteria-note { color: #e6eef5; font-size: 11px; line-height: 1.35; }
+html:not([data-theme="light"]) #plume.view.active #plume-erg-period { color: #0b1f33; background: #fff; font-size: 12px; }
+.dense-gas-label {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(110, 58, 0, 0.92);
+  border: 1px solid #ff9d00;
+  color: #fff;
+  font: 800 11px/1.3 system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}

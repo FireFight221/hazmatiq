@@ -20,12 +20,12 @@
   const PRODUCT_REFERENCE = {
     'MultiRAE': {src:'https://s7d1.scene7.com/is/image/Honeywell65/his-rae-multirae-front-hires?wid=190', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/photoionization-detectors-pid/multirae-portable-multi-gas-monitor', verified:true},
     'MultiRAE Pro': {src:'https://s7d1.scene7.com/is/image/Honeywell65/his-rae-multirae-pro-front-hires?wid=190', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/multi-gas/multirae-pro-portable-multi-gas-monitor', verified:true},
-    'AreaRAE': {src:'assets/monitor-arearae-pro.png', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/transportable-area-monitoring/arearae-pro-portable-gas-monitor', verified:true},
-    'ToxiRAE': {src:'assets/monitor-toxirae-pro.png', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables', verified:true},
-    'Ludlum RAD': {src:'assets/monitor-ludlum-rad.png', url:'https://ludlums.com/products/health-physics/category/survey-meters-mp', verified:true},
-    'RadEye': {src:'assets/monitor-radeye-prd4.png', url:'https://www.thermofisher.com/TFS-Assets/LSG/brochures/D16620~.pdf', verified:true},
-    'Rigaku Raman': {src:'assets/monitor-rigaku-raman.png', url:'https://rigaku.com/products/handheld-raman/cql-max-id', verified:true},
-    'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.png', url:'https://www.smithsdetection.com/press-releases/major-u-s-emergency-response-team-boosts-capabilities-hazmatid-elite-chemical-identifier/', verified:true}
+    'AreaRAE': {src:'assets/monitor-arearae-pro.webp', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/transportable-area-monitoring/arearae-pro-portable-gas-monitor', verified:true},
+    'ToxiRAE': {src:'assets/monitor-toxirae-pro.webp', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables', verified:true},
+    'Ludlum RAD': {src:'assets/monitor-ludlum-rad.webp', url:'https://ludlums.com/products/health-physics/category/survey-meters-mp', verified:true},
+    'RadEye': {src:'assets/monitor-radeye-prd4.webp', url:'https://www.thermofisher.com/TFS-Assets/LSG/brochures/D16620~.pdf', verified:true},
+    'Rigaku Raman': {src:'assets/monitor-rigaku-raman.webp', url:'https://rigaku.com/products/handheld-raman/cql-max-id', verified:true},
+    'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.webp', url:'https://www.smithsdetection.com/press-releases/major-u-s-emergency-response-team-boosts-capabilities-hazmatid-elite-chemical-identifier/', verified:true}
   };
   const CUSTOM_PHOTO_FIELDS = ['customPhoto','customPhotoUrl','photoDataUrl','photoUrl','photo','imageDataUrl','imageUrl','imageSrc'];
   const SENSOR_UNITS = {
@@ -374,6 +374,35 @@
     });
   }
   window.getHazMatIQMonitorMarkers=mappedMonitors;
+  // Active-incident context: center on the incident and default the reading
+  // parameter to the incident chemical instead of a fixed NH3 / central-US view.
+  function activeIncident() {
+    try { return window.HazMatIQ?.incidentCommandLegacy?.getActiveIncident?.() || null; } catch { return null; }
+  }
+  function incidentPoint() {
+    const inc=activeIncident();
+    if(!inc||String(inc.latitude??'').trim()===''||String(inc.longitude??'').trim()==='')return null;
+    const lat=Number(inc.latitude), lon=Number(inc.longitude);
+    return Number.isFinite(lat)&&Number.isFinite(lon)&&!(lat===0&&lon===0)?{lat,lon}:null;
+  }
+  const INCIDENT_SENSOR_PATTERNS = [
+    [/\bchlorine\b(?! dioxide| trifluoride)/i,'Cl2'], [/\bammonia\b/i,'NH3'], [/hydrogen sulfide/i,'H2S'],
+    [/carbon monoxide/i,'CO'], [/sulfur dioxide/i,'SO2'], [/hydrogen cyanide|hydrocyanic/i,'HCN'],
+    [/propane|butane|methane|natural gas|lpg|liquefied petroleum|gasoline|ethylene|propylene|hydrogen\b/i,'LEL'],
+  ];
+  function incidentSensor() {
+    const inc=activeIncident();
+    const names=[inc?.chemicalName, inc?.product, inc?.selectedChemical?.name, inc?.selectedChemical?.ChemicalName,
+      ...(Array.isArray(inc?.involvedChemicals)?inc.involvedChemicals.map(c=>c?.displayName||c?.name||c?.chemicalName):[])].filter(Boolean).join(' ');
+    return INCIDENT_SENSOR_PATTERNS.find(([pattern])=>pattern.test(names))?.[1]||'';
+  }
+  function applyIncidentDefaults() {
+    const select=$('monitor-entry-sensor');
+    const sensor=incidentSensor();
+    if(select&&sensor&&select.dataset.userSet!=='true'&&[...select.options].some(o=>(o.value||o.textContent)===sensor)){select.value=sensor;updateUnits();}
+    const point=incidentPoint();
+    if(maps.instance&&point&&!mappedMonitors().length)maps.instance.jumpTo({center:[point.lon,point.lat],zoom:13});
+  }
   function ensureMap() {
     const rows=mappedMonitors();
     // Show an ordinary geographic basemap without inventing a monitor, plume or incident.
@@ -381,12 +410,13 @@
     if(!window.maplibregl){status('MapLibre unavailable. Monitor data remains saved.');return;}
     if(maps.instance)return;
     const first=rows[0];
+    const incidentCenter=incidentPoint();
     const style={version:8,sources:{satellite:{type:'raster',tiles:[
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
     ],tileSize:256,maxzoom:19}},layers:[{id:'satellite',type:'raster',source:'satellite'}]};
     try{
       maps.instance=new maplibregl.Map({container:'monitor-map-canvas',style,
-        center:first?[first.longitude,first.latitude]:[-95.7,37.1],zoom:first?15:4});
+        center:first?[first.longitude,first.latitude]:incidentCenter?[incidentCenter.lon,incidentCenter.lat]:[-95.7,37.1],zoom:first?15:incidentCenter?13:4});
       maps.instance.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
       maps.instance.on('error',()=>{status('Monitoring basemap unavailable; saved coordinates remain accessible.');});
       maps.instance.on('load',renderMapMarkers);
@@ -435,7 +465,7 @@
     $('monitor-add-unit').addEventListener('click',()=>openUnitDialog());
     $('monitor-unit-form').addEventListener('submit',saveUnit);
     $('monitor-unit-cancel').addEventListener('click',()=>$('monitor-unit-dialog').close());
-    $('monitor-entry-sensor').addEventListener('change',updateUnits); updateUnits();
+    $('monitor-entry-sensor').addEventListener('change',e=>{if(e.isTrusted)e.target.dataset.userSet='true';updateUnits();}); updateUnits();
     $('monitor-entry-device').addEventListener('change',e=>{
       const a=activeAssignment(e.target.value); $('monitor-entry-location').value=a?.location||'';
     });
@@ -447,7 +477,8 @@
     $('monitor-undeploy').addEventListener('click',undeploy);
     $('monitor-deploy-cancel').addEventListener('click',()=>$('monitor-deploy-dialog').close());
     $('monitor-map-recenter').addEventListener('click',()=>{
-      const rows=mappedMonitors();if(rows.length)focusMap(rows[0].monitorId,false);
+      const rows=mappedMonitors();if(rows.length){focusMap(rows[0].monitorId,false);return;}
+      const point=incidentPoint();if(point&&maps.instance)maps.instance.flyTo({center:[point.lon,point.lat],zoom:13,essential:true});
     });
     $('monitor-map-style')?.addEventListener('change',e=>{
       if (!maps.instance) return;
@@ -474,6 +505,7 @@
   window.HazMatIQ ||= {};
   window.HazMatIQ.initializeEquipmentPage=()=>{
     if(!initialized)init();
+    applyIncidentDefaults();
     if(maps.instance)requestAnimationFrame(()=>maps.instance.resize());
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init,{once:true});

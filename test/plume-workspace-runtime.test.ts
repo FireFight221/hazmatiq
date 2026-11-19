@@ -15,7 +15,7 @@ describe('Plume workspace initialization', () => {
   it('uses saved incident coordinates without requesting GPS or geocoding', async () => {
     const input = { value: '' };
     const gps = vi.fn();
-    const result = await runInNewContext(`${declaration('parseGpsCoordinate')}\n${declaration('getIncidentCoordinates')}\ngetIncidentCoordinates()`, {
+    const result = await runInNewContext(`${declaration('parseGpsCoordinate')}\n${declaration('joinLocationParts')}\n${declaration('getIncidentCoordinates')}\ngetIncidentCoordinates()`, {
       document: { getElementById: () => input },
       getActiveIncident: () => ({ latitude: 33.52, longitude: -86.8 }),
       getIncidentAddressValue: () => '', getCurrentGps: gps,
@@ -27,7 +27,7 @@ describe('Plume workspace initialization', () => {
 
   it('does not convert empty saved coordinates to a false location at zero, zero', async () => {
     const gps = vi.fn().mockResolvedValue({ lat: 34, lon: -87 });
-    const result = await runInNewContext(`${declaration('parseGpsCoordinate')}\n${declaration('getIncidentCoordinates')}\ngetIncidentCoordinates()`, {
+    const result = await runInNewContext(`${declaration('parseGpsCoordinate')}\n${declaration('joinLocationParts')}\n${declaration('getIncidentCoordinates')}\ngetIncidentCoordinates()`, {
       window: { HazMatIQ: { preferences: { get: () => true } } },
       document: { getElementById: () => ({ value: '' }) },
       getActiveIncident: () => ({ latitude: '', longitude: '' }),

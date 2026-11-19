@@ -121,7 +121,7 @@ describe("Chemical Profile UI system", () => {
   it("uses yellow selection, matte cards, and the correctly configured PPE hero asset", () => {
     expect(styles).toMatch(/\.chemical-profile-tab\.active\s*\{[^}]*background: var\(--gold-surface\);/s);
     expect(styles).toContain("Chemical Profile visual system");
-    expect(styles).toContain('url("assets/hazard-id-level-b-hero-v2.png")');
+    expect(styles).toContain('url("assets/hazard-id-level-b-hero-v2.webp")');
   });
 
   it("keeps the dashboard shell and stacks the full-width profile below search", () => {

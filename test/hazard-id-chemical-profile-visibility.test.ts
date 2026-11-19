@@ -105,6 +105,11 @@ function runVisibilityFlow() {
     ${declaration('companionChemicalForUi')}
     ${declaration('isUnreviewedTransportationRecord')}
     ${declaration('setHazardProfileMode')}
+    const hazardProfileResponseCache = new Map();
+    const HAZARD_PROFILE_CACHE_LIMIT = 40;
+    const HAZARD_PROFILE_CACHE_TTL_MS = 10 * 60 * 1000;
+    ${declaration('fetchHazardProfileCached')}
+    ${declaration('chemicalProfileUrl')}
     ${declaration('openChemical')}
     ${declaration('searchChemicalId')}
     let latestChemicalSearch = 0;

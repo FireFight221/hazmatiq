@@ -469,7 +469,7 @@ body,
 .view:not(#overview) > .weather-intelligence-hero {
   min-height: clamp(132px, 13vw, 168px) !important;
   max-height: 168px !important;
-  background: linear-gradient(90deg, rgba(3, 14, 23, .96) 0%, rgba(3, 14, 23, .82) 32%, rgba(3, 14, 23, .28) 69%, rgba(3, 14, 23, .1) 100%), url("assets/weather-intelligence-hero-v1.png") center / cover no-repeat !important;
+  background: linear-gradient(90deg, rgba(3, 14, 23, .96) 0%, rgba(3, 14, 23, .82) 32%, rgba(3, 14, 23, .28) 69%, rgba(3, 14, 23, .1) 100%), url("assets/weather-intelligence-hero-v1.webp") center / cover no-repeat !important;
 }
 .view:not(#overview) .weather-intelligence-hero::before { background: linear-gradient(90deg, rgba(3, 14, 23, .62), transparent 70%) !important; opacity: 1 !important; }
 .weather-hero-graphic { display: none !important; }

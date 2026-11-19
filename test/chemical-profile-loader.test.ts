@@ -34,6 +34,11 @@ function runtime(extra: string) {
     const statuses = [];
     function setChemicalSearchStatus(message, state = '') { statuses.push({ message, state }); }
     ${declaration('setActiveChemical')}
+    const hazardProfileResponseCache = new Map();
+    const HAZARD_PROFILE_CACHE_LIMIT = 40;
+    const HAZARD_PROFILE_CACHE_TTL_MS = 10 * 60 * 1000;
+    ${declaration('fetchHazardProfileCached')}
+    ${declaration('chemicalProfileUrl')}
     ${declaration('openChemical')}
     (async () => {
       ${extra}

@@ -226,6 +226,19 @@ function formatPpeRow(kind: string, row: Record<string, unknown>): string {
   return `${kind}: ${identity || performance}${identity && performance ? ` (${performance})` : ''}`;
 }
 
+function isOrangeGuideOnlyDistanceRow(row: Record<string, unknown>): boolean {
+  const n = (key: string) => Number(row[key]);
+  const smallIso = n('IsolationDistanceSmallSpillDayNightMeters');
+  const largeIso = n('IsolationDistanceLargeSpillDayNightMeters');
+  const smallDay = n('ProtectiveActionZoneSmallSpillDayKilometers');
+  const smallNight = n('ProtectiveActionZoneSmallSpillNightKilometers');
+  const largeDay = n('ProtectiveActionZoneLargeSpillDayKilometers');
+  const largeNight = n('ProtectiveActionZoneLargeSpillNightKilometers');
+  if (![smallIso, largeIso, smallDay, smallNight, largeDay, largeNight].every(Number.isFinite) || smallIso <= 0) return false;
+  return smallDay === smallNight && largeDay === largeNight
+    && Math.abs(smallDay * 1000 - smallIso) < 1 && Math.abs(largeDay * 1000 - largeIso) < 1;
+}
+
 function directMeasurement(value: unknown, unit: string): string {
   const display = safetyDisplayValue(value);
   if (Object.values(SAFETY_DATA_STATUS).includes(display as typeof SAFETY_DATA_STATUS[keyof typeof SAFETY_DATA_STATUS])) return display;
@@ -561,7 +574,28 @@ export function normalizeChemicalProfile(chemical: Record<string, unknown>, rela
     stabilityNotes: normalizeValue([chemical.ChemicalStability, ...stabilities].filter(Boolean).join(', ')),
   };
 
-  const isolationErg = {
+  // About 60% of distance rows repeat the Orange Guide general distances in the
+  // Table 1 columns (equal day/night values, and protective-action km equal to
+  // the isolation metres, e.g. propane 100 m / 0.1 km and 800 m / 0.8 km). Those
+  // are not ERG Table 1 TIH distances and must not be labeled as such.
+  const orangeGuideOnlyDistances = isOrangeGuideOnlyDistanceRow(isolationDistances);
+  const guideLabel = normalizeValue(chemical.ErgNumber) === 'Not available' ? 'ERG Orange Guide' : `ERG Guide ${normalizeValue(chemical.ErgNumber)}`;
+  const isolationErg = orangeGuideOnlyDistances ? {
+    ergGuide: normalizeValue(chemical.ErgNumber),
+    initialIsolationDistance: directMeasurement(isolationDistances.IsolationDistanceSmallSpillDayNightMeters, 'meters'),
+    protectiveActionDistance: available([
+      `Immediate precautionary measure: isolate ${directMeasurement(isolationDistances.IsolationDistanceSmallSpillDayNightMeters, 'meters')} in all directions (${guideLabel})`,
+      `Large spill: consider initial downwind evacuation for at least ${directMeasurement(isolationDistances.IsolationDistanceLargeSpillDayNightMeters, 'meters')} (${guideLabel})`,
+      'Not an ERG Table 1 material: no day/night protective action distances apply. Use the Orange Guide fire and evacuation distances.',
+    ]),
+    smallSpill: directMeasurement(isolationDistances.IsolationDistanceSmallSpillDayNightMeters, 'meters'),
+    largeSpill: directMeasurement(isolationDistances.IsolationDistanceLargeSpillDayNightMeters, 'meters'),
+    dayNightValues: [SAFETY_DATA_STATUS.NO_CURRENT_DATA],
+    ergTable1: ['Not listed in ERG Table 1 (Orange Guide distances only)'],
+    ergTable2: [SAFETY_DATA_STATUS.NO_CURRENT_DATA],
+    ergTable3: [SAFETY_DATA_STATUS.NO_CURRENT_DATA],
+    note: normalizeValue(chemical.ErgWarning),
+  } : {
     ergGuide: normalizeValue(chemical.ErgNumber),
     initialIsolationDistance: directMeasurement(isolationDistances.IsolationDistanceSmallSpillDayNightMeters, 'meters'),
     protectiveActionDistance: available([
@@ -1045,6 +1079,25 @@ export function groupChemicalSearchResults(results: RankedSearchRecord[]) {
 }
 
 let searchIndex: SearchRecord[] | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const searchResultCache = new Map<string, any[]>();
+type NormalizedSearchFields = { name: string; primaryName: string; terms: string[]; synonyms: string[]; sortedName: string };
+let normalizedSearchFieldCache = new WeakMap<SearchRecord, NormalizedSearchFields>();
+function normalizedSearchFields(row: SearchRecord): NormalizedSearchFields {
+  let fields = normalizedSearchFieldCache.get(row);
+  if (!fields) {
+    const name = normalizeSearchText(row.ChemicalName);
+    fields = {
+      name,
+      primaryName: normalizeSearchText(row.PrimaryChemicalName),
+      terms: row.matchTerms.map(normalizeSearchText),
+      synonyms: row.synonyms.map(normalizeSearchText),
+      sortedName: sortedSearchWords(name),
+    };
+    normalizedSearchFieldCache.set(row, fields);
+  }
+  return fields;
+}
 let diagnostics: Record<string, number | string> | null = null;
 
 export function rebuildCompanionSearchIndex() {
@@ -1114,6 +1167,8 @@ export function rebuildCompanionSearchIndex() {
       });
     }
     searchIndex = records;
+    searchResultCache.clear();
+    normalizedSearchFieldCache = new WeakMap();
     diagnostics = {
       activeDatabasePath: dbPath, sourceChemicalTotal: chemicals.length,
       sourceUnNaIdentifierTotal: Number((db.prepare('SELECT count(*) total FROM emergency_response_unna_numbers').get() as { total: number }).total),
@@ -1140,10 +1195,16 @@ export function searchCompanionChemicals(query: string) {
   const exactTransportation = normalizeTransportationIdentifier(query);
   const exactCas = normalizeCasIdentifier(query);
   const words = term.split(' ').filter(Boolean);
+  const sortedTerm = sortedSearchWords(term);
+  const cacheKey = `${term}|${exactTransportation ?? ''}|${exactCas ?? ''}`;
+  const cached = searchResultCache.get(cacheKey);
+  if (cached) return cached as typeof grouped;
+  const seenResultKeys = new Set<string>();
   const matched = (searchIndex ?? (rebuildCompanionSearchIndex(), searchIndex!)).map((row) => {
-    const name = normalizeSearchText(row.ChemicalName);
-    const primaryName = normalizeSearchText(row.PrimaryChemicalName);
-    const terms = row.matchTerms.map(normalizeSearchText);
+    // Normalized search text is computed once per index row, not on every
+    // keystroke. Re-normalizing every alias of every record per query was
+    // the main source of multi-second search latency on small hosts.
+    const { name, primaryName, terms, synonyms, sortedName } = normalizedSearchFields(row);
     let rank = 100;
     let matchReason = '';
     if (exactTransportation && row.UnnaNumber === exactTransportation) {
@@ -1158,18 +1219,21 @@ export function searchCompanionChemicals(query: string) {
     else if (exactCas) return { ...row, rank, matchReason };
     else if (name === term && row.recordType === 'master-chemical') [rank, matchReason] = [2, 'Exact Chemical Companion master name'];
     else if (primaryName === term && row.recordType === 'master-chemical') [rank, matchReason] = [2, 'Exact Chemical Companion master name'];
-    else if (row.synonyms.map(normalizeSearchText).includes(term) && row.recordType === 'master-chemical') [rank, matchReason] = [3, 'Exact master synonym'];
+    else if (synonyms.includes(term) && row.recordType === 'master-chemical') [rank, matchReason] = [3, 'Exact master synonym'];
     else if (name === term && row.recordType === 'transportation-identifier') [rank, matchReason] = [8,
       hasApprovedMasterLink(row) ? 'Exact reviewed transportation shipping name' : 'Exact transportation shipping name · Requires Review'];
-    else if (sortedSearchWords(name) === sortedSearchWords(term)) [rank, matchReason] = [row.recordType === 'master-chemical' ? 4 : 8, 'Normalized exact word match'];
+    else if (sortedName === sortedTerm) [rank, matchReason] = [row.recordType === 'master-chemical' ? 4 : 8, 'Normalized exact word match'];
     else if (name.startsWith(term)) [rank, matchReason] = [row.recordType === 'master-chemical' ? 5 : 9, 'Name starts with query'];
     else if (terms.some((value) => value.includes(term)) && words.every((word) => terms.some((value) => value.includes(word)))) [rank, matchReason] = [row.recordType === 'master-chemical' ? 7 : 10, 'Identifier or alias contains query'];
     return { ...row, rank, matchReason };
   }).filter((row) => row.rank < 100)
     .sort((a, b) => a.rank - b.rank || a.ChemicalName.localeCompare(b.ChemicalName) || Number(a.ChemicalID) - Number(b.ChemicalID))
-    .filter((row, index, all) => all.findIndex((other) => other.recordType === row.recordType
-      && other.ChemicalID === row.ChemicalID && other.UnnaNumber === row.UnnaNumber
-      && other.ChemicalName === row.ChemicalName) === index);
+    .filter((row) => {
+      const key = `${row.recordType}\u0000${row.ChemicalID}\u0000${row.UnnaNumber}\u0000${row.ChemicalName}`;
+      if (seenResultKeys.has(key)) return false;
+      seenResultKeys.add(key);
+      return true;
+    });
   const matchedMasterIds = new Set(matched
     .filter((row) => row.recordType === 'master-chemical')
     .map((row) => Number(row.ChemicalID)));
@@ -1188,6 +1252,8 @@ export function searchCompanionChemicals(query: string) {
     });
   const grouped = groupChemicalSearchResults([...matched, ...resolvedMasters])
     .map(({ rank: _rank, matchTerms: _terms, ...row }) => row);
+  if (searchResultCache.size >= 300) searchResultCache.delete(searchResultCache.keys().next().value as string);
+  searchResultCache.set(cacheKey, grouped);
   console.info('[chemical-companion] search', { query, normalizedTransportation: exactTransportation, normalizedCas: exactCas, resultTotal: grouped.length, top: grouped[0] ?? null });
   return grouped;
 }
