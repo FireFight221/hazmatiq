@@ -135,6 +135,7 @@ export type CbrneSearchResult = {
   agentCodes?: string[];
   cas?: string[];
   unNaNumbers?: string[];
+  ergGuide?: string;
   radionuclideSymbol?: string;
   verificationStatus: CbrneVerificationStatus;
   sourceSummary: string[];

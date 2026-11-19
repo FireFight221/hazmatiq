@@ -703,3 +703,48 @@
     font-size: 0.9rem;
   }
 }
+
+/* Reference-only Hazard ID lookup while an incident has a different chemical. */
+.hazard-reference-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid #f2b84b;
+  border-left-width: 6px;
+  border-radius: 10px;
+  background: rgba(242, 184, 75, 0.12);
+  color: inherit;
+}
+.hazard-reference-banner[hidden] { display: none; }
+.hazard-reference-banner p { margin: 0; font-weight: 600; line-height: 1.4; }
+.hazard-reference-banner button { flex: 0 0 auto; min-height: 44px; }
+.hazard-reference-banner .chemical-action-button {
+  padding: 0 16px;
+  border: 1px solid #f2b84b;
+  border-radius: 8px;
+  background: #f2b84b;
+  color: #111827;
+  font-weight: 800;
+  cursor: pointer;
+}
+.hazard-reference-banner .chemical-action-button:hover,
+.hazard-reference-banner .chemical-action-button:focus-visible { background: #ffd27a; }
+@media (max-width: 560px) {
+  .hazard-reference-banner { flex-direction: column; align-items: stretch; }
+}
+#chemical-id-results .chemical-profile-shell:has(> #hazard-reference-banner:not([hidden])) {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+  grid-template-areas: "profile-toolbar" "profile-reference" "profile-identity" "profile-workspace" "profile-footer" !important;
+}
+#chemical-id-results .chemical-profile-shell > #hazard-reference-banner { grid-area: profile-reference; margin: 0; }
+#hazard-reference-assign-btn {
+  background: #f2b84b;
+  color: #1a1203;
+  border: 1px solid #f2b84b;
+  font-weight: 800;
+}
+#hazard-reference-assign-btn:hover,
+#hazard-reference-assign-btn:focus-visible { background: #ffd07a; }

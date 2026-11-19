@@ -27,7 +27,10 @@
 
   function normalizeIncidentState(incident = legacyApi()?.getActiveIncident?.()) {
     const source = incident && typeof incident === 'object' ? incident : {};
-    const location = [source.facilityName, source.address, source.city, source.state, source.zip].filter(Boolean).join(', ');
+    const location = [source.facilityName, source.address, source.city, source.state, source.zip]
+      .map((part) => String(part ?? '').trim())
+      .filter((part, index, parts) => part && parts.findIndex((other) => other.toLowerCase() === part.toLowerCase()) === index)
+      .join(', ');
     const coordinates = Number.isFinite(Number(source.latitude)) && Number.isFinite(Number(source.longitude))
       ? { latitude: Number(source.latitude), longitude: Number(source.longitude) }
       : null;
@@ -413,23 +416,28 @@
       );
     };
     if (!involvedChemicals.some(sameChemical)) involvedChemicals.push(hazardIdentity);
+    // When the primary hazard changes, never carry the previous chemical's
+    // identifiers, ERG guide, or IDLH forward as fallbacks.
+    const replacing = Boolean(normalized.displayName && incident.chemicalName
+      && String(normalized.displayName).trim().toLowerCase() !== String(incident.chemicalName).trim().toLowerCase());
+    const prior = replacing ? {} : incident;
     const next = {
       ...incident,
       involvedChemicals,
       chemicalName: normalized.displayName || incident.chemicalName,
-      selectedChemicalId: normalized.chemicalCompanionId ?? incident.selectedChemicalId ?? null,
-      chemicalCompanionId: normalized.chemicalCompanionId ?? incident.chemicalCompanionId ?? null,
-      cbrneCanonicalId: normalized.cbrneCanonicalId || incident.cbrneCanonicalId || null,
-      canonicalHazardId: normalized.canonicalId || incident.canonicalHazardId || null,
+      selectedChemicalId: normalized.chemicalCompanionId ?? prior.selectedChemicalId ?? null,
+      chemicalCompanionId: normalized.chemicalCompanionId ?? prior.chemicalCompanionId ?? null,
+      cbrneCanonicalId: normalized.cbrneCanonicalId || prior.cbrneCanonicalId || null,
+      canonicalHazardId: normalized.canonicalId || prior.canonicalHazardId || null,
       hazardProfileType: normalized.profileType || 'hazard',
-      hazardRoutingLane: normalized.routingLane || result.lane || incident.hazardRoutingLane || '',
-      casNumber: normalized.cas || identifiers.cas || identifiers.casNumber || incident.casNumber || '',
-      unNumber: normalized.un || identifiers.un || identifiers.unNaNumbers || incident.unNumber || '',
-      ergGuide: normalized.erg || identifiers.erg || identifiers.ergGuide || incident.ergGuide || '',
-      idlh: normalized.idlh || identifiers.idlh || viewProfile.idlh || viewProfile.exposures?.idlh || incident.idlh || '',
-      nioshSourceId: normalized.nioshSourceId || viewProfile.niosh?.sourceRecordId || incident.nioshSourceId || '',
-      nioshIdentityStatus: normalized.nioshIdentityStatus || viewProfile.niosh?.status || incident.nioshIdentityStatus || '',
-      hazardClass: normalized.category || incident.hazardClass || '',
+      hazardRoutingLane: normalized.routingLane || result.lane || prior.hazardRoutingLane || '',
+      casNumber: normalized.cas || identifiers.cas || identifiers.casNumber || prior.casNumber || '',
+      unNumber: normalized.un || identifiers.un || identifiers.unNaNumbers || prior.unNumber || '',
+      ergGuide: normalized.erg || identifiers.erg || identifiers.ergGuide || prior.ergGuide || '',
+      idlh: normalized.idlh || identifiers.idlh || viewProfile.idlh || viewProfile.exposures?.idlh || prior.idlh || '',
+      nioshSourceId: normalized.nioshSourceId || viewProfile.niosh?.sourceRecordId || prior.nioshSourceId || '',
+      nioshIdentityStatus: normalized.nioshIdentityStatus || viewProfile.niosh?.status || prior.nioshIdentityStatus || '',
+      hazardClass: normalized.category || prior.hazardClass || '',
       chemicalProfile: viewProfile,
       chemicalProfileCapturedAt: new Date().toISOString(),
       sourceStatuses: { ...(incident.sourceStatuses || {}), chemical: normalized.sourceState || NO_DATA },

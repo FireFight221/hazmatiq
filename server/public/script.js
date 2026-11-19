@@ -241,6 +241,8 @@ let notificationHistory = [];
 try {
   notificationHistory = JSON.parse(window.localStorage.getItem(notificationHistoryStorageKey) || '[]');
   if (!Array.isArray(notificationHistory)) notificationHistory = [];
+  // Drop transient status entries saved by earlier versions.
+  notificationHistory = notificationHistory.filter((entry) => !/^(?:loading|checking|refreshing|retrieving)\b/i.test(String(entry?.message || '').trim()));
 } catch {
   notificationHistory = [];
 }
@@ -249,7 +251,8 @@ function classifyNotification(message) {
   const text = String(message || '');
   if (/\b(critical|danger|evacuat|life safety|alarm)\b/i.test(text)) return 'critical';
   if (/\b(warning|alert|failed|failure|lost|disconnect|conflict|error)\b/i.test(text) && !/no alerts?/i.test(text)) return 'warning';
-  if (/\b(loading|awaiting|needed|stale|verify|unavailable)\b/i.test(text)) return 'advisory';
+  if (/^(?:loading|checking|refreshing|retrieving)\b/i.test(text)) return 'normal';
+  if (/\b(awaiting|needed|stale|verify|unavailable)\b/i.test(text)) return 'advisory';
   return 'normal';
 }
 
@@ -322,6 +325,9 @@ function renderNotificationStrip() {
 
 function recordNotification(sourceKey, message, metadata = {}) {
   const normalized = String(message || '').trim();
+  // Transient system status ("Loading live weather…") is not an alert and must
+  // not be logged to history or counted in the Alerts badge.
+  if (!normalized || /^(?:loading|checking|refreshing|retrieving)\b/i.test(normalized)) return;
   const source = notificationSources[sourceKey];
   const previous = metadata.type === 'WEATHER_BRIEF' ? null : notificationHistory.find((entry) => entry.source === source && !entry.resolved);
   if (previous?.message === normalized) return;
@@ -712,6 +718,9 @@ function activatePage(targetId, { preserveHazardState = false, skipPlumeInitiali
   const activationContext = plumeContext || pageContext;
   const targetView = [...views].find((view) => view.id === targetId);
   if (!targetView) return null;
+  if (targetId !== 'lookup' && typeof restoreIncidentChemicalAfterReferenceLookup === 'function') {
+    restoreIncidentChemicalAfterReferenceLookup();
+  }
   if (targetId !== 'plume' && plumeMapMaximized) setPlumeMapMaximized(false);
   if (targetId === 'plume' && !skipPlumeInitialization) {
     return openPlumeModel(activationContext);
@@ -1930,6 +1939,9 @@ function canonicalIncidentChemicalFields(chemical, profileRecord = null) {
   return {
     selectedChemicalId: Number(selectedId),
     chemicalCompanionId: Number(selectedId),
+    // A ChemicalCompanion product replaces any prior CBRNE primary hazard.
+    cbrneCanonicalId: null,
+    canonicalHazardId: null,
     chemicalName,
     casNumber: firstChemicalDataValue(
       header.cas,
@@ -2274,7 +2286,7 @@ function incidentCommandMonitoringState(incident) {
 function buildIncidentCommandViewModel() {
   const incident = getActiveIncident();
   if (!incident) return { hasActiveIncident: false };
-  const location = [incident.facilityName, incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', ');
+  const location = joinLocationParts([incident.facilityName, incident.address, incident.city, incident.state, incident.zip]);
   // Incident Command reads only the plume workflow persisted on this incident.
   // The latest overlay is a map/planning transport artifact, not an incident
   // summary source and may belong to another workspace.
@@ -2356,14 +2368,15 @@ function buildIncidentCommandViewModel() {
     incidentName: incidentCommandValue(incident.incidentName, 'Incident not named'),
     status: incidentCommandValue(incident.status, 'Active'),
     location: incidentCommandValue(location, 'Location not set'),
-    sceneLocation: incidentCommandValue([incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', '), 'No Current Data Exists'),
+    sceneLocation: incidentCommandValue(joinLocationParts([incident.address, incident.city, incident.state, incident.zip]), 'No Current Data Exists'),
     facilityName: incidentCommandValue(incident.facilityName, 'Not specified'),
-    facilityAddress: incidentCommandValue([incident.address, incident.city, incident.state, incident.zip].filter(Boolean).join(', '), 'Not specified'),
+    facilityAddress: incidentCommandValue(joinLocationParts([incident.address, incident.city, incident.state, incident.zip]), 'Not specified'),
     facilityType: incidentCommandValue(incident.facilityType, 'Not specified'),
     facilityVerified,
     facilityVerificationStatus: facilityVerified ? 'Verified facility record' : incident.selectedFacility?.name ? 'Manual entry — not verified' : 'No facility selected',
     chemical: {
       name: incidentCommandValue(chemicalData.chemicalName),
+      casNumber: incidentCommandValue(chemicalData.casNumber),
       unNumber: incidentCommandValue(chemicalData.unNumber),
       ergGuide: incidentCommandValue(chemicalData.ergGuide),
       hazardClass: incidentCommandValue(chemicalData.hazardClass),
@@ -2557,7 +2570,7 @@ function renderIncidentCommandDashboard() {
   [
     ['Incident Name', model.incidentName], ['Status', model.status], ['Location', model.location],
     ['Date / Time Started', model.startTime ? new Date(model.startTime).toLocaleString() : noCurrentDataText],
-    ['Elapsed Time', model.elapsedTime], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)],
+    ['Elapsed Time', model.elapsedTime, false, 'elapsed'], ['Chemical(s) / Hazard(s)', incidentCommandValue(model.hazards)],
     ['IDLH', model.idlh, true, 'idlh'], ['Operational Strategy', model.operationalStrategy], ['Last Updated', model.lastUpdated],
   ].forEach(([labelText, value, lifeSafety, field]) => {
     const row = document.createElement('div');
@@ -2879,6 +2892,9 @@ function renderIncidentTimer() {
   const timer = document.getElementById('active-incident-timer');
   if (timer) timer.textContent = elapsed;
   setText('ic-summary-elapsed', elapsed);
+  // Keep the Incident Brief on the same one-second clock as the header timer.
+  const briefElapsed = document.querySelector('#ic-brief-list [data-field="elapsed"] dd');
+  if (briefElapsed) briefElapsed.textContent = elapsed;
 
   // The clock is a narrow, once-per-second update. Keep the tactical status
   // current without rebuilding the Command dashboard or recording a new
@@ -3079,7 +3095,7 @@ function renderIncidentCard(container, incident, activeId, { deletable = false }
   const name = document.createElement('strong');
   name.textContent = incident.incidentName || 'New Incident';
   const summary = document.createElement('small');
-  const place = [incident.facilityName, incident.address, incident.city, incident.state].filter(Boolean).join(', ');
+  const place = joinLocationParts([incident.facilityName, incident.address, incident.city, incident.state]);
   summary.textContent = [incident.startDate, incident.startTime, place].filter(Boolean).join(' · ');
   const status = document.createElement('span');
   status.className = 'status-pill';
@@ -4759,6 +4775,25 @@ function chemicalEntryCautionValues(profile) {
   ], (item) => !sectionHeadings.test(item), 5);
 }
 
+// Product-specific vapor behavior. ERG guide text is shared by many products
+// ("Many gases are heavier than air"), so state what this product's vapor
+// density actually means instead of leaving responders to reconcile it.
+function chemicalVaporBehaviorNote(profile) {
+  const properties = profileObject(profile?.properties);
+  const raw = String(properties.vaporDensity ?? '').replace(/,/g, '');
+  const match = raw.match(/(?:^|[^\d.])(\d+(?:\.\d+)?)/);
+  const density = match ? Number(match[1]) : NaN;
+  if (!Number.isFinite(density) || density <= 0) return '';
+  const value = `Vapor density ${density} (air = 1)`;
+  if (density < 0.95) {
+    return `${value}: lighter than air at ambient temperature and will tend to rise and disperse. Cold releases from liquefied or refrigerated product (flashing liquid, fog, or aerosol) can still form a dense, ground-hugging cloud until the vapor warms.`;
+  }
+  if (density <= 1.05) {
+    return `${value}: close to the density of air. Expect the vapor to move with the wind; temperature and release conditions decide whether it rises or stays low.`;
+  }
+  return `${value}: heavier than air. Expect vapor to stay low, flow downhill, and collect in basements, sewers, ditches, and other low or confined areas.`;
+}
+
 function chemicalFrontlineRows(profile) {
   const header = profileObject(profile?.header);
   const recommendation = profileObject(profile?.ppeRecommendation);
@@ -4789,6 +4824,7 @@ function chemicalFrontlineRows(profile) {
     fire.runoffConcerns,
   ], () => true, 3));
 
+  add('Vapor behavior', chemicalVaporBehaviorNote(profile));
   add('Entry Cautions', chemicalEntryCautionValues(profile));
 
   add('Identity / verification', chemicalFrontlineValues([
@@ -6502,7 +6538,7 @@ function createGuidedCommandCard(stage) {
     modeSelect.setAttribute('aria-describedby', 'guided-tactical-mode-help');
     const derivedOption = document.createElement('option');
     derivedOption.value = '';
-    derivedOption.textContent = `Use derived posture (${stage.action || 'Verify'})`;
+    derivedOption.textContent = 'Not selected · choose a mode';
     modeSelect.append(derivedOption);
     guidedTacticalModeOptions.forEach((mode) => {
       const option = document.createElement('option');
@@ -7412,7 +7448,7 @@ function validAssignmentCoordinatePair(latitude, longitude) {
 
 function savedIncidentLocation(incident) {
   const coordinates = validAssignmentCoordinatePair(incident?.latitude, incident?.longitude);
-  const label = [incident?.facilityName, incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', ')
+  const label = joinLocationParts([incident?.facilityName, incident?.address, incident?.city, incident?.state, incident?.zip])
     || incident?.selectedFacility?.name || '';
   return coordinates ? { ...coordinates, label } : null;
 }
@@ -7447,7 +7483,7 @@ function resolveAssignmentLocation(incident, assignment) {
     incidentLocation?.label,
     incident?.facilityName,
     incident?.address,
-    [incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', '),
+    joinLocationParts([incident?.address, incident?.city, incident?.state, incident?.zip]),
     incident?.selectedFacility?.name,
     incident?.selectedFacility?.address,
   ].map(normalize).filter(Boolean);
@@ -8443,8 +8479,9 @@ function createGuidedCommandFlow(model, context = {}) {
   notice.className = 'guided-command-flow-notice';
   notice.textContent = 'Plan updates feed the IAP drafts. Mark a goal accomplished when the work is complete.';
   const incident = getActiveIncident();
-  const profile = activeChemicalRecord?.profile || incident?.chemicalProfile || {};
-  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
+  const incidentContext = getIncidentChemicalContext(incident);
+  const profile = (incident ? (Object.keys(incidentContext?.profile || {}).length ? incidentContext.profile : incident.chemicalProfile) : activeChemicalRecord?.profile) || {};
+  const chemical = incidentContext?.chemical || activeChemical;
   const phaseState = readGuidedResponsePhaseState(incident, chemical);
   const savedPlume = incident?.plumeModelResults?.plumeResult || incident?.plumeModelResults || readPlanningState().plumeModelResults || null;
   const scenarioSummary = guidedScenarioSummary(incident, profile, savedPlume);
@@ -9306,6 +9343,7 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
         ['Alternate / common name', profile.identifiers?.aliases],
         ['Scientific name', profile.scientificName || profile.identifiers?.scientificName],
         ['ERG Guide', profile.identifiers?.ergGuide],
+        ['ERG isolation / protective action', profile.identifiers?.ergProtectiveActionDistances],
         ['CWC classification', profile.identifiers?.opcwSchedule],
         ['Hazard Class', category || noCurrentDataText],
       ];
@@ -9372,6 +9410,48 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   renderStarterHazardTab(profile, activeTabFields);
 }
 
+let cbrneReferenceLookup = null;
+
+function cbrneLookupWouldReplaceIncidentChemical(result) {
+  if (!hasActiveIncident()) return false;
+  const incident = getActiveIncident();
+  if (!incident || !hasCanonicalIncidentChemicalIdentity(incident)) return false;
+  const identity = incidentChemicalIdentity(incident);
+  const incidentName = String(identity?.name || incident.chemicalName || '').trim().toLowerCase();
+  const resultName = String(result?.displayName || '').trim().toLowerCase();
+  return Boolean(resultName) && incidentName !== resultName;
+}
+
+function setCbrneReferenceLookup(lookup) {
+  cbrneReferenceLookup = lookup || null;
+  const banner = document.getElementById('cbrne-reference-banner');
+  if (!banner) return;
+  if (!lookup) {
+    banner.hidden = true;
+    return;
+  }
+  const incident = getActiveIncident();
+  const incidentChemicalName = incidentChemicalIdentity(incident)?.name || incident?.chemicalName || 'its current chemical';
+  setText(
+    'cbrne-reference-text',
+    `Reference lookup only. ${lookup.result?.displayName || 'This agent'} has not been added to ${incident?.incidentName || 'the active incident'}. Command, Plot Plume, and Guided Response still use ${incidentChemicalName}.`,
+  );
+  banner.hidden = false;
+}
+
+document.getElementById('cbrne-reference-assign-btn')?.addEventListener('click', () => {
+  const lookup = cbrneReferenceLookup;
+  if (!lookup) return;
+  const incident = getActiveIncident();
+  const previousName = incidentChemicalIdentity(incident)?.name || incident?.chemicalName || 'the current chemical';
+  const nextName = lookup.result?.displayName || 'this agent';
+  const confirmed = window.confirm(`Add ${nextName} to ${incident?.incidentName || 'the active incident'} as the primary hazard?\n\nThis replaces ${previousName} as the incident's primary hazard.`);
+  if (!confirmed) return;
+  setCbrneReferenceLookup(null);
+  window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(lookup.result, lookup.profile);
+  setChemicalSearchStatus(`${nextName} assigned to the active incident.`, 'success');
+});
+
 async function openStarterHazard(result, { profileTab = 'overview' } = {}) {
   const requestId = ++latestStarterHazardRequest;
   const lane = result?.lane || result?.routingLane || activeHazardSearchLane;
@@ -9384,7 +9464,14 @@ async function openStarterHazard(result, { profileTab = 'overview' } = {}) {
   }
   renderStarterHazardProfile(profile, { profileTab });
   window.HazMatIQ?.setActiveHazardState?.(result, { profile, status: 'ready' });
-  window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(result, profile);
+  // Same rule as chemical lookups (C2): looking up a CBRNE agent during an
+  // incident that already has a chemical is a reference lookup. Only an
+  // explicit, confirmed Assign changes the incident.
+  if (cbrneLookupWouldReplaceIncidentChemical(result)) setCbrneReferenceLookup({ result, profile });
+  else {
+    setCbrneReferenceLookup(null);
+    window.HazMatIQ?.incidentCommand?.propagateHazardToIncident?.(result, profile);
+  }
   hazardProfileResults?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -9966,7 +10053,14 @@ function syncPlumeChemicalSelection() {
   updatePlumeInputSummaries();
 }
 
-function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {}) {
+function setActiveChemical(chemical, { persist = true, clearOverlay = true, reference = false } = {}) {
+  // Reference lookups (Hazard ID research while an incident already has a
+  // different chemical) must never write to the incident, reset its plume, or
+  // overwrite its command form. Only an explicit assignment does that.
+  if (reference) {
+    persist = false;
+    clearOverlay = false;
+  }
   const nextSelectedChemicalId = normalizeChemicalSelectionId(
     chemical?.selectedChemicalId
       ?? chemical?.ChemicalID
@@ -9981,8 +10075,10 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
     || String(activeChemical?.un || '').trim() !== nextChemicalUn;
   if (changed) {
     activeChemicalRecord = null;
-    activePlumeCommand = null;
-    activePpeSelection = [];
+    if (!reference) {
+      activePlumeCommand = null;
+      activePpeSelection = [];
+    }
   }
   selectedChemicalId = nextSelectedChemicalId;
   activeChemical = chemical ? {
@@ -9993,7 +10089,7 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
   } : null;
   window.HazMatIQ?.setActiveHazardState?.(chemical, { status: activeChemical ? 'loading' : 'empty' });
   const incidentProductInput = document.getElementById('incident-product');
-  if (incidentProductInput) incidentProductInput.value = activeChemical?.name || '';
+  if (incidentProductInput && !reference) incidentProductInput.value = activeChemical?.name || '';
   if (persist) {
     try {
       if (hasActiveIncident()) {
@@ -10024,7 +10120,7 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
   } catch (error) {
     console.warn('[chemical-companion] optional plume selection sync failed', error);
   }
-  if (changed) {
+  if (changed && !reference) {
     try {
       applyChemicalContainerProfile();
     } catch (error) {
@@ -10036,7 +10132,7 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
   } catch (error) {
     console.warn('[chemical-companion] optional incident snapshot initialization failed', error);
   }
-  if (activeChemical) {
+  if (activeChemical && !reference) {
     try {
       if (persist && hasActiveIncident() && persistCanonicalIncidentChemicalSelection(chemical)) {
         // The canonical selection has already been persisted. Do not let the
@@ -10156,6 +10252,52 @@ function clearChemicalSuggestions() {
 
 renderHazardSearchMode('CHEMICAL');
 
+let hazardReferenceLookupChemical = null;
+
+function hazardLookupWouldReplaceIncidentChemical(chosenChemicalId) {
+  if (!hasActiveIncident()) return false;
+  const incident = getActiveIncident();
+  if (!incident || !hasCanonicalIncidentChemicalIdentity(incident)) return false;
+  const identity = incidentChemicalIdentity(incident);
+  return String(identity?.id ?? '') !== String(chosenChemicalId ?? '');
+}
+
+function setHazardReferenceLookup(chemical) {
+  hazardReferenceLookupChemical = chemical || null;
+  const banner = document.getElementById('hazard-reference-banner');
+  if (!banner) return;
+  if (!chemical) {
+    banner.hidden = true;
+    return;
+  }
+  const incident = getActiveIncident();
+  const incidentChemicalName = incidentChemicalIdentity(incident)?.name || 'its current chemical';
+  setText(
+    'hazard-reference-text',
+    `Reference lookup only. ${chemical.ChemicalName || chemical.name || 'This chemical'} has not been added to ${incident?.incidentName || 'the active incident'}. Plot Plume and Guided Response still use ${incidentChemicalName}.`,
+  );
+  banner.hidden = false;
+}
+
+function restoreIncidentChemicalAfterReferenceLookup() {
+  if (!hazardReferenceLookupChemical) return;
+  setHazardReferenceLookup(null);
+  void restoreSelectedChemical();
+}
+
+document.getElementById('hazard-reference-assign-btn')?.addEventListener('click', async () => {
+  const chemical = hazardReferenceLookupChemical;
+  if (!chemical) return;
+  const incident = getActiveIncident();
+  const previousName = incidentChemicalIdentity(incident)?.name || 'the current chemical';
+  const nextName = chemical.ChemicalName || chemical.name || 'this chemical';
+  const confirmed = window.confirm(`Make ${nextName} the primary chemical for ${incident?.incidentName || 'the active incident'}?\n\nThis replaces ${previousName}. Saved plume results and chemical-specific guidance for ${previousName} will be marked out of date.`);
+  if (!confirmed) return;
+  setHazardReferenceLookup(null);
+  await selectIncidentProduct(chemical);
+  setChemicalSearchStatus(`${nextName} assigned to the active incident.`, 'success');
+});
+
 async function openChemical(chemical, facilityName = '', { profileTab = 'overview' } = {}) {
   if (chemical.recordType === 'transportation-identifier' || chemical.guidanceEligible === false) {
     setChemicalSearchStatus(chemical.reviewWarning || 'This transport identifier has not been verified against a Chemical Companion master chemical record. Do not use it for IDLH, PPE, plume, decon, or medical guidance until reviewed.', 'error');
@@ -10168,7 +10310,15 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
   const chosenChemicalId = normalizeChemicalSelectionId(chemical.selectedChemicalId ?? chemical.ChemicalID ?? chemical.id);
   const chosenChemicalName = chemical.ChemicalName || chemical.name;
   const profileRequestId = ++latestChemicalProfileRequest;
-  setActiveChemical({ ...chemical, selectedChemicalId: chosenChemicalId });
+  // Looking up a different chemical while an incident already has one is
+  // research, not an incident change. Keep the incident untouched until the
+  // user explicitly assigns the looked-up chemical.
+  const referenceOnly = typeof hazardLookupWouldReplaceIncidentChemical === 'function'
+    && hazardLookupWouldReplaceIncidentChemical(chosenChemicalId);
+  if (typeof setHazardReferenceLookup === 'function') {
+    setHazardReferenceLookup(referenceOnly ? { ...chemical, selectedChemicalId: chosenChemicalId } : null);
+  }
+  setActiveChemical({ ...chemical, selectedChemicalId: chosenChemicalId }, { reference: referenceOnly });
   console.info('[chemical-companion] selection', {
     selectedChemicalId: chosenChemicalId,
     ChemicalName: chosenChemicalName,
@@ -10205,6 +10355,7 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
       showProfileLoadError('Chemical information could not be displayed.');
       return;
     }
+    if (referenceOnly) return;
     try {
       applyChemicalContainerProfile();
       updateActiveIncidentRecord();
@@ -10246,12 +10397,14 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
     return;
   }
 
-  try {
-    applyChemicalContainerProfile();
-    updateActiveIncidentRecord();
-    renderIncidentCommandSnapshot();
-  } catch (error) {
-    console.warn('[chemical-companion] optional profile propagation failed', error);
+  if (!referenceOnly) {
+    try {
+      applyChemicalContainerProfile();
+      updateActiveIncidentRecord();
+      renderIncidentCommandSnapshot();
+    } catch (error) {
+      console.warn('[chemical-companion] optional profile propagation failed', error);
+    }
   }
 
   void recordPromise.then((record) => {
@@ -10259,6 +10412,7 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
     try {
       activeChemicalRecord = { ...record, ...profileRecord };
       window.HazMatIQ?.setActiveHazardState?.(chemical, { profile: activeChemicalRecord.profile, record: activeChemicalRecord, status: 'ready' });
+      if (referenceOnly) return;
       applyChemicalContainerProfile();
       updateActiveIncidentRecord();
       renderIncidentCommandSnapshot();
@@ -11684,9 +11838,11 @@ async function fitPlumeToView() {
   if (currentErgIsolationGeoJson?.features?.length) {
     forEachCoordinate(currentErgIsolationGeoJson, (coordinate) => bounds.extend(coordinate));
   }
+  const releasePoint = plumeSourceMarker?.getLngLat?.();
+  if (!bounds.isEmpty() && releasePoint) bounds.extend([releasePoint.lng, releasePoint.lat]);
   if (!bounds.isEmpty()) {
     plumeMap.fitBounds(bounds, {
-      padding: 70,
+      padding: plumeMapFitPadding(),
       maxZoom: 15,
       pitch: plumeViewIsPlume() ? 60 : (plumeMap.getPitch?.() || 0),
       bearing: plumeMap.getBearing?.() || 0,
@@ -12072,7 +12228,7 @@ async function toggleErgIsolationOverlay() {
       chemicalId: String(activeChemical.selectedChemicalId ?? activeChemical.id),
       endpointDurationMinutes: document.getElementById('plume-endpoint-duration')?.value || '60',
       ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-      ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+      ergPeriod: resolveErgPeriod(),
       ergOnly: 'true',
     });
     const response = await fetch(`/api/plume/availability?${query}`);
@@ -12561,7 +12717,7 @@ async function renderErgOverlay(geojson, label) {
   if (ergIsolationVisible) addErgIsolationLayer();
   const bounds = new window.maplibregl.LngLatBounds();
   forEachCoordinate(geojson, (coordinate) => bounds.extend(coordinate));
-  if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 500 });
+  if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: plumeMapFitPadding(), maxZoom: 15, duration: 500 });
   setText('plume-overlay-status', label);
   return Boolean(isolationFeatures.length || protectiveFeatures.length);
 }
@@ -13063,7 +13219,7 @@ async function renderThreatZones(geojson, label) {
   if (plumeViewIsPlume()) {
     updatePlume3dEnvelope();
     setPlumeGroundView();
-  } else if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, duration: 500 });
+  } else if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: plumeMapFitPadding(), maxZoom: 15, duration: 500 });
   setText('plume-overlay-status', label);
   return true;
 }
@@ -14077,7 +14233,7 @@ async function setPlumeMapView(viewName) {
   if (!cameraBeforeSwitch && activeZones?.features?.length) {
     const bounds = new window.maplibregl.LngLatBounds();
     forEachCoordinate(activeZones, (coordinate) => bounds.extend(coordinate));
-    if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: 70, maxZoom: 15, pitch: view.pitch, bearing: cameraBearing, duration: 400 });
+    if (!bounds.isEmpty()) plumeMap.fitBounds(bounds, { padding: plumeMapFitPadding(), maxZoom: 15, pitch: view.pitch, bearing: cameraBearing, duration: 400 });
   } else {
     plumeMap.easeTo(camera);
   }
@@ -14254,7 +14410,7 @@ async function getIncidentCoordinates({ requestGps = true, allowPlumeManual = fa
   if (entered) return useFallbackLocation({ ...entered, source: 'Incident Dashboard' });
   const incident = getActiveIncident();
   const address = getIncidentAddressValue();
-  const savedAddress = [incident?.address, incident?.city, incident?.state, incident?.zip].filter(Boolean).join(', ');
+  const savedAddress = joinLocationParts([incident?.address, incident?.city, incident?.state, incident?.zip]);
   const saved = incident?.latitude !== '' && incident?.longitude !== ''
     && incident?.latitude != null && incident?.longitude != null
     ? parseGpsCoordinate(`${incident.latitude}, ${incident.longitude}`) : null;
@@ -14929,6 +15085,11 @@ const containerProfiles = [
 ].map((profile) => {
   // Broad conditions guide responders without inventing an exact pressure.
   const pressureConditionByType = {
+    'rail-pressure': 'Liquefied compressed gas',
+    'rail-nonpressure': 'Low pressure / product transfer',
+    'tube-trailer': 'Compressed gas',
+    'portable-tank': 'Low pressure / product transfer',
+    'fixed-tank': 'Liquefied compressed gas',
     'dot-406': 'Low pressure / product transfer',
     'dot-407': 'Low pressure / product transfer',
     'dot-412': 'Low pressure / product transfer',
@@ -15209,17 +15370,17 @@ function readPlumeModelInputs(location) {
     releaseDurationSec: releaseKind === 'puff'
       ? Number(document.getElementById('plume-puff-duration')?.value)
       : (Number(document.getElementById('plume-release-duration')?.value) * 60) || null,
-    sourceType: controlValue('container-model-source', { selectedLabel: true }),
-    containerType: controlValue('plume-container-type', { selectedLabel: true }),
-    containerCapacity: controlValue('container-capacity', { selectedLabel: true }),
-    releasePhase: controlValue('container-release-phase', { selectedLabel: true }),
-    pressureCondition: controlValue('container-pressure-condition', { selectedLabel: true }),
+    sourceType: knownControlValue('container-model-source', { selectedLabel: true }),
+    containerType: knownControlValue('plume-container-type', { selectedLabel: true }),
+    containerCapacity: knownControlValue('container-capacity'),
+    releasePhase: knownControlValue('container-release-phase'),
+    pressureCondition: knownControlValue('container-pressure-condition'),
     weatherSourceMode,
     weatherSource: document.getElementById('plume-weather-source-name')?.textContent?.trim() || '',
     weatherObservationTime: getPlumeWeatherObservationTime(),
     terrainElevationM: Number(String(document.getElementById('plume-elevation')?.value || '').replace(/,/g, '')) * 0.3048 || null,
     ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-    ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+    ergPeriod: resolveErgPeriod(),
   };
 }
 
@@ -15274,7 +15435,7 @@ async function getPlumeModeAvailability() {
     ...(chemical.un ? { unNumber: String(chemical.un) } : {}),
     endpointDurationMinutes: document.getElementById('plume-endpoint-duration')?.value || '60',
     ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-    ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+    ergPeriod: resolveErgPeriod(),
   });
   try {
     const response = await fetch(`/api/plume/availability?${query}`);
@@ -15308,7 +15469,7 @@ async function getErgIsolationAvailability() {
     ...(chemical.un ? { unNumber: String(chemical.un) } : {}),
     endpointDurationMinutes: document.getElementById('plume-endpoint-duration')?.value || '60',
     ergSpillSize: document.getElementById('plume-erg-spill-size')?.value || 'large',
-    ergPeriod: document.getElementById('plume-erg-period')?.value || 'night',
+    ergPeriod: resolveErgPeriod(),
     ergOnly: 'true',
   });
   try {
@@ -15360,11 +15521,82 @@ async function capturePlumeMapImage() {
   }
 }
 
+// Fit padding that keeps the release point and zone edges clear of the
+// compass / zoom cluster drawn over the top-right of the plume map.
+function plumeMapFitPadding(base = 70) {
+  const padding = { top: base, bottom: base, left: base, right: base };
+  const control = document.getElementById('plume-compass-control');
+  const container = plumeMap?.getContainer?.();
+  if (!control || !container || control.offsetParent === null) return padding;
+  const controlRect = control.getBoundingClientRect();
+  const mapRect = container.getBoundingClientRect();
+  const intrusion = Math.max(0, mapRect.right - controlRect.left);
+  if (intrusion > 0 && intrusion < mapRect.width / 2) padding.right = Math.max(base, Math.round(intrusion + 60)); // clear the compass plus the release pin width
+  return padding;
+}
+
+// ERG 2024 "day" means sunrise to sunset. Resolve Auto from the sun's
+// elevation at the incident location; fall back to Night (the larger, more
+// protective distance) when location or time cannot be determined.
+function solarElevationDegrees(lat, lon, date = new Date()) {
+  const rad = Math.PI / 180;
+  const days = date.getTime() / 86400000 - 10957.5; // days since J2000.0
+  const meanLongitude = (280.46 + 0.9856474 * days) % 360;
+  const meanAnomaly = ((357.528 + 0.9856003 * days) % 360) * rad;
+  const eclipticLongitude = (meanLongitude + 1.915 * Math.sin(meanAnomaly) + 0.02 * Math.sin(2 * meanAnomaly)) * rad;
+  const obliquity = (23.439 - 0.0000004 * days) * rad;
+  const declination = Math.asin(Math.sin(obliquity) * Math.sin(eclipticLongitude));
+  const rightAscension = Math.atan2(Math.cos(obliquity) * Math.sin(eclipticLongitude), Math.cos(eclipticLongitude));
+  const siderealDegrees = (280.46061837 + 360.98564736629 * days + lon) % 360;
+  const hourAngle = siderealDegrees * rad - rightAscension;
+  const latitude = lat * rad;
+  return Math.asin(Math.sin(latitude) * Math.sin(declination) + Math.cos(latitude) * Math.cos(declination) * Math.cos(hourAngle)) / rad;
+}
+
+function resolveErgPeriod(date = new Date()) {
+  const selected = document.getElementById('plume-erg-period')?.value || 'auto';
+  if (selected === 'day' || selected === 'night') return selected;
+  const incident = typeof getActiveIncident === 'function' ? getActiveIncident() : null;
+  const lat = Number(incident?.latitude);
+  const lon = Number(incident?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) return 'night';
+  return solarElevationDegrees(lat, lon, date) > -0.833 ? 'day' : 'night';
+}
+
+// Join address parts without repeating a place already present, so an
+// incident saved with address "Alabaster" and city "Alabaster" reads
+// "Alabaster, AL" instead of "Alabaster, Alabaster, AL".
+function joinLocationParts(parts) {
+  const seen = new Set();
+  const output = [];
+  parts.forEach((part) => {
+    const value = String(part ?? '').trim();
+    if (!value) return;
+    const segments = value.split(',').map((segment) => segment.trim().toLowerCase()).filter(Boolean);
+    if (segments.every((segment) => seen.has(segment))) return;
+    segments.forEach((segment) => seen.add(segment));
+    output.push(value);
+  });
+  return output.join(', ');
+}
+
 function controlValue(id, { selectedLabel = false } = {}) {
   const control = document.getElementById(id);
   if (!control) return noCurrentDataText;
   const value = selectedLabel ? control.selectedOptions?.[0]?.textContent?.trim() : control.value?.trim();
   return value || noCurrentDataText;
+}
+
+// Model payload values: never send UI placeholder labels such as "Select" or
+// "Unknown / verify" as if the operator had entered them.
+function knownControlValue(id, { selectedLabel = false } = {}) {
+  const control = document.getElementById(id);
+  if (!control) return '';
+  const value = selectedLabel ? control.selectedOptions?.[0]?.textContent?.trim() : control.value?.trim();
+  const raw = control.value?.trim() || '';
+  if (!value || /^(?:select|unknown|unknown \/ verify|unknown \/ custom|auto-select)$/i.test(value)
+    || /^(?:unknown|unknown \/ verify|unknown \/ custom)$/i.test(raw)) return '';
+  return value;
 }
 
 function plumeSummaryValue(value) {
@@ -15734,8 +15966,24 @@ function updatePlumeRightRailZoneResults(result = null) {
   renderThreatZonePanels(result);
 }
 
+// Dense-gas products are drawn with the neutral-gas Gaussian screen. Say so
+// where the operator reads the result, not only inside Model Details.
+function updatePlumeDenseGasWarning(result = null) {
+  const warning = document.getElementById('plume-dense-gas-warning');
+  if (!warning) return;
+  const family = String(result?.modelFamily || result?.model?.modelFamily || result?.modelMetadata?.modelFamily || '');
+  const dense = result && result.mode !== 'erg-protective-action' && /dense|heavy/i.test(family);
+  warning.hidden = !dense;
+  const chip = document.getElementById('plume-map-dense-gas-chip');
+  if (chip) chip.hidden = !dense;
+  warning.textContent = dense
+    ? 'Heavier-than-air product: this footprint uses a neutral-gas Gaussian screen. Dense-gas slumping, upwind and crosswind spread, and pooling in low areas are NOT modeled. Expect a wider, more concentrated cloud near the source and in low terrain; confirm with air monitoring.'
+    : '';
+}
+
 function updatePlumeCommandPanel(result = null) {
   updatePlumeRightRailZoneResults(result);
+  updatePlumeDenseGasWarning(result);
   if (!result) {
     setText('plume-command-model-mode', 'Not Modeled');
     setText('plume-zone-meaning-summary', 'Not Modeled');
@@ -15959,8 +16207,8 @@ function buildPlumeWorkflowRecord({ location, inputs, modeled, command }) {
       releaseType: controlValue('plume-release-type', { selectedLabel: true }),
       quantity: controlValue('plume-release-quantity'),
       containerType: controlValue('plume-container-type', { selectedLabel: true }),
-      releasePhase: controlValue('container-release-phase', { selectedLabel: true }),
-      pressureCondition: controlValue('container-pressure-condition', { selectedLabel: true }),
+      releasePhase: knownControlValue('container-release-phase'),
+      pressureCondition: knownControlValue('container-pressure-condition'),
       releaseRate: inputs.releaseRateKgPerSec ?? null,
       duration: inputs.durationSec ?? null,
       sourceStatus: `${planningDefault} — operator-entered release inputs require verification.`,
@@ -19828,7 +20076,26 @@ function initializeLiveMap(context = {}) {
   }
   setText('live-map-incident-name', effectiveContext?.planningPlan?.name || incident?.incidentName || 'Planning Map');
   setText('live-map-mode', effectiveContext?.planningPlan ? (effectiveContext.responseLayout ? 'Response Layout' : 'Pre-Plan Location') : (incident ? 'Active Incident' : 'Planning Mode'));
+  const previousLiveMapIncidentId = liveMapState.incidentId || null;
   liveMapState.incidentId = incident?.incidentId || null;
+  // An active incident owns the map view: center on the incident location the
+  // first time the map is opened for it, and show its current plume overlay
+  // once per plume run (a responder can still turn the layer off afterwards).
+  const incidentLat = Number(incident?.latitude);
+  const incidentLon = Number(incident?.longitude);
+  const incidentHasLocation = Boolean(incident) && Number.isFinite(incidentLat) && Number.isFinite(incidentLon)
+    && !(incidentLat === 0 && incidentLon === 0);
+  const centerOnIncident = !planningCoordinates && incidentHasLocation
+    && previousLiveMapIncidentId !== liveMapState.incidentId;
+  if (centerOnIncident) {
+    liveMapState.mapCenter = [incidentLon, incidentLat];
+    liveMapState.zoom = 14;
+  }
+  const currentIncidentOverlay = incident ? readLatestPlumeOverlay() : null;
+  if (currentIncidentOverlay?.id && liveMapState.plumeAutoShownFor !== currentIncidentOverlay.id) {
+    liveMapState.activeLayers.plume = true;
+    liveMapState.plumeAutoShownFor = currentIncidentOverlay.id;
+  }
   const container = document.getElementById('live-gis-map');
   observeLiveMapContainer(container);
   if (!liveMap) {
@@ -19884,6 +20151,9 @@ function initializeLiveMap(context = {}) {
     liveMap.on('load', () => {
       document.querySelector('.live-map-stage')?.classList.add('map-ready');
       setText('live-map-status', 'Live Map ready.');
+      // style.load can fire before the style reports loaded; re-apply saved
+      // overlays (including the incident plume) once the map is fully ready.
+      restoreLiveMapOverlays();
     });
     liveMap.on('error', (event) => {
       if (liveRadarController?.ownsSource(event?.sourceId)) {
@@ -19935,6 +20205,9 @@ function initializeLiveMap(context = {}) {
   ['icp', 'entry', 'decon', 'staging', 'medical', 'trafficCams'].forEach((layer) => {
     if (layer !== 'monitors' && liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
   });
+  if (centerOnIncident && liveMap?.loaded?.()) {
+    liveMap.jumpTo({ center: liveMapState.mapCenter, zoom: liveMapState.zoom });
+  }
   updateLiveMapPanels();
   syncLiveMapOperationalStatuses();
   restoreLiveMapOverlays();
@@ -19965,10 +20238,12 @@ function initializeLiveMap(context = {}) {
     setLiveMapGpsStatus('loading');
     setText('live-map-status', 'Locating current GPS position…');
     getCurrentGps().then((gps) => {
-      liveMap.jumpTo({ center: [gps.lon, gps.lat], zoom: Math.max(liveMap.getZoom(), 15) });
+      // Keep an active incident's location in view; the responder GPS marker
+      // is still shown so position relative to the scene is visible.
+      if (!incidentHasLocation) liveMap.jumpTo({ center: [gps.lon, gps.lat], zoom: Math.max(liveMap.getZoom(), 15) });
       updateLiveMapGpsMarker(gps);
       setLiveMapGpsStatus('live');
-      saveLiveMapState('Map centered on current GPS position.');
+      saveLiveMapState(incidentHasLocation ? 'Map centered on the incident. Your GPS position is marked.' : 'Map centered on current GPS position.');
       void fetchWeatherSources(gps.lat, gps.lon).then(({ openMeteo, nws }) => {
         latestPlumeWeather = selectPlumeWeather(openMeteo, nws);
       }).catch(() => {});

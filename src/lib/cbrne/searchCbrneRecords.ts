@@ -1,5 +1,6 @@
 import type { CbrneDomain, CbrneMasterRecord, CbrneSearchLane, CbrneSearchResult } from "./cbrneTypes.js";
 import { hydrateCbrneDatabase } from "./hydrateCbrneDatabase.js";
+import { ergCwaReference } from "./ergChemicalWarfareAgents.js";
 
 const CBRNE_LANE_DOMAINS: readonly CbrneDomain[] = ["CHEMICAL_WARFARE", "BIOLOGICAL", "EXPLOSIVE"];
 const RADIOLOGICAL_LANE_DOMAINS: readonly CbrneDomain[] = ["RADIOLOGICAL", "NUCLEAR", "CBRNE_SCENARIO"];
@@ -46,6 +47,7 @@ function toSearchResult(record: CbrneMasterRecord, lane?: CbrneSearchLane): Cbrn
     agentCodes: record.agentCodes,
     cas: record.cas,
     unNaNumbers: record.unNaNumbers,
+    ergGuide: ergCwaReference(record.category)?.guide,
     radionuclideSymbol: record.radionuclideSymbol,
     verificationStatus: record.verificationStatus,
     sourceSummary: sourceSummary(record),

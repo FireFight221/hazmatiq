@@ -1788,3 +1788,9 @@ padding: 4px 6px; border-radius: 3px; width: 100%; box-sizing: border-box; }
 #plume.view.active .plume-release-grid > .plume-required-field .plume-field-label-row b {
   color:inherit;
 }
+
+/* Dense-gas limitation: shown beside the result, not buried in Model Details. */
+.plume-dense-gas-warning { margin: 0 0 8px; padding: 8px 10px; border: 1px solid #f59e0b; border-left-width: 4px; border-radius: 6px; background: rgba(245, 158, 11, 0.12); color: #fde68a; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.plume-dense-gas-warning[hidden] { display: none; }
+.plume-dense-gas-chip { margin-right: 12px; padding: 2px 8px; border: 1px solid #f59e0b; border-radius: 4px; background: rgba(245, 158, 11, 0.16); color: #fde68a; font-weight: 700; }
+.plume-dense-gas-chip[hidden] { display: none; }

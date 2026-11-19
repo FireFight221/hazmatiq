@@ -5,7 +5,7 @@
     const result = text(value);
     return /^(?:unknown(?:\s*\/.*)?|no current data exists|not (?:specified|available)|location not set|n\/a)$/i.test(result) ? '' : result;
   };
-  const join = (values, separator = ', ') => [...new Set(values.map(known).filter(Boolean))].join(separator);
+  const join = (values, separator = ', ') => values.map(known).filter((value, index, all) => value && all.findIndex((other) => other.toLowerCase() === value.toLowerCase()) === index).join(separator);
   const manual = (incident, field, fallback) => Object.prototype.hasOwnProperty.call(incident, field) ? text(incident[field]) : fallback;
   function buildIncidentReportModel(incident, currentPlume) {
     const location = join([incident.facilityName, incident.address, incident.city, incident.state, incident.zip]);

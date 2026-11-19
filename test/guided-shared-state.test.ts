@@ -9,6 +9,7 @@ const code = [
   section('function readGuidedResponsePhaseState(', 'function createGuidedPhaseList('),
   section('function persistIncidentAssignment(', 'function createGuidedRoleAssignment('),
   section('function guidedIncidentAssignments(', 'function updateGuidedPhaseAssignmentLocation('),
+  section('function joinLocationParts(', 'function controlValue('),
 ].join('\n');
 function setup(initial: Record<string, unknown> = {}) {
   let incident: Record<string, unknown> = { incidentId: 'training-1', operationalMode: 'Defensive', chemicalName: 'Training product', ...initial };

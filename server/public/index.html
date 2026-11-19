@@ -768,6 +768,10 @@
                     <button class="ghost-btn chemical-profile-print-export" id="chemical-profile-print-export-btn" type="button" aria-haspopup="dialog">Print / Export</button>
                   </div>
                 </header>
+                <div id="hazard-reference-banner" class="hazard-reference-banner" role="status" aria-live="polite" hidden>
+                  <p id="hazard-reference-text"></p>
+                  <button class="chemical-action-button" id="hazard-reference-assign-btn" type="button">Assign to incident</button>
+                </div>
                 <article class="panel-card chemical-profile-header-card">
                   <figure id="chemical-nfpa-placard" class="chemical-nfpa-placard" data-state="missing">
                     <figcaption>NFPA 704</figcaption>
@@ -843,6 +847,10 @@
                     <button class="ghost-btn" id="hazard-profile-save-btn" type="button">Save to My Hazards</button>
                   </div>
                 </header>
+                <div id="cbrne-reference-banner" class="hazard-reference-banner" role="status" aria-live="polite" hidden>
+                  <p id="cbrne-reference-text"></p>
+                  <button class="chemical-action-button" id="cbrne-reference-assign-btn" type="button">Assign to incident</button>
+                </div>
                 <article class="hazard-profile-header-card">
                   <div class="hazard-profile-emblem" id="hazard-profile-emblem" aria-hidden="true"></div>
                   <div class="hazard-profile-identity">
@@ -1272,7 +1280,7 @@
                       <summary>Advanced Criteria <small>ERG fallback controls</small></summary>
                       <div class="plume-criteria-note">These retained settings apply only when verified AEGL/LOC data is unavailable and the ERG fallback is selected.</div>
                       <input id="plume-erg-spill-size" type="hidden" value="large" />
-                      <input id="plume-erg-period" type="hidden" value="night" />
+                      <label for="plume-erg-period">ERG day / night<select id="plume-erg-period"><option value="auto" selected>Auto (local sunrise / sunset)</option><option value="day">Day</option><option value="night">Night</option></select></label>
                     </details>
                     <details class="plume-advanced-details">
                       <summary>Advanced Details</summary>
@@ -1374,6 +1382,7 @@
                     </div>
                   </div>
                   <footer class="plume-map-status-footer">
+                    <span id="plume-map-dense-gas-chip" class="plume-dense-gas-chip" role="status" hidden>Heavier-than-air product · dense-gas behavior NOT modeled · footprint may underpredict near the source and in low areas</span>
                     <span id="plume-map-attribution">© OpenFreeMap · © OpenMapTiles · Imagery © Esri</span>
                   </footer>
                 </article>
@@ -1400,6 +1409,7 @@
                   </div>
                   <section id="plume-distance-panel" class="plume-zone-panel" role="tabpanel" aria-labelledby="plume-zone-tab-distances" tabindex="0" hidden></section>
                   <section id="plume-model-panel" class="plume-zone-panel" role="tabpanel" aria-labelledby="plume-zone-tab-model" tabindex="0" hidden></section>
+                  <p id="plume-dense-gas-warning" class="plume-dense-gas-warning" role="alert" hidden></p>
                   <p id="plume-result-summary" class="plume-intelligence-note">Awaiting valid release and weather inputs.</p>
                   <details class="plume-command-facts-details"><summary>Model facts</summary><dl class="plume-command-facts">
                     <div><dt>Downwind Direction</dt><dd id="plume-command-downwind">No Current Data Exists</dd></div>
