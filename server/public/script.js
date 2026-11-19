@@ -4762,6 +4762,25 @@ function chemicalEntryCautionValues(profile) {
   ], (item) => !sectionHeadings.test(item), 5);
 }
 
+// Product-specific vapor behavior. ERG guide text is shared by many products
+// ("Many gases are heavier than air"), so state what this product's vapor
+// density actually means instead of leaving responders to reconcile it.
+function chemicalVaporBehaviorNote(profile) {
+  const properties = profileObject(profile?.properties);
+  const raw = String(properties.vaporDensity ?? '').replace(/,/g, '');
+  const match = raw.match(/(?:^|[^\d.])(\d+(?:\.\d+)?)/);
+  const density = match ? Number(match[1]) : NaN;
+  if (!Number.isFinite(density) || density <= 0) return '';
+  const value = `Vapor density ${density} (air = 1)`;
+  if (density < 0.95) {
+    return `${value}: lighter than air at ambient temperature and will tend to rise and disperse. Cold releases from liquefied or refrigerated product (flashing liquid, fog, or aerosol) can still form a dense, ground-hugging cloud until the vapor warms.`;
+  }
+  if (density <= 1.05) {
+    return `${value}: close to the density of air. Expect the vapor to move with the wind; temperature and release conditions decide whether it rises or stays low.`;
+  }
+  return `${value}: heavier than air. Expect vapor to stay low, flow downhill, and collect in basements, sewers, ditches, and other low or confined areas.`;
+}
+
 function chemicalFrontlineRows(profile) {
   const header = profileObject(profile?.header);
   const recommendation = profileObject(profile?.ppeRecommendation);
@@ -4792,6 +4811,7 @@ function chemicalFrontlineRows(profile) {
     fire.runoffConcerns,
   ], () => true, 3));
 
+  add('Vapor behavior', chemicalVaporBehaviorNote(profile));
   add('Entry Cautions', chemicalEntryCautionValues(profile));
 
   add('Identity / verification', chemicalFrontlineValues([
@@ -6505,7 +6525,7 @@ function createGuidedCommandCard(stage) {
     modeSelect.setAttribute('aria-describedby', 'guided-tactical-mode-help');
     const derivedOption = document.createElement('option');
     derivedOption.value = '';
-    derivedOption.textContent = `Use derived posture (${stage.action || 'Verify'})`;
+    derivedOption.textContent = 'Not selected · choose a mode';
     modeSelect.append(derivedOption);
     guidedTacticalModeOptions.forEach((mode) => {
       const option = document.createElement('option');
@@ -15000,6 +15020,11 @@ const containerProfiles = [
 ].map((profile) => {
   // Broad conditions guide responders without inventing an exact pressure.
   const pressureConditionByType = {
+    'rail-pressure': 'Liquefied compressed gas',
+    'rail-nonpressure': 'Low pressure / product transfer',
+    'tube-trailer': 'Compressed gas',
+    'portable-tank': 'Low pressure / product transfer',
+    'fixed-tank': 'Liquefied compressed gas',
     'dot-406': 'Low pressure / product transfer',
     'dot-407': 'Low pressure / product transfer',
     'dot-412': 'Low pressure / product transfer',
@@ -15280,11 +15305,11 @@ function readPlumeModelInputs(location) {
     releaseDurationSec: releaseKind === 'puff'
       ? Number(document.getElementById('plume-puff-duration')?.value)
       : (Number(document.getElementById('plume-release-duration')?.value) * 60) || null,
-    sourceType: controlValue('container-model-source', { selectedLabel: true }),
-    containerType: controlValue('plume-container-type', { selectedLabel: true }),
-    containerCapacity: controlValue('container-capacity', { selectedLabel: true }),
-    releasePhase: controlValue('container-release-phase', { selectedLabel: true }),
-    pressureCondition: controlValue('container-pressure-condition', { selectedLabel: true }),
+    sourceType: knownControlValue('container-model-source', { selectedLabel: true }),
+    containerType: knownControlValue('plume-container-type', { selectedLabel: true }),
+    containerCapacity: knownControlValue('container-capacity'),
+    releasePhase: knownControlValue('container-release-phase'),
+    pressureCondition: knownControlValue('container-pressure-condition'),
     weatherSourceMode,
     weatherSource: document.getElementById('plume-weather-source-name')?.textContent?.trim() || '',
     weatherObservationTime: getPlumeWeatherObservationTime(),
@@ -15436,6 +15461,18 @@ function controlValue(id, { selectedLabel = false } = {}) {
   if (!control) return noCurrentDataText;
   const value = selectedLabel ? control.selectedOptions?.[0]?.textContent?.trim() : control.value?.trim();
   return value || noCurrentDataText;
+}
+
+// Model payload values: never send UI placeholder labels such as "Select" or
+// "Unknown / verify" as if the operator had entered them.
+function knownControlValue(id, { selectedLabel = false } = {}) {
+  const control = document.getElementById(id);
+  if (!control) return '';
+  const value = selectedLabel ? control.selectedOptions?.[0]?.textContent?.trim() : control.value?.trim();
+  const raw = control.value?.trim() || '';
+  if (!value || /^(?:select|unknown|unknown \/ verify|unknown \/ custom|auto-select)$/i.test(value)
+    || /^(?:unknown|unknown \/ verify|unknown \/ custom)$/i.test(raw)) return '';
+  return value;
 }
 
 function plumeSummaryValue(value) {
@@ -15805,8 +15842,24 @@ function updatePlumeRightRailZoneResults(result = null) {
   renderThreatZonePanels(result);
 }
 
+// Dense-gas products are drawn with the neutral-gas Gaussian screen. Say so
+// where the operator reads the result, not only inside Model Details.
+function updatePlumeDenseGasWarning(result = null) {
+  const warning = document.getElementById('plume-dense-gas-warning');
+  if (!warning) return;
+  const family = String(result?.modelFamily || result?.model?.modelFamily || result?.modelMetadata?.modelFamily || '');
+  const dense = result && result.mode !== 'erg-protective-action' && /dense|heavy/i.test(family);
+  warning.hidden = !dense;
+  const chip = document.getElementById('plume-map-dense-gas-chip');
+  if (chip) chip.hidden = !dense;
+  warning.textContent = dense
+    ? 'Heavier-than-air product: this footprint uses a neutral-gas Gaussian screen. Dense-gas slumping, upwind and crosswind spread, and pooling in low areas are NOT modeled. Expect a wider, more concentrated cloud near the source and in low terrain; confirm with air monitoring.'
+    : '';
+}
+
 function updatePlumeCommandPanel(result = null) {
   updatePlumeRightRailZoneResults(result);
+  updatePlumeDenseGasWarning(result);
   if (!result) {
     setText('plume-command-model-mode', 'Not Modeled');
     setText('plume-zone-meaning-summary', 'Not Modeled');
@@ -16030,8 +16083,8 @@ function buildPlumeWorkflowRecord({ location, inputs, modeled, command }) {
       releaseType: controlValue('plume-release-type', { selectedLabel: true }),
       quantity: controlValue('plume-release-quantity'),
       containerType: controlValue('plume-container-type', { selectedLabel: true }),
-      releasePhase: controlValue('container-release-phase', { selectedLabel: true }),
-      pressureCondition: controlValue('container-pressure-condition', { selectedLabel: true }),
+      releasePhase: knownControlValue('container-release-phase'),
+      pressureCondition: knownControlValue('container-pressure-condition'),
       releaseRate: inputs.releaseRateKgPerSec ?? null,
       duration: inputs.durationSec ?? null,
       sourceStatus: `${planningDefault} — operator-entered release inputs require verification.`,

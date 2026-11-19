@@ -54,10 +54,18 @@ export function selectPlumeModelFamily(input: PlumeModelSelectorInput): PlumeMod
   const dense = input.denseGasKnown === true
     || (typeof input.vaporDensityAir === "number" && Number.isFinite(input.vaporDensityAir) && input.vaporDensityAir > 1);
   if (dense) return {
-    modelFamily: "Heavy gas / dense gas", releasePattern, calculationApproach: "Gaussian plume/puff screening calculation",
-    status: "Planning Estimate", supported: false,
-    assumptions: ["Current geometry uses the existing Gaussian calculation."],
-    limitations: ["Planning Estimate — dense gas behavior is not fully validated or explicitly modeled."],
+    modelFamily: "Heavy gas / dense gas",
+    releasePattern,
+    calculationApproach: "Neutral-gas Gaussian screening only — dense-gas physics are NOT applied",
+    status: "Requires Review",
+    supported: false,
+    assumptions: [
+      "Product vapor is heavier than air, but the footprint is drawn with the neutral-gas Gaussian calculation.",
+    ],
+    limitations: [
+      "Dense gas behavior is not explicitly modeled: gravity slumping, upwind/crosswind spreading, and flow into low terrain are not calculated.",
+      "Near the source and in low-lying areas, a dense-gas cloud can be wider and more concentrated than this footprint shows. Confirm with air monitoring and a dense-gas model (for example ALOHA heavy gas) before relying on these distances.",
+    ],
   };
   const densityKnown = typeof input.vaporDensityAir === "number" && Number.isFinite(input.vaporDensityAir);
   return {
