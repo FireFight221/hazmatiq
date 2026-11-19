@@ -205,6 +205,7 @@ export type CbrneProfile = {
   identifiers: Record<string, string | string[] | number | null>;
   overviewFacts: CbrneProfileFact[];
   hazardFacts: CbrneProfileFact[];
+  primaryThreat?: import("./cbrnePrimaryThreat.js").CbrnePrimaryThreat | null;
   detectionFacts: CbrneProfileFact[];
   ppeFacts: CbrneProfileFact[];
   isolationStandoffFacts: CbrneProfileFact[];

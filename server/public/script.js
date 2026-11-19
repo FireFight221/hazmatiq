@@ -1387,9 +1387,11 @@ const icsFormCatalog = [
   ['208', 'ICS 208 Safety Message / Plan'],
   ['208HM', 'ICS 208HM Site Safety and Control Plan'],
   ['209', 'ICS 209 Incident Status Summary'],
+  ['213RR', 'ICS 213RR Resource Request Message'],
   ['214', 'ICS 214 Activity Log'],
   ['215', 'ICS 215 Operational Planning Worksheet'],
   ['215A', 'ICS 215A IAP Safety Analysis'],
+  ['NOTES', 'Command Notes'],
 ];
 let incidentTimerInterval = null;
 let incidentSyncTimer = null;
@@ -3155,17 +3157,29 @@ function renderActiveIcsFormList() {
   const library = document.getElementById('ics-form-library-list');
   if (!container || !library) return;
   container.replaceChildren(); library.replaceChildren();
+  setText('report-library-count', `${icsFormCatalog.length} forms`);
   const incident = getActiveIncident();
   document.getElementById('open-current-incident-summary-btn')?.toggleAttribute('hidden', !incident);
   icsFormCatalog.forEach(([id, title]) => {
     const tile = document.createElement('a');
-    const formNumber = `ICS ${id}`;
-    const description = title.replace(/^ICS\s+\S+\s+/, '');
+    const isLocalSheet = id === 'NOTES';
+    const formNumber = isLocalSheet ? 'Command Notes' : `ICS ${id.replace(/^213RR$/, '213 RR')}`;
+    const description = isLocalSheet ? (incident ? 'Auto-filled Incident Notes' : 'Incident Notes Sheet') : title.replace(/^ICS\s+\S+\s+/, '');
     tile.className = 'report-form-tile';
     tile.href = `/api/ics-forms/${encodeURIComponent(id)}/original`;
     tile.target = '_blank';
     tile.rel = 'noopener';
-    tile.setAttribute('aria-label', `${formNumber} ${description} original government-issued PDF`);
+    if (isLocalSheet && incident) {
+      // With an active incident, Command Notes opens auto-filled with every
+      // note saved from Command > Add Incident Note.
+      tile.removeAttribute('target');
+      tile.dataset.autofill = 'incident';
+      tile.addEventListener('click', (event) => {
+        event.preventDefault();
+        void openIncidentIcsForm(incident.incidentId, id);
+      });
+    }
+    tile.setAttribute('aria-label', isLocalSheet ? (incident ? 'Command Notes auto-filled from incident notes' : 'Command Notes fillable PDF') : `${formNumber} ${description} original government-issued PDF`);
     const number = document.createElement('strong');
     number.className = 'report-form-number';
     number.textContent = formNumber;
@@ -3411,9 +3425,16 @@ function setIcsFormEditing(editing) {
   if (saveButton) saveButton.hidden = !editing;
 }
 
+function incidentClientTimeZone() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; }
+}
+
 function incidentIcsRecord(incident) {
-  if (!incident || incident.status === 'Completed') return incident;
-  return { ...incident, operationalActionPlan: buildIncidentActionPlan(incident) };
+  if (!incident) return incident;
+  // Command Notes timestamps print in the responder's local time zone.
+  const clientTimeZone = incident.clientTimeZone || incidentClientTimeZone();
+  if (incident.status === 'Completed') return { ...incident, clientTimeZone };
+  return { ...incident, clientTimeZone, operationalActionPlan: buildIncidentActionPlan(incident) };
 }
 
 async function openIncidentIcsForm(incidentId, formId) {
@@ -3440,6 +3461,7 @@ async function openIncidentIcsForm(incidentId, formId) {
   fieldsContainer.replaceChildren();
   status.textContent = 'Preparing auto-filled worksheet…';
   document.getElementById('ics-original-download').href = `/api/ics-forms/${encodeURIComponent(formId)}/original`;
+  setText('ics-original-download', formId === 'NOTES' ? 'Blank Command Notes sheet' : 'Original FEMA form & instructions');
 
   try {
     const response = await fetch(`/api/ics-forms/${encodeURIComponent(formId)}/prepare`, {
@@ -4317,10 +4339,13 @@ document.getElementById('save-incident-note-btn')?.addEventListener('click', () 
   incidents[index] = {
     ...incidents[index],
     incidentNotes: [...(Array.isArray(incidents[index].incidentNotes) ? incidents[index].incidentNotes : []), { text, createdAt }],
+    clientTimeZone: incidents[index].clientTimeZone || incidentClientTimeZone(),
     updatedAt: createdAt,
   };
   writeIncidents(incidents);
   renderIncidentLists();
+  renderActiveIcsFormList();
+  if (input) input.value = '';
   incidentNoteDialog?.close();
 });
 
@@ -4338,6 +4363,40 @@ async function fetchJson(url, { timeoutMs = 15000 } = {}) {
   } finally {
     if (timeout !== null) window.clearTimeout(timeout);
   }
+}
+
+// Hazard Profile responses are immutable for a session (source-backed
+// reference data). Cache the in-flight promise so a profile prefetched while
+// the user reads the suggestion list opens instantly on click. Failed or
+// error responses are evicted so a retry goes back to the network.
+const hazardProfileResponseCache = new Map();
+const HAZARD_PROFILE_CACHE_LIMIT = 40;
+const HAZARD_PROFILE_CACHE_TTL_MS = 10 * 60 * 1000;
+function fetchHazardProfileCached(url) {
+  const cached = hazardProfileResponseCache.get(url);
+  // Callers receive their own copy so renderers can annotate a profile
+  // without altering the cached source record.
+  const copy = (response) => (response && typeof structuredClone === 'function' ? structuredClone(response) : response);
+  if (cached && Date.now() - cached.at < HAZARD_PROFILE_CACHE_TTL_MS) return cached.promise.then(copy);
+  const promise = fetchJson(url).then((response) => {
+    if (!response || response.error) hazardProfileResponseCache.delete(url);
+    return response;
+  });
+  hazardProfileResponseCache.set(url, { promise, at: Date.now() });
+  while (hazardProfileResponseCache.size > HAZARD_PROFILE_CACHE_LIMIT) {
+    hazardProfileResponseCache.delete(hazardProfileResponseCache.keys().next().value);
+  }
+  return promise.then(copy);
+}
+function chemicalProfileUrl(chemicalId) {
+  return `/api/chemicals/${encodeURIComponent(chemicalId)}/profile`;
+}
+function starterHazardProfileUrl(lane, id) {
+  return `/api/hazards/${encodeURIComponent(lane)}/${encodeURIComponent(id)}/profile`;
+}
+function prefetchHazardProfile(url) {
+  if (!url) return;
+  void fetchHazardProfileCached(url);
 }
 
 function parseJsonField(value, fallback) {
@@ -9234,6 +9293,63 @@ function renderStarterHazardLoadState(message, { state = 'error' } = {}) {
   setHazardProfileMode('starter');
 }
 
+// Immediate Threat leads with the agent class in capitals followed by one
+// plain-language effect statement, e.g. "NERVE AGENT Exposure leads to
+// nervous-system disruption and may become fatal within minutes."
+function cbrnePrimaryThreatDisplay(profile) {
+  const threat = profileObject(profile?.primaryThreat);
+  const statement = String(threat.statement || '').trim();
+  if (!statement) return null;
+  const classLabel = String(threat.classLabel || profile?.category || '').replaceAll('_', ' ').trim().toLocaleUpperCase();
+  const node = document.createElement('p');
+  node.className = 'hazard-primary-threat-statement';
+  const lead = document.createElement('strong');
+  lead.className = 'hazard-primary-threat-class';
+  lead.textContent = classLabel;
+  const text = document.createElement('span');
+  text.textContent = ` ${statement}`;
+  node.append(lead, text);
+  let sourceNode = null;
+  if (threat.basis === 'CLASS_SUMMARY' || threat.sourceUrl) {
+    sourceNode = document.createElement('small');
+    sourceNode.className = 'hazard-primary-threat-source';
+    const label = threat.basis === 'CLASS_SUMMARY'
+      ? 'Class-level summary · Requires SME Review · '
+      : '';
+    sourceNode.append(document.createTextNode(label));
+    if (threat.sourceUrl) {
+      const link = document.createElement('a');
+      link.href = threat.sourceUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = threat.sourceName || 'Source';
+      sourceNode.append(link);
+    } else {
+      sourceNode.append(document.createTextNode(threat.sourceName || ''));
+    }
+  }
+  // Agent-specific imported source fact, shown verbatim (never rewritten).
+  const agentFact = profileObject(threat.agentSourceFact);
+  if (threat.basis === 'CLASS_SUMMARY' && agentFact.value) {
+    const factNode = document.createElement('p');
+    factNode.className = 'hazard-primary-threat-agent-fact';
+    const factLead = document.createElement('strong');
+    factLead.textContent = `${agentFact.fieldName || 'Agent source fact'}: `;
+    factNode.append(factLead, document.createTextNode(agentFact.value));
+    const wrapper = document.createElement('div');
+    wrapper.append(node, factNode);
+    const fact = profileFacts(profile?.hazardFacts).find((item) => item.id === agentFact.id);
+    const marker = fact ? createHazardSourceMarker(fact, 'Agent source fact') : null;
+    if (marker) wrapper.append(marker);
+    return { node: wrapper, sourceNode };
+  }
+  if (!sourceNode && threat.factId) {
+    const fact = profileFacts(profile?.hazardFacts).find((item) => item.id === threat.factId);
+    sourceNode = fact ? createHazardSourceMarker(fact, 'Immediate Threat source') : null;
+  }
+  return { node, sourceNode };
+}
+
 function renderOperationalHazardProfile(profile) {
   const columns = [
     ['hazard-profile-threat-content', [
@@ -9270,6 +9386,13 @@ function renderOperationalHazardProfile(profile) {
       card.className = `hazard-action-ribbon-item hazard-action-ribbon-${tone}`;
       const heading = document.createElement('h3');
       heading.textContent = title;
+      const primaryThreat = title === 'Immediate Threat' ? cbrnePrimaryThreatDisplay(profile) : null;
+      if (primaryThreat) {
+        card.classList.add('hazard-primary-threat');
+        card.append(heading, primaryThreat.node);
+        if (primaryThreat.sourceNode) card.append(primaryThreat.sourceNode);
+        return card;
+      }
       const value = document.createElement('p');
       const available = profileFacts(facts).filter(hazardFactHasValue);
       const lead = document.createElement('strong');
@@ -9278,11 +9401,40 @@ function renderOperationalHazardProfile(profile) {
       text.textContent = available[0] ? hazardProfileDisplayValue(available[0]) : 'Not available';
       value.append(lead, text);
       const source = available[0] && createHazardSourceMarker(available[0], `${title} source`);
-      card.append(heading, value);
+      card.append(heading);
+      // ERG 2024 CWA table distances (PHMSA) lead the isolation card so the
+      // responder sees a number first; the source-pack fact follows verbatim.
+      const ergDistances = title === 'Isolation / scene control'
+        ? profileArray(profile.identifiers?.ergProtectiveActionDistances).filter(Boolean)
+        : [];
+      if (ergDistances.length) {
+        const erg = document.createElement('p');
+        erg.className = 'hazard-erg-distance-lead';
+        const ergLead = document.createElement('strong');
+        ergLead.textContent = 'ERG 2024: ';
+        const ergLink = document.createElement('a');
+        ergLink.href = 'https://www.phmsa.dot.gov/hazmat/erg/emergency-response-guidebook-erg';
+        ergLink.target = '_blank';
+        ergLink.rel = 'noopener noreferrer';
+        ergLink.textContent = '[ref]';
+        erg.append(ergLead, document.createTextNode(`${ergDistances.join(' · ')} `), ergLink);
+        card.append(erg);
+      }
+      if (available[0] || !ergDistances.length) card.append(value);
       if (source) card.append(source);
       return card;
     }));
   }
+}
+
+// CBRNE/Rad profiles mirror the chemical profile: header card, section tabs,
+// then one pane. "overview" shows the operational priority cards; other tabs
+// show grouped source facts; "sources" also opens the provenance drawer.
+function setHazardProfilePane(pane = 'overview') {
+  if (!hazardProfileResults) return;
+  hazardProfileResults.dataset.profilePane = pane;
+  const sourceDrawer = hazardProfileResults.querySelector('.hazard-profile-source-drawer');
+  if (sourceDrawer && pane === 'sources') sourceDrawer.open = true;
 }
 
 function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
@@ -9387,11 +9539,13 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   const activeTabIndex = requestedTabIndex >= 0 ? requestedTabIndex : 0;
   if (tabs) {
     tabs.replaceChildren();
+    tabs.style.setProperty('--hazard-tab-count', String(config.tabs.length));
     config.tabs.forEach(([label, fieldNames], index) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = `chemical-profile-tab${index === activeTabIndex ? ' active' : ''}`;
       button.dataset.profileFields = JSON.stringify(fieldNames);
+      button.dataset.profilePane = index === 0 ? 'overview' : /^sources$/i.test(label) ? 'sources' : 'detail';
       button.textContent = label;
       button.setAttribute('aria-selected', String(index === activeTabIndex));
       tabs.append(button);
@@ -9406,6 +9560,7 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   }
   renderOperationalHazardProfile(profile);
   renderRadiologicalProfile(profile);
+  setHazardProfilePane(activeTabIndex === 0 ? 'overview' : 'detail');
   const activeTabFields = config.tabs[activeTabIndex]?.[1] || ['overviewFacts', 'hazardFacts'];
   renderStarterHazardTab(profile, activeTabFields);
 }
@@ -9456,7 +9611,7 @@ async function openStarterHazard(result, { profileTab = 'overview' } = {}) {
   const requestId = ++latestStarterHazardRequest;
   const lane = result?.lane || result?.routingLane || activeHazardSearchLane;
   renderStarterHazardLoadState(`Loading ${result?.displayName || 'hazard'} source-backed profile…`, { state: 'loading' });
-  const profile = await fetchJson(`/api/hazards/${encodeURIComponent(lane)}/${encodeURIComponent(result.id)}/profile`);
+  const profile = await fetchHazardProfileCached(starterHazardProfileUrl(lane, result.id));
   if (requestId !== latestStarterHazardRequest) return;
   if (!profile || profile.error) {
     renderStarterHazardLoadState(`Unable to load ${result?.displayName || 'hazard'} profile. ${profile?.error || 'The source lookup returned no record.'}`, { state: 'error' });
@@ -9490,6 +9645,8 @@ function renderHazardLaneResults(lane, results) {
     setChemicalSearchStatus('No matching hazard records found.', 'error');
     return;
   }
+  // Warm the top matches so the Hazard Profile opens without a second wait.
+  results.slice(0, 3).forEach((result) => prefetchHazardProfile(starterHazardProfileUrl(lane, result.id)));
   results.forEach((result) => {
     const aliases = [...(result.aliases || []), ...(result.agentCodes || [])].filter((value, index, values) => values.indexOf(value) === index);
     const sourceSummary = [
@@ -10326,7 +10483,10 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
   latestChemicalSearch += 1;
   window.clearTimeout(chemicalSearchTimer);
   setChemicalSearchStatus(`Loading ${chemical.name || 'chemical'}…`, 'loading');
-  const profileUrl = `/api/chemicals/${encodeURIComponent(chosenChemicalId)}/profile`;
+  const profileUrl = chemicalProfileUrl(chosenChemicalId);
+  // Issue the primary profile request before optional enrichment so it is
+  // first in the browser's connection queue.
+  const profilePromise = fetchHazardProfileCached(profileUrl);
   // The Chemical Companion profile is the primary display contract. Start the
   // optional legacy enrichment in parallel, but never make the profile wait on
   // NPG, ERG, threshold, or guide-library requests.
@@ -10367,7 +10527,7 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
 
   let profileResponse;
   try {
-    profileResponse = await fetchJson(profileUrl);
+    profileResponse = await profilePromise;
   } catch (error) {
     console.error('[chemical-companion] profile request failed', error);
   }
@@ -11011,6 +11171,10 @@ async function searchChemicalId(value, { submit = false } = {}) {
 
   if (!chemicalSearchSuggestions) return;
   chemicalSearchSuggestions.replaceChildren();
+  masterChemicals.slice(0, 3).forEach((chemical) => {
+    const id = normalizeChemicalSelectionId(chemical.selectedChemicalId ?? chemical.ChemicalID ?? chemical.id);
+    if (typeof id === 'number') prefetchHazardProfile(chemicalProfileUrl(id));
+  });
   masterChemicals.slice(0, 5).forEach((chemical) => {
     chemicalSearchSuggestions.append(createSuggestion(
       chemical.resultType || (isUnreviewedTransportationRecord(chemical) ? 'Transportation Identifier — Requires Review' : 'Chemical'),
@@ -11365,7 +11529,7 @@ let plumeWeatherSources = { openMeteo: null, nws: null };
 const plumeHazardsCacheKey = 'hazmatiq_plume_hazards_cache';
 const plumeLayerState = { zones: true, centerline: true, distance: false, hazards: false };
 const plumeLayerIds = {
-  zones: ['hazmat-threat-zones-fill', 'hazmat-threat-zones-selection', 'hazmat-threat-zones-border', 'hazmat-threat-zones-outline'],
+  zones: ['hazmat-threat-zones-fill', 'hazmat-threat-zones-selection', 'hazmat-threat-zones-border', 'hazmat-threat-zones-outline', 'hazmat-wind-shift-lines', 'hazmat-dense-gas-arcs'],
   centerline: ['hazmat-threat-zone-centerline', 'hazmat-threat-zone-wind-arrow', 'hazmat-threat-zone-wind-label'],
   distance: ['hazmat-threat-zone-distance-line', 'hazmat-threat-zone-distance-ticks', 'hazmat-threat-zone-distance-points', 'hazmat-threat-zone-distance-labels'],
   hazards: ['hazmat-plume-hazards-points', 'hazmat-plume-hazards-labels'],
@@ -11710,7 +11874,64 @@ function updatePlumeCompass() {
   const bearing = plumeMap.getBearing();
   const arrow = document.getElementById('plume-compass-arrow');
   if (arrow) arrow.style.transform = `rotate(${-bearing}deg)`;
-  setText('plume-bearing-output', `${Math.round((bearing + 360) % 360)}° · ${Math.round(plumeMap.getPitch())}° tilt`);
+  const pitch = Math.round(plumeMap.getPitch());
+  const heading = Math.round((bearing + 360) % 360);
+  setText('plume-bearing-output', pitch > 0 ? `${heading}° · ${pitch}°` : `${heading}°`);
+  const tiltToggle = document.getElementById('plume-nav-tilt-toggle');
+  if (tiltToggle) {
+    tiltToggle.textContent = pitch > 0 ? '2D' : '3D';
+    tiltToggle.setAttribute('aria-pressed', String(pitch > 0));
+  }
+  control.classList.toggle('is-rotated', heading !== 0 || pitch > 0);
+}
+
+function togglePlumeMapTilt() {
+  if (!plumeMap?.getPitch || !plumeMap?.easeTo) return;
+  plumeMap.easeTo({ pitch: plumeMap.getPitch() > 0 ? 0 : 55, duration: 400 });
+}
+
+// Compass drag: horizontal = rotate, vertical = tilt (Google/Apple Maps style).
+function bindPlumeNavCompass() {
+  const compass = document.getElementById('plume-nav-compass');
+  if (!compass || compass.dataset.bound) return;
+  compass.dataset.bound = 'true';
+  let drag = null;
+  compass.addEventListener('pointerdown', (event) => {
+    if (!plumeMap?.getBearing) return;
+    drag = { x: event.clientX, y: event.clientY, bearing: plumeMap.getBearing(), pitch: plumeMap.getPitch(), moved: false };
+    compass.setPointerCapture?.(event.pointerId);
+  });
+  compass.addEventListener('pointermove', (event) => {
+    if (!drag || !plumeMap?.jumpTo) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    const maxPitch = plumeMap.getMaxPitch?.() || 85;
+    plumeMap.jumpTo({ bearing: drag.bearing + dx * 1.2, pitch: Math.max(0, Math.min(maxPitch, drag.pitch - dy * 0.8)) });
+  });
+  const end = (event) => {
+    if (drag?.moved) {
+      event.preventDefault();
+      compass.dataset.suppressClick = 'true';
+    }
+    drag = null;
+  };
+  compass.addEventListener('pointerup', end);
+  compass.addEventListener('pointercancel', end);
+  compass.addEventListener('click', (event) => {
+    if (compass.dataset.suppressClick) {
+      delete compass.dataset.suppressClick;
+      event.stopImmediatePropagation();
+    }
+  }, true);
+  compass.addEventListener('keydown', (event) => {
+    const keys = { ArrowLeft: () => rotatePlumeMap(-15), ArrowRight: () => rotatePlumeMap(15), ArrowUp: () => tiltPlumeMap(10), ArrowDown: () => tiltPlumeMap(-10) };
+    if (keys[event.key]) {
+      event.preventDefault();
+      keys[event.key]();
+    }
+  });
 }
 
 function rotatePlumeMap(delta) {
@@ -12126,6 +12347,7 @@ function restorePlumeMapOverlays() {
   if (ergIsolationVisible && currentErgIsolationGeoJson?.features?.length) addErgIsolationLayer();
   if (plumeLayerState.hazards && currentPlumeHazardsGeoJson) addPlumeHazardsLayers(currentPlumeHazardsGeoJson);
   Object.entries(plumeLayerState).forEach(([layerName, visible]) => setPlumeLayerVisibility(layerName, visible));
+  if (plumeInitialIsolationGeoJson) syncPlumeInitialIsolationVisibility();
 }
 
 function fallbackPlumeMapToSatellite(message = '3D Plume terrain is unavailable on this device. Satellite view restored.') {
@@ -12677,6 +12899,233 @@ function ergOverlayToGeoJson(result, origin) {
   }
 
   return { type: 'FeatureCollection', features };
+}
+
+/*
+ * Initial isolation rings (ERG 2024). Shown on the Plume Model map and the
+ * Live Map whenever no plume has been run or none is needed, so responders
+ * always see the "isolate in all directions" distance around the incident.
+ * Ring radii come from the selected chemical's ERG Table 1 / Orange Guide
+ * data or, for CBRNE agents, the ERG 2024 chemical-warfare-agent table.
+ */
+const INITIAL_ISOLATION_SOURCE_ID = 'hazmat-initial-isolation';
+const INITIAL_ISOLATION_LAYER_IDS = Object.freeze({
+  fill: 'hazmat-initial-isolation-fill',
+  small: 'hazmat-initial-isolation-small',
+  large: 'hazmat-initial-isolation-large',
+  fire: 'hazmat-initial-isolation-fire',
+});
+const initialIsolationLabelMarkers = new WeakMap();
+
+function syncInitialIsolationLabelMarkers(map, geojson, visible) {
+  (initialIsolationLabelMarkers.get(map) || []).forEach((marker) => marker.remove());
+  initialIsolationLabelMarkers.set(map, []);
+  if (!visible || !window.maplibregl?.Marker) return;
+  const markers = (geojson?.features || [])
+    .filter((feature) => feature.properties?.featureType === 'label')
+    .map((feature) => {
+      const element = document.createElement('span');
+      element.className = `initial-isolation-label initial-isolation-label-${feature.properties.ringId}`;
+      element.textContent = feature.properties.label;
+      element.title = feature.properties.basis || '';
+      return new window.maplibregl.Marker({ element, anchor: 'top', offset: [0, 3] }).setLngLat(feature.geometry.coordinates).addTo(map);
+    });
+  initialIsolationLabelMarkers.set(map, markers);
+}
+const INITIAL_ISOLATION_RING_STYLE = Object.freeze({
+  small: { color: '#ff3b30', dash: null },
+  large: { color: '#ff9d00', dash: [3, 2] },
+  fire: { color: '#ffd60a', dash: [1, 1.6] },
+  agent: { color: '#ff3b30', dash: null },
+});
+
+function parseDistanceToMeters(value) {
+  const text = String(value ?? '').replace(/,/g, '').trim();
+  const match = text.match(/(\d+(?:\.\d+)?)\s*(km|kilomet(?:er|re)s?|m\b|met(?:er|re)s?|ft|feet|foot|mi\b|miles?)/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const unit = match[2].toLowerCase();
+  if (unit.startsWith('k')) return amount * 1000;
+  if (unit.startsWith('f')) return amount * 0.3048;
+  if (unit.startsWith('mi')) return amount * 1609.344;
+  return amount;
+}
+
+function formatIsolationDistance(meters, sourceFeet = null) {
+  // When the source value is in feet (ERG Table 1/3), show it exactly as published.
+  if (Number(sourceFeet) > 0) return `${Number(sourceFeet).toLocaleString()} ft (${Math.round(Number(meters)).toLocaleString()} m)`;
+  const m = Math.round(Number(meters));
+  const ft = Math.round((m / 0.3048) / 10) * 10;
+  return m >= 1000
+    ? `${(m / 1000).toFixed(m % 1000 === 0 ? 0 : 1)} km (${(m / 1609.344).toFixed(1)} mi)`
+    : `${m.toLocaleString()} m (${ft.toLocaleString()} ft)`;
+}
+
+// Accepts a raw Chemical Companion profile (isolationErg + response) or a
+// CBRNE hazard profile (identifiers.ergInitialIsolationM). Returns ring specs
+// sorted smallest first; never invents a distance.
+function initialIsolationRingsFromProfile(profile, { period = 'day' } = {}) {
+  const source = profile?.profile && typeof profile.profile === 'object' && !profile.isolationErg ? profile.profile : profile;
+  if (!source || typeof source !== 'object') return [];
+  const rings = [];
+  const agentM = Number(source.identifiers?.ergInitialIsolationM);
+  if (Number.isFinite(agentM) && agentM > 0) {
+    rings.push({ id: 'agent', radiusM: agentM, label: `ISOLATE ${formatIsolationDistance(agentM)} · all directions`, basis: `ERG 2024 CWA table${source.identifiers?.ergGuide ? ` · Guide ${source.identifiers.ergGuide}` : ''}` });
+    return rings;
+  }
+  const erg = source.isolationErg && typeof source.isolationErg === 'object' ? source.isolationErg : null;
+  if (!erg) return [];
+  const guide = erg.ergGuide ? ` · Guide ${erg.ergGuide}` : '';
+  const table1 = Array.isArray(erg.ergTable1) ? erg.ergTable1[0] : null;
+  if (table1) {
+    // ERG Table 1 publishes one initial isolation distance per spill size
+    // (day/night only changes the downwind protective action distance).
+    const smallFt = Number(table1.smallInitialDayFt);
+    const largeFt = Number(table1.largeInitialDayFt);
+    const smallM = smallFt > 0 ? smallFt * 0.3048 : parseDistanceToMeters(erg.smallSpill);
+    if (smallM) rings.push({ id: 'small', radiusM: smallM, label: `SMALL SPILL · ISOLATE ${formatIsolationDistance(smallM, smallFt > 0 ? smallFt : null)}`, basis: `ERG 2024 Table 1${guide}` });
+    // ERG 2024 sends the six Table 3 gases (chlorine, ammonia, ...) to Table 3
+    // for large spills. Use the most conservative container listed there.
+    const table3 = (Array.isArray(erg.ergTable3) ? erg.ergTable3 : [])
+      .map((row) => ({ container: row?.container, ft: Number(row?.initialIsolationFt) }))
+      .filter((row) => row.ft > 0)
+      .sort((a, b) => b.ft - a.ft)[0];
+    if (table3) {
+      const largeM = table3.ft * 0.3048;
+      if (!smallM || largeM > smallM) rings.push({ id: 'large', radiusM: largeM, label: `LARGE SPILL · ISOLATE ${formatIsolationDistance(largeM, table3.ft)} · ${String(table3.container || 'largest container').toLowerCase()}`, basis: `ERG 2024 Table 3${guide}` });
+    } else {
+      const largeM = largeFt > 0 ? largeFt * 0.3048 : parseDistanceToMeters(erg.largeSpill);
+      if (largeM && (!smallM || largeM > smallM)) rings.push({ id: 'large', radiusM: largeM, label: `LARGE SPILL · ISOLATE ${formatIsolationDistance(largeM, largeFt > 0 ? largeFt : null)}`, basis: `ERG 2024 Table 1${guide}` });
+    }
+  } else {
+    // Non-Table-1 materials: the Orange Guide "immediate precautionary
+    // measure" is the isolation ring. The large-spill value is a downwind
+    // evacuation distance, not an all-directions isolation, so it is not drawn.
+    const immediateM = parseDistanceToMeters(erg.initialIsolationDistance) || parseDistanceToMeters(erg.smallSpill);
+    if (immediateM) rings.push({ id: 'small', radiusM: immediateM, label: `IMMEDIATE ISOLATION · ${formatIsolationDistance(immediateM)}`, basis: `ERG 2024 Orange Guide${guide}` });
+  }
+  const fireText = profileArray(source.response?.evacuation).map(String).find((line) => /fire/i.test(line) && /isolate\s+for/i.test(line));
+  const fireMatch = fireText?.match(/isolate\s+for\s+([\d,.]+\s*(?:meters|metres|m|km|feet|ft))/i);
+  const fireM = fireMatch ? parseDistanceToMeters(fireMatch[1]) : null;
+  if (fireM && !rings.some((ring) => Math.abs(ring.radiusM - fireM) < 1)) {
+    rings.push({ id: 'fire', radiusM: fireM, label: `IF TANK IN FIRE · ISOLATE ${formatIsolationDistance(fireM)}`, basis: `ERG 2024 Orange Guide${guide} · Evacuation — Fire` });
+  }
+  return rings.sort((a, b) => a.radiusM - b.radiusM);
+}
+
+function initialIsolationGeoJson(center, rings) {
+  const origin = normalizePlumeLocation(center);
+  if (!origin || !Array.isArray(rings) || !rings.length) return { type: 'FeatureCollection', features: [] };
+  const features = [];
+  // Alternate labels between the south and north edges so rings with
+  // similar radii (e.g. fire 800 m vs. large spill 914 m) never stack labels.
+  const labelBearings = [0, 180];
+  rings.forEach((ring, ringIndex) => {
+    const style = INITIAL_ISOLATION_RING_STYLE[ring.id] || INITIAL_ISOLATION_RING_STYLE.small;
+    const coordinates = Array.from({ length: 97 }, (_, index) => {
+      const angle = (index / 96) * Math.PI * 2;
+      return localMetersToLngLat([Math.cos(angle) * ring.radiusM, Math.sin(angle) * ring.radiusM], origin, 0);
+    });
+    const properties = { ringId: ring.id, label: ring.label, basis: ring.basis, radiusM: Math.round(ring.radiusM), color: style.color };
+    features.push({ type: 'Feature', properties: { ...properties, featureType: 'ring' }, geometry: { type: 'Polygon', coordinates: [coordinates] } });
+    // Label at the south edge of each ring (windFrom 0 => +x points south) so
+    // it never hides under the map toolbar.
+    features.push({ type: 'Feature', properties: { ...properties, featureType: 'label' }, geometry: { type: 'Point', coordinates: localMetersToLngLat([ring.radiusM, 0], origin, labelBearings[ringIndex % labelBearings.length]) } });
+  });
+  return { type: 'FeatureCollection', features };
+}
+
+function applyInitialIsolationLayers(map, geojson, { visible = true } = {}) {
+  if (!map?.getStyle?.()) return false;
+  const data = geojson || { type: 'FeatureCollection', features: [] };
+  const source = map.getSource(INITIAL_ISOLATION_SOURCE_ID);
+  if (source) source.setData(data);
+  else map.addSource(INITIAL_ISOLATION_SOURCE_ID, { type: 'geojson', data });
+  const ids = INITIAL_ISOLATION_LAYER_IDS;
+  const ringFilter = (ringIds) => ['all', ['==', ['get', 'featureType'], 'ring'], ['in', ['get', 'ringId'], ['literal', ringIds]]];
+  if (!map.getLayer(ids.fill)) {
+    map.addLayer({ id: ids.fill, type: 'fill', source: INITIAL_ISOLATION_SOURCE_ID, filter: ['==', ['get', 'featureType'], 'ring'], paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.06 } });
+  }
+  [['small', ['small', 'agent'], null], ['large', ['large'], [3, 2]], ['fire', ['fire'], [1, 1.6]]].forEach(([key, ringIds, dash]) => {
+    if (map.getLayer(ids[key])) return;
+    map.addLayer({
+      id: ids[key],
+      type: 'line',
+      source: INITIAL_ISOLATION_SOURCE_ID,
+      filter: ringFilter(ringIds),
+      paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.95, ...(dash ? { 'line-dasharray': dash } : {}) },
+    });
+  });
+  // Satellite and fallback styles have no glyph atlas, so ring labels are
+  // DOM markers rather than symbol layers. They render on every basemap.
+  syncInitialIsolationLabelMarkers(map, data, visible);
+  Object.values(ids).forEach((id) => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none'));
+  return true;
+}
+
+function removeInitialIsolationLayers(map) {
+  syncInitialIsolationLabelMarkers(map, null, false);
+  if (!map?.getStyle?.()) return;
+  Object.values(INITIAL_ISOLATION_LAYER_IDS).forEach((id) => map.getLayer(id) && map.removeLayer(id));
+  if (map.getSource(INITIAL_ISOLATION_SOURCE_ID)) map.removeSource(INITIAL_ISOLATION_SOURCE_ID);
+}
+
+// Resolve isolation rings for the active incident's primary hazard. Uses the
+// cached Hazard Profile so map refreshes do not re-fetch.
+async function resolveIncidentInitialIsolation(incident = getActiveIncident()) {
+  if (!incident) return { rings: [], hazardName: '' };
+  const identity = incidentChemicalIdentity(incident);
+  const hazardName = identity?.name || incident.chemicalName || '';
+  const period = typeof resolveErgPeriod === 'function' ? resolveErgPeriod() : 'day';
+  let profile = null;
+  const cbrneId = incident.cbrneCanonicalId || (typeof identity?.id === 'string' && !/^\d+$/.test(identity.id) ? identity.id : '');
+  const chemicalId = normalizeChemicalSelectionId(incident.selectedChemicalId ?? incident.chemicalCompanionId);
+  if (typeof chemicalId === 'number') profile = await fetchHazardProfileCached(chemicalProfileUrl(chemicalId));
+  else if (cbrneId) {
+    const lane = incident.hazardRoutingLane && incident.hazardRoutingLane !== 'CHEMICAL' ? incident.hazardRoutingLane : 'CBRNE_CWA';
+    profile = await fetchHazardProfileCached(starterHazardProfileUrl(lane, cbrneId));
+  }
+  if (!profile || profile.error) return { rings: [], hazardName };
+  return { rings: initialIsolationRingsFromProfile(profile, { period }), hazardName };
+}
+
+let plumeInitialIsolationMode = 'auto';
+let plumeInitialIsolationGeoJson = null;
+let plumeInitialIsolationToken = 0;
+
+function plumeInitialIsolationShouldShow() {
+  if (plumeInitialIsolationMode === 'off') return false;
+  if (plumeInitialIsolationMode === 'on') return true;
+  return !currentThreatZoneGeoJson?.features?.length;
+}
+
+function syncPlumeInitialIsolationButton() {
+  const button = document.getElementById('plume-isolation-toggle');
+  if (!button) return;
+  const visible = Boolean(plumeInitialIsolationGeoJson?.features?.length) && plumeInitialIsolationShouldShow();
+  button.classList.toggle('active', visible);
+  button.setAttribute('aria-pressed', visible ? 'true' : 'false');
+}
+
+function syncPlumeInitialIsolationVisibility() {
+  if (plumeMap?.getStyle?.() && plumeInitialIsolationGeoJson) {
+    applyInitialIsolationLayers(plumeMap, plumeInitialIsolationGeoJson, { visible: plumeInitialIsolationShouldShow() });
+  }
+  syncPlumeInitialIsolationButton();
+}
+
+async function refreshPlumeInitialIsolation(location = null) {
+  const token = ++plumeInitialIsolationToken;
+  if (!plumeMap) return;
+  const center = normalizePlumeLocation(location) || await getIncidentCoordinates({ requestGps: false }).catch(() => null);
+  const { rings, hazardName } = await resolveIncidentInitialIsolation();
+  if (token !== plumeInitialIsolationToken || !plumeMap?.getStyle?.()) return;
+  plumeInitialIsolationGeoJson = center && rings.length ? initialIsolationGeoJson(center, rings) : { type: 'FeatureCollection', features: [] };
+  syncPlumeInitialIsolationVisibility();
+  if (rings.length && plumeInitialIsolationShouldShow() && !currentThreatZoneGeoJson?.features?.length) {
+    setText('plume-layers-status', `Initial isolation shown for ${hazardName || 'the incident hazard'} — ${rings.map((ring) => ring.label.toLowerCase()).join(' · ')}. No plume run yet.`);
+  }
 }
 
 function ergInitialIsolationDistanceText(erg) {
@@ -13283,7 +13732,81 @@ function buildThreatZoneGuides() {
     },
     geometry: { type: 'Point', coordinates: localMetersToLngLat([maxDistance * 0.14, 0], origin, windFromDeg) },
   });
+  features.push(...windShiftAndDenseGasGuides(origin, windFromDeg, maxDistance));
   return { type: 'FeatureCollection', features };
+}
+
+// Wind-shift confidence lines (either side of the downwind axis) and
+// Britter-McQuaid dense-gas distance arcs from the latest backend result.
+function windShiftAndDenseGasGuides(origin, windFromDeg, maxDistance) {
+  const result = latestPlumeModelResult;
+  if (!result || result.mode === 'erg-protective-action' || !origin) return [];
+  const halfAngle = Number(result.windShift?.halfAngleDeg);
+  const denseLevels = result.denseGas?.applicable
+    ? (result.denseGas.levels || []).filter((level) => Number(level.distanceM) > 0)
+    : [];
+  const reach = Math.max(Number(maxDistance) || 0, ...denseLevels.map((level) => Number(level.distanceM)));
+  if (!Number.isFinite(halfAngle) || halfAngle <= 0 || !(reach > 0)) return [];
+  const radians = (halfAngle * Math.PI) / 180;
+  const start = [Number(origin.lng ?? origin.lon), Number(origin.lat)];
+  const ray = (sign, distance) => localMetersToLngLat([Math.cos(radians) * distance, sign * Math.sin(radians) * distance], origin, windFromDeg);
+  const features = [-1, 1].map((sign) => ({
+    type: 'Feature',
+    properties: { guideType: 'windShift', label: `Wind-shift ±${halfAngle}°` },
+    geometry: { type: 'LineString', coordinates: [start, ray(sign, reach * 1.05)] },
+  }));
+  denseLevels.forEach((level) => {
+    const distance = Number(level.distanceM);
+    const steps = 24;
+    const coordinates = Array.from({ length: steps + 1 }, (_, index) => {
+      const angle = -radians + (2 * radians * index) / steps;
+      return localMetersToLngLat([Math.cos(angle) * distance, Math.sin(angle) * distance], origin, windFromDeg);
+    });
+    features.push({
+      type: 'Feature',
+      properties: { guideType: 'denseGasArc', levelId: level.id, label: `${level.label} · ${formatIsolationDistance(distance)}` },
+      geometry: { type: 'LineString', coordinates },
+    });
+  });
+  // One combined label at the outermost arc keeps closely spaced arcs legible.
+  if (denseLevels.length) {
+    const outer = Math.max(...denseLevels.map((level) => Number(level.distanceM)));
+    const summary = [...denseLevels]
+      .sort((a, b) => Number(a.distanceM) - Number(b.distanceM))
+      .map((level) => `${level.label.replace(/\s*\(.*?\)|\s*dense-gas limit/gi, '')} ${formatIsolationDistance(level.distanceM).replace(/\s*\(.*\)$/, '')}`)
+      .join(' · ');
+    features.push({
+      type: 'Feature',
+      properties: { guideType: 'denseGasLabel', label: `DENSE GAS · ${summary}` },
+      geometry: { type: 'Point', coordinates: localMetersToLngLat([outer, 0], origin, windFromDeg) },
+    });
+  }
+  return features;
+}
+
+let denseGasLabelMarkers = [];
+function syncDenseGasLabelMarkers() {
+  denseGasLabelMarkers.forEach((marker) => marker.remove());
+  denseGasLabelMarkers = [];
+  if (!plumeMap || !window.maplibregl?.Marker || !plumeLayerState.zones) return;
+  (currentThreatZoneGuideGeoJson?.features || [])
+    .filter((feature) => feature.properties?.guideType === 'denseGasLabel')
+    .forEach((feature) => {
+      const element = document.createElement('span');
+      element.className = 'dense-gas-label';
+      element.textContent = feature.properties.label;
+      element.title = 'Britter–McQuaid dense-gas screening (planning estimate)';
+      denseGasLabelMarkers.push(new window.maplibregl.Marker({ element, anchor: 'top', offset: [0, 10] }).setLngLat(feature.geometry.coordinates).addTo(plumeMap));
+    });
+}
+
+function refreshWindShiftAndDenseGasGuides() {
+  if (!plumeMap || !currentThreatZoneGeoJson?.features?.length) return;
+  const guideSource = plumeMap.getSource('hazmat-threat-zone-guides');
+  if (!guideSource) return;
+  currentThreatZoneGuideGeoJson = buildThreatZoneGuides();
+  guideSource.setData(currentThreatZoneGuideGeoJson);
+  syncDenseGasLabelMarkers();
 }
 
 function addOptionalPlumeGuideLayer(layer) {
@@ -13857,6 +14380,7 @@ function setPlumeLayerVisibility(layerName, visible) {
     if (plumeMap?.getLayer(id)) plumeMap.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
   });
   if (layerName === 'distance') syncDistanceDomMarkers();
+  if (layerName === 'zones') syncDenseGasLabelMarkers();
 }
 
 function syncDistanceDomMarkers() {
@@ -13940,6 +14464,23 @@ function addThreatZoneLayers() {
   } else {
     plumeMap.addSource('hazmat-threat-zone-guides', { type: 'geojson', data: currentThreatZoneGuideGeoJson });
   }
+  addOptionalPlumeGuideLayer({
+    id: 'hazmat-wind-shift-lines',
+    type: 'line',
+    source: 'hazmat-threat-zone-guides',
+    filter: ['==', ['get', 'guideType'], 'windShift'],
+    layout: { visibility: plumeLayerState.zones ? 'visible' : 'none', 'line-cap': 'round' },
+    paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-opacity': 0.9, 'line-dasharray': [2, 2] },
+  });
+  addOptionalPlumeGuideLayer({
+    id: 'hazmat-dense-gas-arcs',
+    type: 'line',
+    source: 'hazmat-threat-zone-guides',
+    filter: ['==', ['get', 'guideType'], 'denseGasArc'],
+    layout: { visibility: plumeLayerState.zones ? 'visible' : 'none', 'line-cap': 'round' },
+    paint: { 'line-color': '#ff9d00', 'line-width': 3, 'line-opacity': 0.95 },
+  });
+  syncDenseGasLabelMarkers();
   addOptionalPlumeGuideLayer({
     id: 'hazmat-threat-zone-centerline',
     type: 'line',
@@ -14045,6 +14586,7 @@ function addThreatZoneLayers() {
     },
   });
   updatePlume3dEnvelope();
+  syncPlumeInitialIsolationVisibility();
 }
 
 function getPlumeHazardsBounds() {
@@ -14250,6 +14792,8 @@ async function clearThreatZones(message = '') {
     if (source) source.setData({ type: 'FeatureCollection', features: [] });
     const guideSource = plumeMap.getSource('hazmat-threat-zone-guides');
     if (guideSource) guideSource.setData({ type: 'FeatureCollection', features: [] });
+    denseGasLabelMarkers.forEach((marker) => marker.remove());
+    denseGasLabelMarkers = [];
     const plume3dSource = plumeMap.getSource(plume3dEnvelopeSourceId);
     if (plume3dSource) plume3dSource.setData({ type: 'FeatureCollection', features: [] });
   }
@@ -14263,6 +14807,7 @@ async function clearThreatZones(message = '') {
   if (plume3dFacts) plume3dFacts.hidden = true;
   setPlumeMapResultVisible(false);
   syncDistanceDomMarkers();
+  syncPlumeInitialIsolationVisibility();
   activePlumeCommand = null;
   renderIncidentCommandSnapshot();
   resetThreatZoneImpactSummary();
@@ -15643,6 +16188,7 @@ function updatePlumeEvidenceStatus(result = null) {
     return;
   }
   latestPlumeModelResult = result;
+  refreshWindShiftAndDenseGasGuides();
   if (result.mode === 'erg-protective-action') {
     setThreatIntelligence({ status: 'idle', modelRunId: null, generatedAt: null, zones: {}, affectedFacilities: [], sourceStatuses: [], errors: [] });
   } else {
@@ -15975,9 +16521,22 @@ function updatePlumeDenseGasWarning(result = null) {
   const dense = result && result.mode !== 'erg-protective-action' && /dense|heavy/i.test(family);
   warning.hidden = !dense;
   const chip = document.getElementById('plume-map-dense-gas-chip');
-  if (chip) chip.hidden = !dense;
+  if (chip) {
+    chip.hidden = !dense;
+    chip.textContent = result?.denseGas?.applicable
+      ? 'Heavier-than-air product · dense-gas near field screened (Britter–McQuaid, orange arcs) · pooling and terrain not modeled'
+      : 'Heavier-than-air product · dense-gas behavior NOT modeled · footprint may underpredict near the source and in low areas';
+  }
+  const screen = result?.denseGas;
+  const screened = screen?.applicable
+    ? (screen.levels || []).filter((level) => Number(level.distanceM) > 0).map((level) => `${level.label} to ${formatIsolationDistance(level.distanceM)}`).join('; ')
+    : '';
+  const shift = Number(result?.windShift?.halfAngleDeg);
+  const shiftText = Number.isFinite(shift) ? ` Dashed white lines show ±${shift}° wind-shift uncertainty.` : '';
   warning.textContent = dense
-    ? 'Heavier-than-air product: this footprint uses a neutral-gas Gaussian screen. Dense-gas slumping, upwind and crosswind spread, and pooling in low areas are NOT modeled. Expect a wider, more concentrated cloud near the source and in low terrain; confirm with air monitoring.'
+    ? screened
+      ? `Heavier-than-air product. Dense-gas screen (Britter–McQuaid): ${screened}. Orange arcs mark these near-field distances; beyond 0.2% the Gaussian AEGL footprint applies. Slumping, pooling in low areas and terrain channeling are not modeled.${shiftText} Confirm with air monitoring.`
+      : `Heavier-than-air product: this footprint uses a neutral-gas Gaussian screen.${screen?.reason ? ` ${screen.reason}` : ''} Dense-gas slumping, upwind and crosswind spread, and pooling in low areas are NOT modeled. Expect a wider, more concentrated cloud near the source and in low terrain; confirm with air monitoring.${shiftText}`
     : '';
 }
 
@@ -16890,6 +17449,7 @@ async function refreshPlumeWorkspace({ requestGps = true } = {}) {
   if (token !== plumeRefreshToken) return;
   await clearThreatZones('Enter release information to calculate a Planning Plume.');
   if (token !== plumeRefreshToken) return;
+  void refreshPlumeInitialIsolation(location);
   if (status) status.innerHTML = `Location and weather updated ${formatCentralZuluHtml()}.`;
   updatePlumeInputSummaries();
   scheduleAutomaticPlanningPlume();
@@ -17525,11 +18085,129 @@ document.addEventListener('keydown', (event) => {
   }
 });
 document.getElementById('plume-buildings-toggle')?.addEventListener('click', toggleConfiguredPlumeBuildings);
+// Release-rate calculator (Chemical Release panel). Physics runs server-side
+// in src/lib/model/releaseRate.ts so it is unit-tested and uses the unchanged
+// Chemical Companion molecular weight / liquid density.
+let latestReleaseRateCalculation = null;
+function syncReleaseCalculatorPhase() {
+  const phase = document.getElementById('calc-release-phase')?.value || 'gas';
+  document.querySelectorAll('[data-calc-phase]').forEach((field) => { field.hidden = field.dataset.calcPhase !== phase; });
+}
+function prefillReleaseCalculator() {
+  const pressure = document.getElementById('calc-tank-pressure');
+  const containerPsig = document.getElementById('container-pressure')?.value;
+  if (pressure && !pressure.value && containerPsig) pressure.value = containerPsig;
+  const phaseSelect = document.getElementById('calc-release-phase');
+  const containerPhase = document.getElementById('container-release-phase')?.value || '';
+  const location = document.getElementById('container-release-location')?.value || '';
+  if (phaseSelect && !phaseSelect.dataset.userSet) {
+    if (/liquid|two-phase/i.test(containerPhase) || /bottom/i.test(location)) phaseSelect.value = 'liquid';
+    else if (/gas|vapor/i.test(containerPhase) || /top|vent|relief/i.test(location)) phaseSelect.value = 'gas';
+  }
+  const temp = document.getElementById('calc-tank-temp');
+  const ambient = document.getElementById('plume-temperature')?.value;
+  if (temp && !temp.value && ambient) temp.placeholder = `Ambient ${ambient} °F if unknown`;
+  syncReleaseCalculatorPhase();
+}
+async function runReleaseRateCalculator() {
+  const output = document.getElementById('calc-release-result');
+  const apply = document.getElementById('calc-release-apply');
+  latestReleaseRateCalculation = null;
+  if (apply) apply.disabled = true;
+  const chemical = getIncidentChemicalContext(getActiveIncident())?.chemical;
+  const chemicalId = chemical ? String(chemical.selectedChemicalId ?? chemical.id ?? '') : '';
+  const value = (id) => document.getElementById(id)?.value ?? '';
+  const phase = value('calc-release-phase') || 'gas';
+  const tempEntered = value('calc-tank-temp');
+  const body = {
+    chemicalId,
+    phase,
+    holeDiameterIn: Number(value('calc-hole-diameter')),
+    tankPressurePsig: Number(value('calc-tank-pressure')),
+    tankTempF: tempEntered === '' ? Number(value('plume-temperature')) : Number(tempEntered),
+    liquidHeadFt: Number(value('calc-liquid-head')) || 0,
+    dischargeCoefficient: Number(value('calc-discharge-coefficient')) || 0.8,
+    ...(value('calc-available-lb') ? { availableQuantityLb: Number(value('calc-available-lb')) } : {}),
+  };
+  if (output) output.textContent = 'Calculating…';
+  try {
+    const response = await fetch('/api/plume/release-rate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const result = await response.json();
+    if (!result.ok) {
+      if (output) output.textContent = result.error || 'Unable to calculate release rate.';
+      return;
+    }
+    latestReleaseRateCalculation = result;
+    const regime = result.flowRegime === 'choked' ? 'choked gas flow' : result.flowRegime === 'subsonic' ? 'subsonic gas flow' : 'liquid flow';
+    const property = result.propertiesUsed?.molecularWeight
+      ? `MW ${result.propertiesUsed.molecularWeight}`
+      : result.propertiesUsed?.liquidDensityGcm3 ? `liquid density ${result.propertiesUsed.liquidDensityGcm3} g/cm³` : '';
+    const duration = Number.isFinite(Number(result.durationMinutes)) && result.durationMinutes !== null
+      ? ` · empties in ≥ ${result.durationMinutes} min` : '';
+    if (output) {
+      const strong = document.createElement('strong');
+      strong.textContent = `${Number(result.lbPerMin).toLocaleString()} lb/min`;
+      output.replaceChildren(strong, document.createTextNode(` (${result.lbPerSec} lb/s) · ${regime}${property ? ` · ${property}` : ''}${duration}`));
+    }
+    if (apply) apply.disabled = false;
+  } catch {
+    if (output) output.textContent = 'Release-rate service unavailable. Check the connection and retry.';
+  }
+}
+function applyReleaseRateCalculation() {
+  const result = latestReleaseRateCalculation;
+  if (!result?.ok) return;
+  const type = document.getElementById('plume-release-type');
+  if (type && type.value !== 'plume') {
+    type.value = 'plume';
+    type.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const unit = document.getElementById('plume-release-unit');
+  if (unit) {
+    unit.value = 'lb-min';
+    unit.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const quantity = document.getElementById('plume-release-quantity');
+  if (quantity) {
+    quantity.value = String(result.lbPerMin);
+    quantity.dispatchEvent(new Event('input', { bubbles: true }));
+    quantity.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const duration = document.getElementById('plume-release-duration');
+  if (duration && !duration.value && Number(result.durationMinutes) > 0) {
+    duration.value = String(Math.max(1, Math.min(60, Math.round(result.durationMinutes))));
+    duration.dispatchEvent(new Event('input', { bubbles: true }));
+    duration.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  setText('calc-release-result', `Applied ${Number(result.lbPerMin).toLocaleString()} lb/min to Release rate. Plot Plume to update the model.`);
+}
+document.getElementById('plume-release-calculator')?.addEventListener('toggle', (event) => { if (event.target.open) prefillReleaseCalculator(); });
+document.getElementById('calc-release-phase')?.addEventListener('change', (event) => { event.target.dataset.userSet = 'true'; syncReleaseCalculatorPhase(); });
+document.getElementById('calc-release-run')?.addEventListener('click', () => void runReleaseRateCalculator());
+document.getElementById('calc-release-apply')?.addEventListener('click', applyReleaseRateCalculation);
 document.getElementById('plume-fit-view-btn')?.addEventListener('click', () => void fitPlumeToView());
+document.getElementById('plume-isolation-toggle')?.addEventListener('click', async () => {
+  const visible = Boolean(plumeInitialIsolationGeoJson?.features?.length) && plumeInitialIsolationShouldShow();
+  if (visible) {
+    plumeInitialIsolationMode = 'off';
+    syncPlumeInitialIsolationVisibility();
+    setText('plume-layers-status', 'Initial isolation rings hidden.');
+    return;
+  }
+  plumeInitialIsolationMode = 'on';
+  if (!plumeInitialIsolationGeoJson?.features?.length) await refreshPlumeInitialIsolation();
+  syncPlumeInitialIsolationVisibility();
+  if (!plumeInitialIsolationGeoJson?.features?.length) {
+    setText('plume-layers-status', 'No ERG initial isolation distance exists for the incident hazard.');
+  } else {
+    setText('plume-layers-status', 'Initial isolation rings shown (ERG 2024).');
+  }
+});
 document.getElementById('plume-recenter-incident-btn')?.addEventListener('click', () => void recenterPlumeOnIncident());
 document.getElementById('plume-recenter-release-btn')?.addEventListener('click', recenterPlumeOnRelease);
 document.getElementById('plume-reset-view-btn')?.addEventListener('click', resetPlumeMapView);
 document.getElementById('plume-ground-view-btn')?.addEventListener('click', () => setPlumeGroundView());
+bindPlumeNavCompass();
 document.querySelectorAll('[data-plume-camera]').forEach((button) => {
   button.addEventListener('click', () => {
     const actions = {
@@ -17539,6 +18217,7 @@ document.querySelectorAll('[data-plume-camera]').forEach((button) => {
       'rotate-right': () => rotatePlumeMap(15),
       'tilt-up': () => tiltPlumeMap(10),
       'tilt-down': () => tiltPlumeMap(-10),
+      'tilt-toggle': togglePlumeMapTilt,
       'reset-north': resetPlumeMapNorth,
     };
     actions[button.dataset.plumeCamera]?.();
@@ -19802,6 +20481,19 @@ function readLatestPlumeOverlay() {
   }
 }
 
+let liveInitialIsolationToken = 0;
+async function showLiveInitialIsolation() {
+  const token = ++liveInitialIsolationToken;
+  const center = await getIncidentCoordinates({ requestGps: false }).catch(() => null);
+  const { rings, hazardName } = await resolveIncidentInitialIsolation();
+  if (token !== liveInitialIsolationToken || !liveMap?.getStyle?.()) return;
+  if (!liveMapState?.activeLayers?.plume || readLatestPlumeOverlay()?.plumeGeometry?.features?.length) return;
+  if (!center || !rings.length) return;
+  applyInitialIsolationLayers(liveMap, initialIsolationGeoJson(center, rings), { visible: true });
+  setText('live-plume-status', `Initial isolation shown${hazardName ? ` · ${hazardName}` : ''} — no plume run`);
+  syncLiveMapOperationalStatuses();
+}
+
 function updateLivePlumeOverlay() {
   if (!liveMap?.isStyleLoaded()) return;
   const enabled = Boolean(liveMapState?.activeLayers?.plume);
@@ -19809,6 +20501,7 @@ function updateLivePlumeOverlay() {
     if (liveMap.getLayer(livePlumeOutlineLayerId)) liveMap.removeLayer(livePlumeOutlineLayerId);
     if (liveMap.getLayer(livePlumeFillLayerId)) liveMap.removeLayer(livePlumeFillLayerId);
     if (liveMap.getSource(livePlumeSourceId)) liveMap.removeSource(livePlumeSourceId);
+    removeInitialIsolationLayers(liveMap);
     setText('live-plume-status', 'Overlay off');
     syncLiveMapOperationalStatuses();
     return;
@@ -19821,8 +20514,11 @@ function updateLivePlumeOverlay() {
     if (liveMap.getLayer(livePlumeOutlineLayerId)) liveMap.removeLayer(livePlumeOutlineLayerId);
     if (liveMap.getLayer(livePlumeFillLayerId)) liveMap.removeLayer(livePlumeFillLayerId);
     if (liveMap.getSource(livePlumeSourceId)) liveMap.removeSource(livePlumeSourceId);
+    if (getActiveIncident()) void showLiveInitialIsolation();
+    else removeInitialIsolationLayers(liveMap);
     return;
   }
+  removeInitialIsolationLayers(liveMap);
   setText('live-plume-status', 'Plume Overlay Active');
   syncLiveMapOperationalStatuses();
   if (liveMap.getSource(livePlumeSourceId)) {
@@ -20585,6 +21281,7 @@ window.HazMatIQ.hazardProfileLegacy = {
   openStarterHazard,
   renderChemicalProfile,
   renderStarterHazardTab,
+  setHazardProfilePane,
 };
 window.HazMatIQ.showChemicalSelectionPrompt = showChemicalSelectionPrompt;
 

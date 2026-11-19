@@ -418,7 +418,16 @@
     if (!involvedChemicals.some(sameChemical)) involvedChemicals.push(hazardIdentity);
     // When the primary hazard changes, never carry the previous chemical's
     // identifiers, ERG guide, or IDLH forward as fallbacks.
-    const replacing = Boolean(normalized.displayName && incident.chemicalName
+    // A mismatched canonical id also counts as a replacement so a stale
+    // Chemical Companion id can never survive under a CBRNE agent name.
+    const incidentIds = [incident.selectedChemicalId, incident.chemicalCompanionId, incident.cbrneCanonicalId, incident.canonicalHazardId]
+      .filter((value) => value !== null && value !== undefined && String(value).trim())
+      .map(String);
+    const resultIds = [normalized.chemicalCompanionId, normalized.cbrneCanonicalId, normalized.canonicalId]
+      .filter((value) => value !== null && value !== undefined && String(value).trim())
+      .map(String);
+    const idMismatch = incidentIds.length > 0 && resultIds.length > 0 && !incidentIds.some((id) => resultIds.includes(id));
+    const replacing = idMismatch || Boolean(normalized.displayName && incident.chemicalName
       && String(normalized.displayName).trim().toLowerCase() !== String(incident.chemicalName).trim().toLowerCase());
     const prior = replacing ? {} : incident;
     const next = {

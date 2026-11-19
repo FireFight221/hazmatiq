@@ -22,7 +22,7 @@ const lookupHtml = html.slice(
 
 describe("Guided Response workflow", () => {
   it("uses the branded unified Hazard ID hero with one tabbed search console", () => {
-    expect(styles).toContain('url("assets/hazard-id-level-b-hero-v2.png")');
+    expect(styles).toContain('url("assets/hazard-id-level-b-hero-v2.webp")');
     expect(lookupHtml.match(/data-hazard-search-tab=/g)).toHaveLength(3);
     expect(lookupHtml).toContain('id="chemical-search" type="search"');
     expect(lookupHtml).toContain('id="chemical-search"');
@@ -145,7 +145,7 @@ describe("Guided Response workflow", () => {
 
   it("uses a wrapping responsive card layout", () => {
     expect(styles).toContain(".guided-response-content");
-    expect(styles).toContain('url("assets/guided-response-hero.png")');
+    expect(styles).toContain('url("assets/guided-response-hero.webp")');
     expect(styles).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
     expect(styles).toContain("@media (max-width: 900px)");
   });

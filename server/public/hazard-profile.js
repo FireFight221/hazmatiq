@@ -131,6 +131,7 @@
       tab.setAttribute('aria-selected', String(active));
     });
     const profile = api.normalizeProfileForUi?.(state.profile) || state.profile || {};
+    api.setHazardProfilePane?.(button.dataset.profilePane || 'detail');
     api.renderStarterHazardTab(profile, fields);
   }
 

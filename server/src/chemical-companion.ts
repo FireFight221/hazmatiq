@@ -1079,6 +1079,25 @@ export function groupChemicalSearchResults(results: RankedSearchRecord[]) {
 }
 
 let searchIndex: SearchRecord[] | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const searchResultCache = new Map<string, any[]>();
+type NormalizedSearchFields = { name: string; primaryName: string; terms: string[]; synonyms: string[]; sortedName: string };
+let normalizedSearchFieldCache = new WeakMap<SearchRecord, NormalizedSearchFields>();
+function normalizedSearchFields(row: SearchRecord): NormalizedSearchFields {
+  let fields = normalizedSearchFieldCache.get(row);
+  if (!fields) {
+    const name = normalizeSearchText(row.ChemicalName);
+    fields = {
+      name,
+      primaryName: normalizeSearchText(row.PrimaryChemicalName),
+      terms: row.matchTerms.map(normalizeSearchText),
+      synonyms: row.synonyms.map(normalizeSearchText),
+      sortedName: sortedSearchWords(name),
+    };
+    normalizedSearchFieldCache.set(row, fields);
+  }
+  return fields;
+}
 let diagnostics: Record<string, number | string> | null = null;
 
 export function rebuildCompanionSearchIndex() {
@@ -1148,6 +1167,8 @@ export function rebuildCompanionSearchIndex() {
       });
     }
     searchIndex = records;
+    searchResultCache.clear();
+    normalizedSearchFieldCache = new WeakMap();
     diagnostics = {
       activeDatabasePath: dbPath, sourceChemicalTotal: chemicals.length,
       sourceUnNaIdentifierTotal: Number((db.prepare('SELECT count(*) total FROM emergency_response_unna_numbers').get() as { total: number }).total),
@@ -1174,10 +1195,16 @@ export function searchCompanionChemicals(query: string) {
   const exactTransportation = normalizeTransportationIdentifier(query);
   const exactCas = normalizeCasIdentifier(query);
   const words = term.split(' ').filter(Boolean);
+  const sortedTerm = sortedSearchWords(term);
+  const cacheKey = `${term}|${exactTransportation ?? ''}|${exactCas ?? ''}`;
+  const cached = searchResultCache.get(cacheKey);
+  if (cached) return cached as typeof grouped;
+  const seenResultKeys = new Set<string>();
   const matched = (searchIndex ?? (rebuildCompanionSearchIndex(), searchIndex!)).map((row) => {
-    const name = normalizeSearchText(row.ChemicalName);
-    const primaryName = normalizeSearchText(row.PrimaryChemicalName);
-    const terms = row.matchTerms.map(normalizeSearchText);
+    // Normalized search text is computed once per index row, not on every
+    // keystroke. Re-normalizing every alias of every record per query was
+    // the main source of multi-second search latency on small hosts.
+    const { name, primaryName, terms, synonyms, sortedName } = normalizedSearchFields(row);
     let rank = 100;
     let matchReason = '';
     if (exactTransportation && row.UnnaNumber === exactTransportation) {
@@ -1192,18 +1219,21 @@ export function searchCompanionChemicals(query: string) {
     else if (exactCas) return { ...row, rank, matchReason };
     else if (name === term && row.recordType === 'master-chemical') [rank, matchReason] = [2, 'Exact Chemical Companion master name'];
     else if (primaryName === term && row.recordType === 'master-chemical') [rank, matchReason] = [2, 'Exact Chemical Companion master name'];
-    else if (row.synonyms.map(normalizeSearchText).includes(term) && row.recordType === 'master-chemical') [rank, matchReason] = [3, 'Exact master synonym'];
+    else if (synonyms.includes(term) && row.recordType === 'master-chemical') [rank, matchReason] = [3, 'Exact master synonym'];
     else if (name === term && row.recordType === 'transportation-identifier') [rank, matchReason] = [8,
       hasApprovedMasterLink(row) ? 'Exact reviewed transportation shipping name' : 'Exact transportation shipping name · Requires Review'];
-    else if (sortedSearchWords(name) === sortedSearchWords(term)) [rank, matchReason] = [row.recordType === 'master-chemical' ? 4 : 8, 'Normalized exact word match'];
+    else if (sortedName === sortedTerm) [rank, matchReason] = [row.recordType === 'master-chemical' ? 4 : 8, 'Normalized exact word match'];
     else if (name.startsWith(term)) [rank, matchReason] = [row.recordType === 'master-chemical' ? 5 : 9, 'Name starts with query'];
     else if (terms.some((value) => value.includes(term)) && words.every((word) => terms.some((value) => value.includes(word)))) [rank, matchReason] = [row.recordType === 'master-chemical' ? 7 : 10, 'Identifier or alias contains query'];
     return { ...row, rank, matchReason };
   }).filter((row) => row.rank < 100)
     .sort((a, b) => a.rank - b.rank || a.ChemicalName.localeCompare(b.ChemicalName) || Number(a.ChemicalID) - Number(b.ChemicalID))
-    .filter((row, index, all) => all.findIndex((other) => other.recordType === row.recordType
-      && other.ChemicalID === row.ChemicalID && other.UnnaNumber === row.UnnaNumber
-      && other.ChemicalName === row.ChemicalName) === index);
+    .filter((row) => {
+      const key = `${row.recordType}\u0000${row.ChemicalID}\u0000${row.UnnaNumber}\u0000${row.ChemicalName}`;
+      if (seenResultKeys.has(key)) return false;
+      seenResultKeys.add(key);
+      return true;
+    });
   const matchedMasterIds = new Set(matched
     .filter((row) => row.recordType === 'master-chemical')
     .map((row) => Number(row.ChemicalID)));
@@ -1222,6 +1252,8 @@ export function searchCompanionChemicals(query: string) {
     });
   const grouped = groupChemicalSearchResults([...matched, ...resolvedMasters])
     .map(({ rank: _rank, matchTerms: _terms, ...row }) => row);
+  if (searchResultCache.size >= 300) searchResultCache.delete(searchResultCache.keys().next().value as string);
+  searchResultCache.set(cacheKey, grouped);
   console.info('[chemical-companion] search', { query, normalizedTransportation: exactTransportation, normalizedCas: exactCas, resultTotal: grouped.length, top: grouped[0] ?? null });
   return grouped;
 }

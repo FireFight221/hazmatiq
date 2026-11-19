@@ -4,7 +4,7 @@ import { PDFDocument, PDFTextField } from 'pdf-lib';
 import { createIcsTemplate, fillIcsPdf } from '../src/ics-pdf.js';
 import { recordedIcsValue, incidentActivity } from '../src/ics-prefill.js';
 
-const ids = ['201','202','203','204','205','205A','206','208','208HM','209','214','215','215A'];
+const ids = ['201','202','203','204','205','205A','206','208','208HM','209','213RR','214','215','215A'];
 const sample = {
   incidentName: 'TRAINING - Warehouse Response', incidentNumber: 'DRILL-42', status: 'Active', startDate: '10/29/2026', startTime: '13:30',
   address: 'Training Site', objectives: 'Identify the release. Establish zones. Verify control.', commanderName: 'Training Commander',
@@ -30,6 +30,19 @@ function value(id: string, name: string, incident: Record<string, unknown>) {
 }
 
 describe('Editable incident ICS worksheets', () => {
+  it('ships the Command Notes sheet with incident header fields and one large multiline notes box', async () => {
+    const original = readFileSync(new URL('../assets/ics-forms/command-notes.pdf', import.meta.url));
+    const doc = await PDFDocument.load(original);
+    expect(doc.getPageCount()).toBe(1);
+    const names = doc.getForm().getFields().map((f) => f.getName());
+    expect(names).toEqual(['1 Incident Name', '2 Incident Number', '3 Date Time Prepared', '4 Incident Location', '5 Primary Materials or Hazards', '6 Operational Period', '7 Incident Commander', '8 Prepared by NamePosition', '9 Command Notes']);
+    const notes = doc.getForm().getTextField('9 Command Notes');
+    expect(notes.isMultiline()).toBe(true);
+    expect(notes.acroField.getWidgets()[0].getRectangle().height).toBeGreaterThan(400);
+    const pdf = await createIcsTemplate('NOTES', 'Command Notes', original);
+    const bytes = await fillIcsPdf(pdf, 'NOTES', sample, (name) => value('NOTES', name, sample));
+    expect((await PDFDocument.load(bytes)).getForm().getTextField('1 Incident Name').getText()).toBe(sample.incidentName);
+  });
   for (const id of ids) it(`exports ${id} with original FEMA pages and a canonical field tree`, async () => {
     const original = readFileSync(new URL(`../assets/ics-forms/ics-${id.toLowerCase()}.pdf`, import.meta.url));
     const pdf = await createIcsTemplate(id, `ICS ${id} Incident Worksheet`, original);
@@ -38,7 +51,7 @@ describe('Editable incident ICS worksheets', () => {
     expect(reopened.getPageCount()).toBe((await PDFDocument.load(original)).getPageCount());
     expect(reopened.getForm().getFields().map((field) => field.getName())).toEqual((await PDFDocument.load(original)).getForm().getFields().map((field) => field.getName()));
     const fields = reopened.getForm().getFields();
-    const name = fields.find((f) => /^(?:1 )?Incident Name(?:_\d+)?$/i.test(f.getName())) as PDFTextField;
+    const name = fields.find((f) => /^(?:1\.? )?Incident Name(?:_\d+)?$/i.test(f.getName())) as PDFTextField;
     expect(name.getText()).toBe(sample.incidentName);
     expect(name.acroField.getWidgets()[0].getNormalAppearance()).toBeDefined();
     expect(fields.filter((f) => f instanceof PDFTextField && f.getName().toLowerCase().includes('signature')).every((f) => !(f as PDFTextField).getText())).toBe(true);

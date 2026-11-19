@@ -22,11 +22,13 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { logger } from "hono/logger";
 import { serveStatic } from "@hono/node-server/serve-static";
+import { compress } from "hono/compress";
 import { asc, eq, inArray, or, sql } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIcsTemplate, fillIcsPdf } from './ics-pdf.js';
+import { commandNotesText, formatNoteTimestamp } from './command-notes.js';
 import { recordedIcsValue } from "./ics-prefill.js";
 import { PDFTextField } from "pdf-lib";
 import { getDb } from "./db.js";
@@ -41,6 +43,8 @@ import { PLUME_MODEL_MODES, plumeModelModeLabel } from "../../src/lib/model/plum
 import { selectPlumeModelFamily } from "../../src/lib/model/plumeModelSelector.js";
 import { validatePlumeWeather } from "../../src/lib/model/plumeWeatherValidation.js";
 import { validateSourceStrength } from "../../src/lib/model/sourceStrengthValidation.js";
+import { calculateReleaseRate, RELEASE_RATE_REFERENCES, type ReleasePhase } from "../../src/lib/model/releaseRate.js";
+import { denseGasScreen, windShiftHalfAngleDeg, type DenseGasLevel } from "../../src/lib/model/denseGasBritterMcQuaid.js";
 import { ERG_TABLE_1, getErgAdditionalTables, getErgContainerDistances, lookupErgGuideInitialIsolation } from "../../src/data/erg.js";
 import { molecularWeightOf } from "../../src/data/molecular-weight.js";
 import { searchStarterHazards } from "../../src/lib/hazard-id/hazardSearch.js";
@@ -207,6 +211,16 @@ function plumeBlockedFields(display = "Cannot Plot — Missing Required Data") {
 
 const app = new Hono();
 app.use(logger(safeRequestLogger));
+// Gzip text responses (JSON, JS, CSS, HTML). Incident lists and chemical
+// profiles are large JSON payloads; on small hosts compression is the
+// difference between sub-second and multi-second Hazard Profile loads.
+app.use(compress({ threshold: 1024 }));
+// Versioned static assets are safe to cache in the browser. Images are
+// revalidated daily; scripts/styles carry ?v= cache-busting query strings.
+app.use("/assets/*", async (c, next) => {
+  await next();
+  if (c.res.ok && !c.res.headers.has("Cache-Control")) c.header("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+});
 app.use("/api/*", accessGuard);
 app.route("/api/auth", accessRoutes);
 app.use("/service-worker.js", async (c, next) => { c.header("Cache-Control", "no-cache"); await next(); });
@@ -259,9 +273,12 @@ const icsForms = [
   ["208", "ICS 208 Safety Message / Plan", "ics-208.pdf"],
   ["208HM", "ICS 208HM Site Safety and Control Plan", "ics-208hm.pdf"],
   ["209", "ICS 209 Incident Status Summary", "ics-209.pdf"],
+  ["213RR", "ICS 213RR Resource Request Message", "ics-213rr.pdf"],
   ["214", "ICS 214 Activity Log", "ics-214.pdf"],
   ["215", "ICS 215 Operational Planning Worksheet", "ics-215.pdf"],
   ["215A", "ICS 215A IAP Safety Analysis", "ics-215a.pdf"],
+  // Local EMERGENZ sheet (not a FEMA form): incident header + one notes box.
+  ["NOTES", "Command Notes", "command-notes.pdf"],
 ] as const;
 
 function getIcsForm(formId: string) {
@@ -431,6 +448,16 @@ function automaticIcsValue(fieldName: string, incident: Record<string, unknown>,
   const medical = profileSection(profile, "medical");
   if (/^(1)?incidentname\d*$/.test(normalized)) return textValue(incident.incidentName);
   if (/^(2)?incidentnumber\d*$/.test(normalized)) return textValue(incident.incidentNumber);
+  if (formId === "NOTES") {
+    if (normalized === "3datetimeprepared") return formatNoteTimestamp(Date.now(), incident.clientTimeZone || incident.timeZone);
+    if (normalized === "5primarymaterialsorhazards") {
+      // One line on this sheet: identity only (name, CAS, UN/NA, ERG guide).
+      const material = [chemicalIdentityForIcs(incident), incident.quantity].map(textValue).filter(Boolean).join(" · ");
+      return material.split(" · ").slice(0, 4).join(" · ");
+    }
+    if (normalized === "7incidentcommander") return textValue(incident.commanderName);
+    if (normalized === "9commandnotes") return commandNotesText(incident);
+  }
   if (normalized === "datefrom") return textValue(incident.startDate);
   if (normalized === "timefrom") return textValue(incident.startTime);
   if (normalized === "dateto") return textValue(incident.completedDate);
@@ -914,6 +941,61 @@ app.get("/api/plume/availability", async (c) => {
   });
 });
 
+// Lower explosive limit as a volume fraction, read from the Chemical Companion
+// "LEL / UEL" display value (e.g. "2.1 % / 10.8 %"). Null when not published.
+function lowerExplosiveFraction(lelUel: unknown): number | null {
+  const match = String(lelUel ?? "").match(/^\s*([\d.]+)\s*%/);
+  const percent = match ? Number(match[1]) : NaN;
+  return Number.isFinite(percent) && percent > 0 && percent < 100 ? percent / 100 : null;
+}
+
+function denseGasLevelsFor(lelUel: unknown): DenseGasLevel[] {
+  const levels: DenseGasLevel[] = [];
+  const lel = lowerExplosiveFraction(lelUel);
+  if (lel) {
+    levels.push({ id: "lel", label: `LEL ${(lel * 100).toFixed(1)}%`, volumeFraction: lel });
+    levels.push({ id: "half-lel", label: `50% LEL ${(lel * 50).toFixed(2)}%`, volumeFraction: lel / 2 });
+  }
+  levels.push({ id: "one-percent", label: "1% (10,000 ppm)", volumeFraction: 0.01 });
+  levels.push({ id: "dense-limit", label: "0.2% (2,000 ppm) dense-gas limit", volumeFraction: 0.002 });
+  const seen = new Set<number>();
+  return levels.filter((level) => (seen.has(level.volumeFraction) ? false : (seen.add(level.volumeFraction), true)));
+}
+
+app.post("/api/plume/release-rate", async (c) => {
+  const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+  if (!body) return c.json({ ok: false, error: "invalid request" }, 400);
+  const chemicalId = String(body.chemicalId ?? "");
+  const profile = /^\d+$/.test(chemicalId) ? queryChemicalProfile(chemicalId) : null;
+  const molecularWeight = numericValue(body.molecularWeight) ?? numericValue(profile?.properties?.molecularWeight);
+  const liquidDensityGcm3 = numericValue(body.liquidDensityGcm3) ?? numericValue(profile?.properties?.liquidDensity);
+  const phase: ReleasePhase = body.phase === "liquid" ? "liquid" : "gas";
+  const result = calculateReleaseRate({
+    phase,
+    holeDiameterIn: Number(body.holeDiameterIn),
+    tankPressurePsig: Number(body.tankPressurePsig),
+    tankTempF: numericValue(body.tankTempF) ?? undefined,
+    molecularWeight: molecularWeight ?? undefined,
+    heatCapacityRatio: numericValue(body.heatCapacityRatio) ?? undefined,
+    liquidDensityGcm3: liquidDensityGcm3 ?? undefined,
+    liquidHeadFt: numericValue(body.liquidHeadFt) ?? undefined,
+    dischargeCoefficient: numericValue(body.dischargeCoefficient) ?? undefined,
+    availableQuantityLb: numericValue(body.availableQuantityLb) ?? undefined,
+  });
+  return c.json({
+    ...result,
+    chemical: profile ? { id: chemicalId, name: profile.header.name } : null,
+    propertiesUsed: {
+      molecularWeight: phase === "gas" ? molecularWeight : null,
+      liquidDensityGcm3: phase === "liquid" ? liquidDensityGcm3 : null,
+      source: profile ? "Chemical Companion master record (unchanged)" : "User entry",
+    },
+    modelStatus: "Planning Estimate",
+    validationStatus: "Not independently validated",
+    references: RELEASE_RATE_REFERENCES,
+  }, result.ok ? 200 : 422);
+});
+
 app.post("/api/plume/run", async (c) => {
   const db = getDb();
   const body = await c.req.json().catch(() => null);
@@ -1162,6 +1244,20 @@ app.post("/api/plume/run", async (c) => {
 
   try {
     const result = runPlume(inputs, { thresholds });
+    const windShift = {
+      halfAngleDeg: windShiftHalfAngleDeg(inputs.windSpeedMps),
+      basis: "Wind-direction uncertainty lines, widened in light wind (screening approximation of the NOAA ALOHA confidence-line approach).",
+    };
+    const denseGas = inputs.releaseKind === "plume" && inputs.releaseRateKgPerSec && (vaporDensityAir ?? 0) > 1
+      ? denseGasScreen({
+        releaseRateKgPerSec: inputs.releaseRateKgPerSec,
+        molecularWeight: inputs.molecularWeight ?? numericValue(companionProfile.properties.molecularWeight) ?? 0,
+        windSpeedMps: inputs.windSpeedMps,
+        ambientTempC: inputs.tempC,
+        releaseDurationSec: numericValue(bodyRecord.releaseDurationSec) ?? undefined,
+        levels: denseGasLevelsFor(companionProfile.properties.lelUel),
+      })
+      : null;
     const confidenceLevel = weather.status === "Requires Review" || modelSelection.status === "Requires Review"
       ? "Requires Review"
       : "Planning Only";
@@ -1201,6 +1297,8 @@ app.post("/api/plume/run", async (c) => {
       },
       sourceStrength,
       weather,
+      windShift,
+      denseGas,
       terrain: {
         status: "Flat-ground assumption",
         elevationM: numericValue(bodyRecord.terrainElevationM),
@@ -2066,7 +2164,7 @@ app.post("/api/ics-forms/:formId/prepare", async (c) => {
       };
     });
   return c.json({ id: loaded.definition[0], title: loaded.definition[1], pages: loaded.pdf.getPageCount(),
-    format: 'Original FEMA fillable form', fields });
+    format: loaded.definition[0] === "NOTES" ? 'EMERGENZ fillable notes sheet' : 'Original FEMA fillable form', fields });
 });
 
 app.post("/api/ics-forms/:formId/pdf", async (c) => {

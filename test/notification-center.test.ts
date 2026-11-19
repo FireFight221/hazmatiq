@@ -84,7 +84,7 @@ describe("HazMatIQ Command Bar", () => {
     ]) {
       expect(html).toContain(action);
     }
-    expect(styles).toContain('url("assets/incident-command-hero-v2.png")');
+    expect(styles).toContain('url("assets/incident-command-hero-v2.webp")');
     expect(script).toContain("function buildIncidentCommandViewModel()");
     expect(script).toContain("function renderIncidentCommandDashboard()");
     expect(script).toContain("hazmatiq_monitor_readings");
@@ -149,8 +149,8 @@ describe("HazMatIQ Command Bar", () => {
     expect(html).toContain('id="command-menu-toggle"');
     expect(html).toContain('id="workspace-navigation-drawer"');
     expect(html).toContain('class="brand-logo-mark"');
-    expect(html).toContain('src="assets/emergenz-compass-tight.png?v=1"');
-    expect(html).toContain('src="assets/emergenz-wordmark-tight.png?v=1"');
+    expect(html).toContain('src="assets/emergenz-compass-tight.webp?v=1"');
+    expect(html).toContain('src="assets/emergenz-wordmark-tight.webp?v=1"');
     const commandHeader = html.slice(
       html.indexOf('<header class="topbar hazmat-command-bar command-header app-header-row"'),
       html.indexOf('</header>'),
@@ -195,7 +195,7 @@ describe("HazMatIQ Command Bar", () => {
 
   it("keeps the shared command header compact and free of stale decorative markup", () => {
     expect(html).not.toContain('class="command-hero-scene"');
-    expect(html).not.toContain('src="assets/command-header-hazmat-scene-v2.png"');
+    expect(html).not.toContain('src="assets/command-header-hazmat-scene-v2.webp"');
     expect(html).toContain('class="command-header-plume"');
     expect(html).not.toContain('class="command-header-contours"');
     expect(html).not.toContain('class="command-header-pattern"');
@@ -237,7 +237,7 @@ describe("HazMatIQ Command Bar", () => {
       expect(overview).toContain(`<span class="overview-action-cta">${action}`);
     expect(overview).toContain('data-view="planning-tools"');
     expect(overview).toContain('data-view="report"');
-    expect(styles).toContain('background-image: url("assets/home-card-scenes-v5.png") !important;');
+    expect(styles).toContain('background-image: url("assets/home-card-scenes-v5.webp") !important;');
     expect(styles).toContain("background-position: center top !important;");
     expect(styles).toContain("background-position: center center !important;");
     expect(styles).toContain("background-position: center bottom !important;");

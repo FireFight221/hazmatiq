@@ -62,15 +62,15 @@
   .view:not(#overview) .hazmat-page-hero .hazmat-page-hero-content { padding: 0 18px 60px !important; }
 }
 
-.view:not(#overview) .variant-incident { background-image: url("assets/incident-command-hero-v2.png") !important; }
-.view:not(#overview) .variant-chemical { background-image: url("assets/hazard-id-level-a-hero-v1.png") !important; }
-.view:not(#overview) .variant-chemical-profile { background-image: url("assets/chemical-id-search-background-v2.png") !important; }
-.view:not(#overview) .variant-guided-response { background-image: url("assets/guided-response-hero.png") !important; }
-.view:not(#overview) .variant-planning { background-image: url("assets/home-planning-tools-hero-v4.png") !important; }
-.view:not(#overview) .variant-reports { background-image: url("assets/reports-hero-v2.png") !important; }
-.view:not(#overview) .variant-monitoring { background-image: url("assets/equipment-hero-v2.png") !important; }
-.view:not(#overview) .variant-my-chemicals { background-image: url("assets/my-chemicals-hero-v2.png") !important; }
-.view:not(#overview) .variant-about { background-image: url("assets/incident-command-hero-v2.png") !important; }
+.view:not(#overview) .variant-incident { background-image: url("assets/incident-command-hero-v2.webp") !important; }
+.view:not(#overview) .variant-chemical { background-image: url("assets/hazard-id-level-a-hero-v1.webp") !important; }
+.view:not(#overview) .variant-chemical-profile { background-image: url("assets/chemical-id-search-background-v2.webp") !important; }
+.view:not(#overview) .variant-guided-response { background-image: url("assets/guided-response-hero.webp") !important; }
+.view:not(#overview) .variant-planning { background-image: url("assets/home-planning-tools-hero-v4.webp") !important; }
+.view:not(#overview) .variant-reports { background-image: url("assets/reports-hero-v2.webp") !important; }
+.view:not(#overview) .variant-monitoring { background-image: url("assets/equipment-hero-v2.webp") !important; }
+.view:not(#overview) .variant-my-chemicals { background-image: url("assets/my-chemicals-hero-v2.webp") !important; }
+.view:not(#overview) .variant-about { background-image: url("assets/incident-command-hero-v2.webp") !important; }
 @media (max-width: 760px) {
   .view:not(#overview):not(#map) > .hazmat-page-hero:not(.emergenz-page-header) { background-position: 68% center !important; }
 }

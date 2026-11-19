@@ -346,9 +346,7 @@
 .radiological-reference-list a { font-size: .9rem; line-height: 1.4; }
 #lookup #hazard-profile-results[data-hazard-lane="RADIOLOGICAL"] .hazard-profile-action-grid,
 #lookup #hazard-profile-results[data-hazard-lane="RADIOLOGICAL"] .hazard-profile-priorities,
-#lookup #hazard-profile-results[data-hazard-lane="RADIOLOGICAL"] .hazard-profile-operational-grid,
-#lookup #hazard-profile-results[data-hazard-lane="RADIOLOGICAL"] .hazard-profile-detail-drawer { display: none !important; }
-#lookup #hazard-profile-results[data-hazard-lane="RADIOLOGICAL"] .hazard-profile-source-drawer { display: none !important; }
+#lookup #hazard-profile-results[data-hazard-lane="RADIOLOGICAL"] .hazard-profile-operational-grid { display: none !important; }
 
 @media (max-width: 980px) {
   .radiological-response-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -748,3 +746,66 @@
 }
 #hazard-reference-assign-btn:hover,
 #hazard-reference-assign-btn:focus-visible { background: #ffd07a; }
+
+/* Immediate Threat: agent class leads in capitals, statement follows. */
+.hazard-action-ribbon-item.hazard-primary-threat .hazard-primary-threat-statement { font-size: 1.05rem; line-height: 1.5; }
+.hazard-action-ribbon-item.hazard-primary-threat .hazard-primary-threat-class {
+  color: #ff5a4f;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+.hazard-primary-threat-source { display: block; margin-top: 6px; color: #9fb4c4; font-size: 0.78rem; }
+.hazard-primary-threat-source a { color: #8fd3ff; }
+.hazard-primary-threat-agent-fact { margin-top: 8px !important; font-size: 0.92rem !important; color: #c9d8e4 !important; }
+
+/* CBRNE / Rad profile layout parity with chemical profiles: section tabs sit
+   directly under the identity header and switch a single content pane. */
+#lookup #hazard-profile-results .hazard-profile-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(var(--hazard-tab-count, 10), minmax(86px, 1fr)) !important;
+  margin: 0 0 10px;
+}
+#lookup #hazard-profile-results[data-profile-pane="overview"] .hazard-profile-detail-pane { display: none !important; }
+#lookup #hazard-profile-results[data-profile-pane="detail"] :is(.hazard-profile-priorities, .hazard-profile-operational-grid, .hazard-profile-limitations, .radiological-profile-panel, .hazard-profile-source-drawer),
+#lookup #hazard-profile-results[data-profile-pane="sources"] :is(.hazard-profile-priorities, .hazard-profile-operational-grid, .hazard-profile-limitations, .radiological-profile-panel) { display: none !important; }
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-profile-content-card { min-height: 0 !important; padding: 10px; border: 1px solid #24577c; border-radius: 8px; background: #062239; }
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-profile-content { min-height: 0 !important; align-content: start; }
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-source-fact-card { min-height: 0; }
+@media (max-width: 980px) {
+  #lookup #hazard-profile-results .hazard-profile-tabs { grid-template-columns: repeat(var(--hazard-tab-count, 10), minmax(110px, 1fr)) !important; overflow-x: auto; }
+}
+#lookup #hazard-profile-results .hazard-profile-shell { grid-template-columns: minmax(0, 1fr) !important; }
+#lookup #hazard-profile-results .hazard-profile-shell > * { grid-column: 1 / -1 !important; grid-row: auto !important; }
+#lookup #hazard-profile-results .hazard-profile-tabs { height: auto !important; align-self: start; }
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-profile-content {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 10px;
+}
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-source-fact-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid #315f82;
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+}
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-source-fact-card > * { margin: 0; }
+#lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-fact-status {
+  justify-self: start;
+  padding: 1px 8px;
+  border: 1px solid #4b7aa0;
+  border-radius: 999px;
+  color: #dceffc;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+@media (max-width: 760px) {
+  #lookup #hazard-profile-results .hazard-profile-detail-pane .hazard-profile-content { grid-template-columns: 1fr; }
+}
+#lookup #hazard-profile-results .hazard-erg-distance-lead { margin: 0 0 6px; color: #fff; font-size: 1.02rem; font-weight: 800; line-height: 1.4; }
+#lookup #hazard-profile-results .hazard-erg-distance-lead strong { color: var(--gold); }
+#lookup #hazard-profile-results .hazard-erg-distance-lead a { font-size: .8rem; }

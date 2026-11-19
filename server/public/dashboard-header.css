@@ -471,37 +471,37 @@ body {
 }
 
 #incident > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(6, 26, 46, 0.46) 54%, rgba(6, 26, 46, 0.85)), url("assets/incident-command-hero-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(6, 26, 46, 0.46) 54%, rgba(6, 26, 46, 0.85)), url("assets/incident-command-hero-v2.webp") !important;
   background-position: center !important;
 }
 
 #lookup > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(3, 22, 37, 0.98), rgba(5, 36, 59, 0.82) 58%, rgba(6, 49, 78, 0.58)), url("assets/chemical-id-search-background-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(3, 22, 37, 0.98), rgba(5, 36, 59, 0.82) 58%, rgba(6, 49, 78, 0.58)), url("assets/chemical-id-search-background-v2.webp") !important;
   background-position: center 46% !important;
 }
 
 #map > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(2, 14, 26, 0.97), rgba(4, 17, 34, 0.7) 45%, rgba(3, 11, 22, 0.42)), url("assets/live-map-hero-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(2, 14, 26, 0.97), rgba(4, 17, 34, 0.7) 45%, rgba(3, 11, 22, 0.42)), url("assets/live-map-hero-v2.webp") !important;
   background-position: center !important;
 }
 
 #report > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.76) 56%, rgba(8, 37, 64, 0.24)), url("assets/reports-hero-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.76) 56%, rgba(8, 37, 64, 0.24)), url("assets/reports-hero-v2.webp") !important;
   background-position: center 42% !important;
 }
 
 #weather > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(3, 14, 23, 0.96), rgba(3, 14, 23, 0.78) 32%, rgba(3, 14, 23, 0.22) 70%, rgba(3, 14, 23, 0.08)), url("assets/weather-intelligence-hero-v1.png") !important;
+  background-image: linear-gradient(90deg, rgba(3, 14, 23, 0.96), rgba(3, 14, 23, 0.78) 32%, rgba(3, 14, 23, 0.22) 70%, rgba(3, 14, 23, 0.08)), url("assets/weather-intelligence-hero-v1.webp") !important;
   background-position: center !important;
 }
 
 #settings > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.97), rgba(8, 37, 64, 0.72) 56%, rgba(8, 37, 64, 0.22)), url("assets/emergenz-smoke-background-v2.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.97), rgba(8, 37, 64, 0.72) 56%, rgba(8, 37, 64, 0.22)), url("assets/emergenz-smoke-background-v2.webp") !important;
   background-position: center 42% !important;
 }
 
 #guided-response > .emergenz-page-header.emergenz-page-header {
-  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.78) 56%, rgba(8, 37, 64, 0.24)), url("assets/guided-response-hero.png") !important;
+  background-image: linear-gradient(90deg, rgba(6, 26, 46, 0.98), rgba(8, 37, 64, 0.78) 56%, rgba(8, 37, 64, 0.24)), url("assets/guided-response-hero.webp") !important;
   background-position: center 48% !important;
 }
 
@@ -748,5 +748,22 @@ body {
   .app-shell > .app-header-row .app-nav-label {
     font-size: 11.5px !important;
     line-height: 1.1 !important;
+  }
+}
+
+/* Logo consistency: every view uses the Dashboard header geometry so the
+   EMERGENZ logo keeps the same size and position when switching modules. */
+@media (min-width: 1101px) {
+  .app-shell > .command-header.hazmat-command-bar.topbar.app-header-row,
+  .app-shell:not(:has(#overview.view.active)) > .command-header.hazmat-command-bar.topbar.app-header-row {
+    width: calc(100% - (2 * var(--dashboard-content-gutter))) !important;
+    margin-right: var(--dashboard-content-gutter) !important;
+    margin-left: var(--dashboard-content-gutter) !important;
+    grid-template-columns: calc((100% + var(--dashboard-card-gap)) / 3) minmax(0, 1fr) !important;
+  }
+  .app-shell > .command-header.app-header-row .hazmat-command-identity,
+  .app-shell:not(:has(#overview.view.active)) > .command-header.app-header-row .hazmat-command-identity {
+    padding-block: 2px !important;
+    padding-right: var(--dashboard-card-gap) !important;
   }
 }

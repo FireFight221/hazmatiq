@@ -461,7 +461,10 @@ describe("plume map views", () => {
     expect(plumeHtml).toContain('id="plume-buildings-toggle" type="button" aria-pressed="false" disabled');
     expect(plumeHtml).toContain('id="plume-reset-view-btn"');
     expect(plumeHtml).toContain('data-plume-layer="distance" aria-pressed="false">Distance</button>');
-    for (const action of ['rotate-left', 'rotate-right', 'tilt-up', 'tilt-down', 'reset-north']) {
+    // Compact navigation: compass (click resets north; drag/arrow keys rotate
+    // and tilt), zoom, and a single 2D/3D tilt toggle.
+    expect(plumeHtml).toContain('id="plume-nav-compass"');
+    for (const action of ['reset-north', 'zoom-in', 'zoom-out', 'tilt-toggle']) {
       expect(plumeHtml).toContain(`data-plume-camera="${action}"`);
     }
     expect(plumeUi).toContain('3D Plume · flat-ground baseline; terrain DEM unavailable');
@@ -635,10 +638,10 @@ describe("plume map views", () => {
       expect(html).toContain(`aria-label="${label}"`);
     }
     for (const image of [
-      'protective_actions_incident_command_dashboard.png',
-      'hazmat_ppe_requirements_dashboard.png',
-      'emergency_medical_summary_dashboard.png',
-      'secure_e_plan_login_dashboard.png',
+      'protective_actions_incident_command_dashboard.webp',
+      'hazmat_ppe_requirements_dashboard.webp',
+      'emergency_medical_summary_dashboard.webp',
+      'secure_e_plan_login_dashboard.webp',
     ]) expect(html).toContain(`assets/incident-dashboard/cards/${image}`);
     expect(html.match(/class="incident-image-bubble__bg"/g)?.length).toBe(4);
     expect(html.match(/class="incident-image-bubble__bg"[^>]*alt=""[^>]*draggable="false"/g)?.length).toBe(4);

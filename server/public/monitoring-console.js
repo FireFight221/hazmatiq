@@ -20,12 +20,12 @@
   const PRODUCT_REFERENCE = {
     'MultiRAE': {src:'https://s7d1.scene7.com/is/image/Honeywell65/his-rae-multirae-front-hires?wid=190', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/photoionization-detectors-pid/multirae-portable-multi-gas-monitor', verified:true},
     'MultiRAE Pro': {src:'https://s7d1.scene7.com/is/image/Honeywell65/his-rae-multirae-pro-front-hires?wid=190', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/multi-gas/multirae-pro-portable-multi-gas-monitor', verified:true},
-    'AreaRAE': {src:'assets/monitor-arearae-pro.png', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/transportable-area-monitoring/arearae-pro-portable-gas-monitor', verified:true},
-    'ToxiRAE': {src:'assets/monitor-toxirae-pro.png', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables', verified:true},
-    'Ludlum RAD': {src:'assets/monitor-ludlum-rad.png', url:'https://ludlums.com/products/health-physics/category/survey-meters-mp', verified:true},
-    'RadEye': {src:'assets/monitor-radeye-prd4.png', url:'https://www.thermofisher.com/TFS-Assets/LSG/brochures/D16620~.pdf', verified:true},
-    'Rigaku Raman': {src:'assets/monitor-rigaku-raman.png', url:'https://rigaku.com/products/handheld-raman/cql-max-id', verified:true},
-    'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.png', url:'https://www.smithsdetection.com/press-releases/major-u-s-emergency-response-team-boosts-capabilities-hazmatid-elite-chemical-identifier/', verified:true}
+    'AreaRAE': {src:'assets/monitor-arearae-pro.webp', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables/transportable-area-monitoring/arearae-pro-portable-gas-monitor', verified:true},
+    'ToxiRAE': {src:'assets/monitor-toxirae-pro.webp', url:'https://automation.honeywell.com/us/en/products/sensing-solutions/gas-and-flame-detection/portables', verified:true},
+    'Ludlum RAD': {src:'assets/monitor-ludlum-rad.webp', url:'https://ludlums.com/products/health-physics/category/survey-meters-mp', verified:true},
+    'RadEye': {src:'assets/monitor-radeye-prd4.webp', url:'https://www.thermofisher.com/TFS-Assets/LSG/brochures/D16620~.pdf', verified:true},
+    'Rigaku Raman': {src:'assets/monitor-rigaku-raman.webp', url:'https://rigaku.com/products/handheld-raman/cql-max-id', verified:true},
+    'HazMatID FTIR': {src:'assets/monitor-hazmatid-ftir.webp', url:'https://www.smithsdetection.com/press-releases/major-u-s-emergency-response-team-boosts-capabilities-hazmatid-elite-chemical-identifier/', verified:true}
   };
   const CUSTOM_PHOTO_FIELDS = ['customPhoto','customPhotoUrl','photoDataUrl','photoUrl','photo','imageDataUrl','imageUrl','imageSrc'];
   const SENSOR_UNITS = {

@@ -166,7 +166,7 @@
   overflow: hidden;
   background:
     linear-gradient(90deg, #020e1a 0%, rgba(4,17,34,.96) 28%, rgba(4,17,32,.36) 67%, rgba(3,11,22,.75) 100%),
-    url('assets/command-header-hazmat-scene-v2.png') center 51% / cover no-repeat;
+    url('assets/command-header-hazmat-scene-v2.webp') center 51% / cover no-repeat;
   box-shadow: inset 0 -3px 0 rgba(20,83,132,.24), 0 0 26px rgba(0,0,0,.28);
 }
 #monitor .em-monitor-title { position:relative;z-index:1;gap:13px;}
@@ -334,7 +334,7 @@
   border:1px solid #2e5c77;border-radius:7px;
   background:
     linear-gradient(180deg,rgba(4,17,30,.19),rgba(3,12,22,.46)),
-    url('assets/equipment-hero-v2.png') center / cover no-repeat;
+    url('assets/equipment-hero-v2.webp') center / cover no-repeat;
 }
 #monitor .em-monitor-right{gap:9px;}
 #monitor .em-monitor-map-panel{border-color:#1d7dbc;}

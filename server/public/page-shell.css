@@ -174,3 +174,8 @@
 @media(max-width:650px) { .incident-brief-report { padding:18px; } .report-brief-metadata { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media print { .incident-brief-report { margin:0; padding:10px 0; border:0; max-width:none; background:#fff; } .incident-brief-report > section,.report-prepared-by { break-inside:avoid; } .report-ics-attachments { display:none !important; } .report-brief-map { min-height:100px; } .report-brief-map img { width:auto; max-width:100%; max-height:260px; } }
 @media print { #incident-report-summary-title, #incident-report-summary .eyebrow { color:#102e47 !important; } }
+/* ICS Forms Library: symmetrical 5-column grid (15 forms = three rows of 5). */
+.reports-page #ics-form-library-list.incident-ics-form-list { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .reports-page #ics-form-library-list.incident-ics-form-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .reports-page #ics-form-library-list.incident-ics-form-list { grid-template-columns: repeat(1, minmax(0, 1fr)); } }
+#incident-note-dialog .incident-note-autofill-hint { margin: 6px 0 0; font-size: 0.82rem; opacity: 0.8; }
