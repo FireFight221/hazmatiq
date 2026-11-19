@@ -9654,38 +9654,43 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   const identifiers = document.getElementById('hazard-profile-identifiers');
   if (identifiers) {
     identifiers.replaceChildren();
+    // [Title, value, accent]. Accents follow responder conventions: DOT
+    // orange (UN/NA), ERG orange guide pages, ERG green isolation tables,
+    // red agent/hazard identity, radiation yellow, treaty purple.
     const identifierEntries = profile.lane === 'RADIOLOGICAL'
       ? [
-        ['Symbol', profile.identifiers?.radionuclideSymbol],
-        ['Mass number', profile.identifiers?.isotopeMassNumber],
-        ['Alternate / common name', profile.identifiers?.aliases],
-        ['Hazard Class', category || noCurrentDataText],
+        ['Symbol', profile.identifiers?.radionuclideSymbol, 'radiation'],
+        ['Mass Number', profile.identifiers?.isotopeMassNumber, 'radiation'],
+        ['Alternate / Common Name', profile.identifiers?.aliases, 'identity'],
+        ['Hazard Class', category || noCurrentDataText, 'hazard'],
       ]
       : [
-        ['UN/NA', profile.identifiers?.unNaNumbers],
-        ['Agent code', profile.identifiers?.agentCodes],
-        ['CAS', profile.identifiers?.cas],
-        ['Alternate / common name', profile.identifiers?.aliases],
-        ['Scientific name', profile.scientificName || profile.identifiers?.scientificName],
-        ['ERG Guide', profile.identifiers?.ergGuide],
-        ['ERG isolation / protective action', profile.identifiers?.ergProtectiveActionDistances],
-        ['CWC classification', profile.identifiers?.opcwSchedule],
-        ['Hazard Class', category || noCurrentDataText],
+        ['UN/NA Number', profile.identifiers?.unNaNumbers, 'dot'],
+        ['Agent Code', profile.identifiers?.agentCodes, 'agent'],
+        ['CAS Number', profile.identifiers?.cas, 'registry'],
+        ['Alternate / Common Name', profile.identifiers?.aliases, 'identity'],
+        ['Scientific Name', profile.scientificName || profile.identifiers?.scientificName, 'identity'],
+        ['ERG Guide', profile.identifiers?.ergGuide, 'erg-guide'],
+        ['ERG Isolation / Protective Action', profile.identifiers?.ergProtectiveActionDistances, 'erg-isolation'],
+        ['CWC Classification', profile.identifiers?.opcwSchedule, 'treaty'],
+        ['Hazard Class', category || noCurrentDataText, 'hazard'],
       ];
     const availableEntries = identifierEntries.filter(([, rawValue]) => {
       const values = Array.isArray(rawValue) ? rawValue : rawValue === 0 ? [rawValue] : rawValue ? [rawValue] : [];
       return values.length > 0;
     });
-    (availableEntries.length ? availableEntries : [['Data status', 'Not available']]).forEach(([label, rawValue]) => {
+    (availableEntries.length ? availableEntries : [['Data Status', 'Not available', 'neutral']]).forEach(([label, rawValue, accent = 'neutral']) => {
       const values = Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : [];
       const item = document.createElement('div');
       item.className = 'hazard-profile-fact-tile';
+      item.dataset.accent = accent;
       const itemLabel = document.createElement('span');
       itemLabel.className = 'hazard-profile-fact-label';
       itemLabel.textContent = label;
       const itemValue = document.createElement('strong');
       itemValue.className = 'hazard-profile-fact-value';
-      itemValue.textContent = values.length ? values.join(' · ') : 'Not available';
+      // Display only: allow a clean line break after "/" in long tokens.
+      itemValue.textContent = values.length ? values.join(' · ').replace(/\/(?=\S)/g, '/\u200b') : 'Not available';
       item.append(itemLabel, itemValue);
       identifiers.append(item);
     });

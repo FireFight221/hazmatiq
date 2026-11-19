@@ -809,3 +809,27 @@
 #lookup #hazard-profile-results .hazard-erg-distance-lead { margin: 0 0 6px; color: #fff; font-size: 1.02rem; font-weight: 800; line-height: 1.4; }
 #lookup #hazard-profile-results .hazard-erg-distance-lead strong { color: var(--gold); }
 #lookup #hazard-profile-results .hazard-erg-distance-lead a { font-size: .8rem; }
+
+/* CBRNE / Rad identity tiles: color-coded borders with matching titles. */
+.hazard-profile-identifiers { gap: 10px; }
+.hazard-profile-fact-tile {
+  --fact-accent: #5b8fb3; --fact-title: #b9d6e8;
+  position: relative; gap: 6px; padding: 12px 12px 11px;
+  border: 1.5px solid color-mix(in srgb, var(--fact-accent) 70%, transparent);
+  border-top: 4px solid var(--fact-accent);
+  border-radius: 7px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fact-accent) 14%, #06223a) 0%, rgba(4, 25, 43, .85) 70%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+.hazard-profile-fact-tile .hazard-profile-fact-label { color: var(--fact-title); font-size: .8rem; font-weight: 850; letter-spacing: .02em; line-height: 1.2; }
+.hazard-profile-fact-tile[data-accent="dot"] { --fact-accent: #f97316; --fact-title: #fdba74; }
+.hazard-profile-fact-tile[data-accent="agent"] { --fact-accent: #ef4444; --fact-title: #fca5a5; }
+.hazard-profile-fact-tile[data-accent="registry"] { --fact-accent: #3b82f6; --fact-title: #93c5fd; }
+.hazard-profile-fact-tile[data-accent="identity"] { --fact-accent: #22d3ee; --fact-title: #a5f3fc; }
+.hazard-profile-fact-tile[data-accent="erg-guide"] { --fact-accent: #f59e0b; --fact-title: #fcd34d; }
+.hazard-profile-fact-tile[data-accent="erg-isolation"] { --fact-accent: #22c55e; --fact-title: #86efac; }
+.hazard-profile-fact-tile[data-accent="treaty"] { --fact-accent: #a855f7; --fact-title: #d8b4fe; }
+.hazard-profile-fact-tile[data-accent="hazard"] { --fact-accent: #dc2626; --fact-title: #fca5a5; }
+.hazard-profile-fact-tile[data-accent="radiation"] { --fact-accent: #facc15; --fact-title: #fde68a; }
+.hazard-profile-fact-tile { align-content: start; }
+.hazard-profile-fact-tile .hazard-profile-fact-value { overflow-wrap: anywhere; }
