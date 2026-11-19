@@ -5741,6 +5741,14 @@ function createReactivityProfileSection(profile) {
   return section;
 }
 
+// Shared Hazard Profile box colors (Chemical, CBRNE/CWA, Radiological).
+const hazardProfileFieldAccent = Object.freeze({
+  'un-na': 'un',
+  'erg-guide': 'erg-guide',
+  'hazard-class': 'hazard',
+  cas: 'cas',
+});
+
 function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = false } = {}) {
   profile = normalizeChemicalProfileForUi(profile);
   const content = document.getElementById('chemical-profile-content');
@@ -6035,9 +6043,10 @@ function renderChemicalProfile(profile, { printPageKeys = null, printSnapshot = 
     const item = document.createElement('span');
     item.className = 'chemical-profile-meta-item';
     item.dataset.field = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    item.dataset.accent = hazardProfileFieldAccent[item.dataset.field] || 'neutral';
     const title = document.createElement('strong');
     title.className = 'chemical-profile-meta-title';
-    title.textContent = label;
+    title.textContent = label === 'UN/NA' ? 'UN/NA Number' : label;
     const contentValue = document.createElement('span');
     contentValue.className = 'chemical-profile-meta-value';
     contentValue.textContent = value;
@@ -9654,22 +9663,21 @@ function renderStarterHazardProfile(profile, { profileTab = 'overview' } = {}) {
   const identifiers = document.getElementById('hazard-profile-identifiers');
   if (identifiers) {
     identifiers.replaceChildren();
-    // [Title, value, accent]. Accents follow responder conventions: DOT
-    // orange (UN/NA), ERG orange guide pages, ERG green isolation tables,
-    // red agent/hazard identity, radiation yellow, treaty purple.
+    // [Title, value, accent]. Accent keys are shared with the Chemical profile
+    // boxes (see hazardProfileFieldAccent) so a field is the same color everywhere.
     const identifierEntries = profile.lane === 'RADIOLOGICAL'
       ? [
-        ['Symbol', profile.identifiers?.radionuclideSymbol, 'radiation'],
-        ['Mass Number', profile.identifiers?.isotopeMassNumber, 'radiation'],
-        ['Alternate / Common Name', profile.identifiers?.aliases, 'identity'],
+        ['Symbol', profile.identifiers?.radionuclideSymbol, 'designation'],
+        ['Mass Number', profile.identifiers?.isotopeMassNumber, 'designation'],
+        ['Alternate / Common Name', profile.identifiers?.aliases, 'name'],
         ['Hazard Class', category || noCurrentDataText, 'hazard'],
       ]
       : [
-        ['UN/NA Number', profile.identifiers?.unNaNumbers, 'dot'],
-        ['Agent Code', profile.identifiers?.agentCodes, 'agent'],
-        ['CAS Number', profile.identifiers?.cas, 'registry'],
-        ['Alternate / Common Name', profile.identifiers?.aliases, 'identity'],
-        ['Scientific Name', profile.scientificName || profile.identifiers?.scientificName, 'identity'],
+        ['UN/NA Number', profile.identifiers?.unNaNumbers, 'un'],
+        ['Agent Code', profile.identifiers?.agentCodes, 'designation'],
+        ['CAS Number', profile.identifiers?.cas, 'cas'],
+        ['Alternate / Common Name', profile.identifiers?.aliases, 'name'],
+        ['Scientific Name', profile.scientificName || profile.identifiers?.scientificName, 'name'],
         ['ERG Guide', profile.identifiers?.ergGuide, 'erg-guide'],
         ['ERG Isolation / Protective Action', profile.identifiers?.ergProtectiveActionDistances, 'erg-isolation'],
         ['CWC Classification', profile.identifiers?.opcwSchedule, 'treaty'],
