@@ -2545,6 +2545,7 @@ function renderIncidentCommandDashboard() {
   renderCommandWeatherBrief(model.incident);
   if (!model.hasActiveIncident) return;
   renderIncidentCommandOverview(model);
+  try { renderIncidentCommandFlow(); } catch (error) { console.error('Command Flow rendering failed.', error); }
 
   const incidentNameInput = document.getElementById('incidentName');
   if (incidentNameInput && document.activeElement !== incidentNameInput) incidentNameInput.value = model.incidentName === 'Incident not named' ? '' : model.incidentName;
@@ -2655,21 +2656,41 @@ function renderIncidentCommandDashboard() {
     recent?.append(row);
   });
 
-  setText('ic-detail-notes', model.notes.length ? model.notes.map((note) => `${new Date(note.createdAt).toLocaleString()} — ${note.text}`).join(' · ') : model.keyTacticalNotes);
-  setText('ic-detail-chemical', [
-    model.chemical.name,
-    `CAS ${model.chemical.casNumber}`,
-    `UN ${model.chemical.unNumber}`,
-    `ERG ${model.chemical.ergGuide}`,
-    `Hazard class ${model.chemical.hazardClass}`,
-    `IDLH ${model.chemical.idlh}`,
-    model.nioshSourceId ? `Source NIOSH · ${model.nioshSourceId}` : 'Source / review not available',
-  ].join(' · '));
-  setText('ic-detail-weather', model.weatherSnapshot);
-  setText('ic-detail-plume', model.plumeStatus);
-  setText('ic-detail-monitoring', model.monitoringStatus);
-  setText('ic-detail-protective', model.protectiveActionsSummary);
-  setText('ic-detail-safety', `PPE: ${model.entryTeamPpe} · Decon: ${model.deconTeamPpe} · Medical: ${model.medicalConcerns}`);
+  const opMissing = 'No Current Data Exists';
+  const opValue = (value) => {
+    const text = String(value ?? '').trim();
+    return !text || /^(undefined|null|n\/a)$/i.test(text) ? opMissing : text;
+  };
+  const notesEl = document.getElementById('ic-detail-notes');
+  notesEl?.classList.toggle('incident-op-stack', model.notes.length > 0);
+  setOperationalDetailFields('ic-detail-notes', model.notes.map((note) => [new Date(note.createdAt).toLocaleString([], { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }), note.text]), opValue(model.keyTacticalNotes));
+  const chem = model.chemical || {};
+  const chemName = opValue(chem.name);
+  setOperationalDetailFields('ic-detail-chemical', chemName === opMissing ? [] : [
+    ['Name', chemName],
+    ['CAS', opValue(chem.casNumber)],
+    ['UN/NA', opValue(chem.unNumber)],
+    ['ERG', opValue(chem.ergGuide)],
+    ['Class', opValue(chem.hazardClass)],
+    ['IDLH', opValue(chem.idlh)],
+    ['Source', model.nioshSourceId ? `NIOSH · ${model.nioshSourceId}` : 'Not available'],
+  ], opMissing);
+  const weatherParts = String(model.weatherSnapshot || '').split(' · ').map((part) => part.trim()).filter(Boolean);
+  const weatherFields = weatherParts.map((part) => {
+    const match = part.match(/^(Feels Like|RH|Wind|Gust|Pressure|Temp(?:erature)?)\s+(.+)$/i);
+    if (match) return [match[1], match[2]];
+    if (/^-?\d/.test(part)) return ['Temp', part];
+    return ['', part];
+  });
+  setOperationalDetailFields('ic-detail-weather', weatherFields.length > 1 ? weatherFields : [], opValue(model.weatherSnapshot));
+  setText('ic-detail-plume', opValue(model.plumeStatus));
+  setText('ic-detail-monitoring', opValue(model.monitoringStatus));
+  setText('ic-detail-protective', opValue(model.protectiveActionsSummary));
+  setOperationalDetailFields('ic-detail-safety', [
+    ['PPE', opValue(model.entryTeamPpe)],
+    ['Decon', opValue(model.deconTeamPpe)],
+    ['Medical', opValue(model.medicalConcerns)],
+  ], opMissing);
   setText('ic-detail-reports', model.completedReports.length ? `${model.completedReports.length} recent completed report${model.completedReports.length === 1 ? '' : 's'}` : 'No completed reports yet');
   if (!suppressIncidentCommandUpdateEvent) {
     window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: model.incident }));
@@ -4268,6 +4289,7 @@ incidentCommandDashboard?.addEventListener('click', (event) => {
   } else if (action === 'complete') {
     document.getElementById('complete-incident-dialog')?.showModal();
   } else if (action === 'erg-review') {
+    markCommandFlowEvent('ergReviewed');
     void openErgReviewOverlay();
   } else if (action === 'chemical-profile') {
     window.HazMatIQ?.incidentCommand?.openChemicalProfile?.();
@@ -10311,6 +10333,118 @@ function renderIncidentGuidance() {
   );
 }
 
+// Command Flow stepper: live status per step, auto-complete from incident
+// state, manual "Done" override, progress bar, and a highlighted next step.
+const commandFlowStorageKey = (incidentId) => `emergenz.commandFlow.${incidentId || 'none'}`;
+function readCommandFlowState(incidentId) {
+  try { return JSON.parse(window.localStorage.getItem(commandFlowStorageKey(incidentId)) || '{}') || {}; } catch { return {}; }
+}
+function writeCommandFlowState(incidentId, state) {
+  try { window.localStorage.setItem(commandFlowStorageKey(incidentId), JSON.stringify(state)); } catch { /* storage full or blocked */ }
+}
+function markCommandFlowEvent(eventName) {
+  const incident = getActiveIncident();
+  if (!incident) return;
+  const state = readCommandFlowState(incident.incidentId);
+  state.events = { ...(state.events || {}), [eventName]: new Date().toISOString() };
+  writeCommandFlowState(incident.incidentId, state);
+  renderIncidentCommandFlow();
+}
+function buildCommandFlowSteps(incident) {
+  const flowState = readCommandFlowState(incident?.incidentId);
+  const events = flowState.events || {};
+  let context = {};
+  let data = {};
+  try {
+    context = getIncidentChemicalContext(incident) || {};
+    if (context.record || context.profile) data = selectedChemicalOperationalData({ ...context, profile: context.profile }) || {};
+  } catch { /* chemical record still loading */ }
+  const chemicalName = context.chemical?.name || activeChemical?.name || incident?.chemicalName || '';
+  const idParts = [data.unNumber && `UN ${data.unNumber}`, data.ergGuide && `ERG ${data.ergGuide}`].filter((part) => part && !/undefined|null/i.test(part));
+  const phaseState = incident?.guidedResponsePhaseState || {};
+  const totalPhases = guidedPhaseDefinitions.length;
+  const donePhases = guidedPhaseDefinitions.filter((phase) => guidedPhaseIsAccomplished(phaseState[phase.id])).length;
+  const startedPhases = guidedPhaseDefinitions.filter((phase) => phaseState[phase.id]?.status && !/not started/i.test(phaseState[phase.id].status)).length;
+  const notes = Array.isArray(incident?.incidentNotes) ? incident.incidentNotes.length : 0;
+  const isolation = data.initialIsolation ? String(incidentCommandValue(data.initialIsolation)) : '';
+  // Same source of truth as the Plume Summary panel: the plume persisted on this incident.
+  const plumeCandidate = incident?.plumeModelResults || null;
+  let savedPlume = false;
+  try { savedPlume = Boolean(plumeCandidate && isIncidentPlumeCurrent(plumeCandidate, incident)); } catch { savedPlume = false; }
+  const savedPlumeStale = Boolean(plumeCandidate && !savedPlume);
+  return [
+    { key: 'size-up', title: 'Scene Size-Up', auto: Boolean(chemicalName),
+      live: chemicalName ? [chemicalName, ...idParts].join(' · ') : 'No hazard identified yet. Search the product, UN, or CAS.' },
+    { key: 'protection', title: 'Public Protection', auto: Boolean(events.ergReviewed),
+      live: isolation ? `Initial isolation: ${isolation}` : chemicalName ? 'Review ERG isolation and protective-action distances.' : 'Identify the hazard first to load ERG distances.' },
+    { key: 'plume', title: 'Plume Model', auto: Boolean(activePlumeCommand || savedPlume),
+      live: activePlumeCommand
+        ? (activePlumeCommand.title || activePlumeCommand.summary || 'Plume plotted')
+        : savedPlume
+          ? (incident.plumeUpdatedAt ? `Plume plotted ${new Date(incident.plumeUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Plume plotted')
+          : savedPlumeStale ? 'Saved plume needs recalculation.' : 'No plume plotted. Confirm release and weather inputs.' },
+    { key: 'tactical', title: 'Tactical Decision', auto: totalPhases > 0 && donePhases === totalPhases, partial: donePhases > 0 || startedPhases > 0,
+      live: `${donePhases} of ${totalPhases} Guided Response phases complete` },
+    { key: 'document', title: 'Document / Report', auto: false, partial: notes > 0,
+      live: notes ? `${notes} incident note${notes === 1 ? '' : 's'} logged` : 'No incident notes logged yet.' },
+  ].map((step) => {
+    const manual = Boolean(flowState.done?.[step.key]);
+    const live = manual && !step.auto && /^No |first/.test(step.live) ? 'Marked done by Command.' : step.live;
+    return { ...step, manual, live };
+  });
+}
+function renderIncidentCommandFlow() {
+  const section = document.querySelector('#incident .incident-command-flow');
+  if (!section) return;
+  const incident = getActiveIncident();
+  const steps = buildCommandFlowSteps(incident);
+  let nextKey = null;
+  let complete = 0;
+  steps.forEach((step) => {
+    const done = step.auto || step.manual;
+    if (done) complete += 1;
+    else if (!nextKey) nextKey = step.key;
+  });
+  steps.forEach((step) => {
+    const card = section.querySelector(`[data-flow-step="${step.key}"]`);
+    if (!card) return;
+    const done = step.auto || step.manual;
+    const state = done ? 'complete' : step.key === nextKey ? 'next' : step.partial ? 'in-progress' : 'pending';
+    card.dataset.flowState = state;
+    const label = card.querySelector('[data-flow-state-label]');
+    if (label) label.textContent = { complete: 'Complete', next: 'Next', 'in-progress': 'In Progress', pending: 'Pending' }[state];
+    const live = card.querySelector('[data-flow-live]');
+    if (live) { live.textContent = step.live; live.title = step.live; }
+    const box = card.querySelector('[data-flow-done]');
+    if (box) {
+      box.checked = done;
+      box.disabled = step.auto || !incident;
+      box.closest('label')?.setAttribute('title', step.auto ? 'Completed automatically from incident data' : 'Mark this step done');
+    }
+  });
+  setText('incident-flow-progress-text', `${complete} of ${steps.length} complete`);
+  const bar = document.getElementById('incident-flow-progress-bar');
+  if (bar) bar.style.width = `${Math.round((complete / steps.length) * 100)}%`;
+  const next = steps.find((step) => step.key === nextKey);
+  setText('incident-flow-next', next ? `Next: ${next.title}` : 'All steps complete');
+  const phaseState = incident?.guidedResponsePhaseState || {};
+  const donePhases = guidedPhaseDefinitions.filter((phase) => guidedPhaseIsAccomplished(phaseState[phase.id])).length;
+  const nextPhase = guidedPhaseDefinitions.find((phase) => !guidedPhaseIsAccomplished(phaseState[phase.id]));
+  setText('ic-guided-launch-status', `${donePhases} of ${guidedPhaseDefinitions.length} phases complete${nextPhase ? ` · Next: ${nextPhase.title}` : ' · All phases complete'}`);
+}
+document.addEventListener('change', (event) => {
+  const box = event.target.closest?.('[data-flow-done]');
+  if (!box) return;
+  const incident = getActiveIncident();
+  if (!incident) return;
+  const state = readCommandFlowState(incident.incidentId);
+  state.done = { ...(state.done || {}), [box.dataset.flowDone]: box.checked };
+  writeCommandFlowState(incident.incidentId, state);
+  renderIncidentCommandFlow();
+});
+window.HazMatIQ = window.HazMatIQ || {};
+window.HazMatIQ.renderIncidentCommandFlow = renderIncidentCommandFlow;
+
 function renderIncidentCommandSnapshot() {
   const activeIncident = getActiveIncident();
   renderIncidentInvolvedChemicals(activeIncident);
@@ -10372,6 +10506,7 @@ function renderIncidentCommandSnapshot() {
   renderCommandWeatherRows(activeWeatherCommand?.rows || []);
   replaceCommandList('command-weather-details', activeWeatherCommand?.details || [], 'No live weather data loaded.');
   renderIncidentGuidance();
+  try { renderIncidentCommandFlow(); } catch (error) { console.error('Command Flow rendering failed.', error); }
 }
 
 function updateIncidentPpeSelection(selection) {
@@ -15076,6 +15211,28 @@ function getCurrentGps() {
     }, { enableHighAccuracy: window.HazMatIQ.preferences?.get('highAccuracy') !== false, timeout: 10000, maximumAge: 30000 });
   }).finally(() => { pendingDeviceGpsRequest = null; });
   return pendingDeviceGpsRequest;
+}
+
+// Operational Details form: render label/value pairs inline, separated by
+// dividers, so each detail reads like a horizontal form row.
+function setOperationalDetailFields(id, fields, fallback) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  const usable = (fields || []).filter((field) => field && String(field[1] ?? '').trim());
+  if (!usable.length) { element.textContent = String(fallback ?? ''); return; }
+  element.replaceChildren(...usable.map(([label, value]) => {
+    const field = document.createElement('span');
+    field.className = 'incident-op-field';
+    if (label) {
+      const key = document.createElement('b');
+      key.textContent = label;
+      field.append(key);
+    }
+    const val = document.createElement('span');
+    val.textContent = String(value);
+    field.append(val);
+    return field;
+  }));
 }
 
 function setText(id, value) {
