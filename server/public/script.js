@@ -712,6 +712,9 @@ function activatePage(targetId, { preserveHazardState = false, skipPlumeInitiali
   const activationContext = plumeContext || pageContext;
   const targetView = [...views].find((view) => view.id === targetId);
   if (!targetView) return null;
+  if (targetId !== 'lookup' && typeof restoreIncidentChemicalAfterReferenceLookup === 'function') {
+    restoreIncidentChemicalAfterReferenceLookup();
+  }
   if (targetId !== 'plume' && plumeMapMaximized) setPlumeMapMaximized(false);
   if (targetId === 'plume' && !skipPlumeInitialization) {
     return openPlumeModel(activationContext);
@@ -8443,8 +8446,9 @@ function createGuidedCommandFlow(model, context = {}) {
   notice.className = 'guided-command-flow-notice';
   notice.textContent = 'Plan updates feed the IAP drafts. Mark a goal accomplished when the work is complete.';
   const incident = getActiveIncident();
-  const profile = activeChemicalRecord?.profile || incident?.chemicalProfile || {};
-  const chemical = getIncidentChemicalContext(incident)?.chemical || activeChemical;
+  const incidentContext = getIncidentChemicalContext(incident);
+  const profile = (incident ? (Object.keys(incidentContext?.profile || {}).length ? incidentContext.profile : incident.chemicalProfile) : activeChemicalRecord?.profile) || {};
+  const chemical = incidentContext?.chemical || activeChemical;
   const phaseState = readGuidedResponsePhaseState(incident, chemical);
   const savedPlume = incident?.plumeModelResults?.plumeResult || incident?.plumeModelResults || readPlanningState().plumeModelResults || null;
   const scenarioSummary = guidedScenarioSummary(incident, profile, savedPlume);
@@ -9966,7 +9970,14 @@ function syncPlumeChemicalSelection() {
   updatePlumeInputSummaries();
 }
 
-function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {}) {
+function setActiveChemical(chemical, { persist = true, clearOverlay = true, reference = false } = {}) {
+  // Reference lookups (Hazard ID research while an incident already has a
+  // different chemical) must never write to the incident, reset its plume, or
+  // overwrite its command form. Only an explicit assignment does that.
+  if (reference) {
+    persist = false;
+    clearOverlay = false;
+  }
   const nextSelectedChemicalId = normalizeChemicalSelectionId(
     chemical?.selectedChemicalId
       ?? chemical?.ChemicalID
@@ -9981,8 +9992,10 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
     || String(activeChemical?.un || '').trim() !== nextChemicalUn;
   if (changed) {
     activeChemicalRecord = null;
-    activePlumeCommand = null;
-    activePpeSelection = [];
+    if (!reference) {
+      activePlumeCommand = null;
+      activePpeSelection = [];
+    }
   }
   selectedChemicalId = nextSelectedChemicalId;
   activeChemical = chemical ? {
@@ -9993,7 +10006,7 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
   } : null;
   window.HazMatIQ?.setActiveHazardState?.(chemical, { status: activeChemical ? 'loading' : 'empty' });
   const incidentProductInput = document.getElementById('incident-product');
-  if (incidentProductInput) incidentProductInput.value = activeChemical?.name || '';
+  if (incidentProductInput && !reference) incidentProductInput.value = activeChemical?.name || '';
   if (persist) {
     try {
       if (hasActiveIncident()) {
@@ -10024,7 +10037,7 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
   } catch (error) {
     console.warn('[chemical-companion] optional plume selection sync failed', error);
   }
-  if (changed) {
+  if (changed && !reference) {
     try {
       applyChemicalContainerProfile();
     } catch (error) {
@@ -10036,7 +10049,7 @@ function setActiveChemical(chemical, { persist = true, clearOverlay = true } = {
   } catch (error) {
     console.warn('[chemical-companion] optional incident snapshot initialization failed', error);
   }
-  if (activeChemical) {
+  if (activeChemical && !reference) {
     try {
       if (persist && hasActiveIncident() && persistCanonicalIncidentChemicalSelection(chemical)) {
         // The canonical selection has already been persisted. Do not let the
@@ -10156,6 +10169,52 @@ function clearChemicalSuggestions() {
 
 renderHazardSearchMode('CHEMICAL');
 
+let hazardReferenceLookupChemical = null;
+
+function hazardLookupWouldReplaceIncidentChemical(chosenChemicalId) {
+  if (!hasActiveIncident()) return false;
+  const incident = getActiveIncident();
+  if (!incident || !hasCanonicalIncidentChemicalIdentity(incident)) return false;
+  const identity = incidentChemicalIdentity(incident);
+  return String(identity?.id ?? '') !== String(chosenChemicalId ?? '');
+}
+
+function setHazardReferenceLookup(chemical) {
+  hazardReferenceLookupChemical = chemical || null;
+  const banner = document.getElementById('hazard-reference-banner');
+  if (!banner) return;
+  if (!chemical) {
+    banner.hidden = true;
+    return;
+  }
+  const incident = getActiveIncident();
+  const incidentChemicalName = incidentChemicalIdentity(incident)?.name || 'its current chemical';
+  setText(
+    'hazard-reference-text',
+    `Reference lookup only. ${chemical.ChemicalName || chemical.name || 'This chemical'} has not been added to ${incident?.incidentName || 'the active incident'}. Plot Plume and Guided Response still use ${incidentChemicalName}.`,
+  );
+  banner.hidden = false;
+}
+
+function restoreIncidentChemicalAfterReferenceLookup() {
+  if (!hazardReferenceLookupChemical) return;
+  setHazardReferenceLookup(null);
+  void restoreSelectedChemical();
+}
+
+document.getElementById('hazard-reference-assign-btn')?.addEventListener('click', async () => {
+  const chemical = hazardReferenceLookupChemical;
+  if (!chemical) return;
+  const incident = getActiveIncident();
+  const previousName = incidentChemicalIdentity(incident)?.name || 'the current chemical';
+  const nextName = chemical.ChemicalName || chemical.name || 'this chemical';
+  const confirmed = window.confirm(`Make ${nextName} the primary chemical for ${incident?.incidentName || 'the active incident'}?\n\nThis replaces ${previousName}. Saved plume results and chemical-specific guidance for ${previousName} will be marked out of date.`);
+  if (!confirmed) return;
+  setHazardReferenceLookup(null);
+  await selectIncidentProduct(chemical);
+  setChemicalSearchStatus(`${nextName} assigned to the active incident.`, 'success');
+});
+
 async function openChemical(chemical, facilityName = '', { profileTab = 'overview' } = {}) {
   if (chemical.recordType === 'transportation-identifier' || chemical.guidanceEligible === false) {
     setChemicalSearchStatus(chemical.reviewWarning || 'This transport identifier has not been verified against a Chemical Companion master chemical record. Do not use it for IDLH, PPE, plume, decon, or medical guidance until reviewed.', 'error');
@@ -10168,7 +10227,15 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
   const chosenChemicalId = normalizeChemicalSelectionId(chemical.selectedChemicalId ?? chemical.ChemicalID ?? chemical.id);
   const chosenChemicalName = chemical.ChemicalName || chemical.name;
   const profileRequestId = ++latestChemicalProfileRequest;
-  setActiveChemical({ ...chemical, selectedChemicalId: chosenChemicalId });
+  // Looking up a different chemical while an incident already has one is
+  // research, not an incident change. Keep the incident untouched until the
+  // user explicitly assigns the looked-up chemical.
+  const referenceOnly = typeof hazardLookupWouldReplaceIncidentChemical === 'function'
+    && hazardLookupWouldReplaceIncidentChemical(chosenChemicalId);
+  if (typeof setHazardReferenceLookup === 'function') {
+    setHazardReferenceLookup(referenceOnly ? { ...chemical, selectedChemicalId: chosenChemicalId } : null);
+  }
+  setActiveChemical({ ...chemical, selectedChemicalId: chosenChemicalId }, { reference: referenceOnly });
   console.info('[chemical-companion] selection', {
     selectedChemicalId: chosenChemicalId,
     ChemicalName: chosenChemicalName,
@@ -10205,6 +10272,7 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
       showProfileLoadError('Chemical information could not be displayed.');
       return;
     }
+    if (referenceOnly) return;
     try {
       applyChemicalContainerProfile();
       updateActiveIncidentRecord();
@@ -10246,12 +10314,14 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
     return;
   }
 
-  try {
-    applyChemicalContainerProfile();
-    updateActiveIncidentRecord();
-    renderIncidentCommandSnapshot();
-  } catch (error) {
-    console.warn('[chemical-companion] optional profile propagation failed', error);
+  if (!referenceOnly) {
+    try {
+      applyChemicalContainerProfile();
+      updateActiveIncidentRecord();
+      renderIncidentCommandSnapshot();
+    } catch (error) {
+      console.warn('[chemical-companion] optional profile propagation failed', error);
+    }
   }
 
   void recordPromise.then((record) => {
@@ -10259,6 +10329,7 @@ async function openChemical(chemical, facilityName = '', { profileTab = 'overvie
     try {
       activeChemicalRecord = { ...record, ...profileRecord };
       window.HazMatIQ?.setActiveHazardState?.(chemical, { profile: activeChemicalRecord.profile, record: activeChemicalRecord, status: 'ready' });
+      if (referenceOnly) return;
       applyChemicalContainerProfile();
       updateActiveIncidentRecord();
       renderIncidentCommandSnapshot();

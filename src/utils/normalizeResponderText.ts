@@ -13,7 +13,7 @@ export function normalizeResponderText(text: unknown): string {
     .replace(/[\r\n\t]+/g, " ")
     .replace(/^\s*\*\*(.*?)\*\*\s*$/, "$1")
     .replace(/^\s*__(.*?)__\s*$/, "$1")
-    .replace(/^\s*(?:[-*•]+|#{1,6})\s*/, "")
+    .replace(/^\s*(?:[*•]+|-+(?![\d.])|#{1,6})\s*/, "")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
