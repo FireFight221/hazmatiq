@@ -19899,7 +19899,26 @@ function initializeLiveMap(context = {}) {
   }
   setText('live-map-incident-name', effectiveContext?.planningPlan?.name || incident?.incidentName || 'Planning Map');
   setText('live-map-mode', effectiveContext?.planningPlan ? (effectiveContext.responseLayout ? 'Response Layout' : 'Pre-Plan Location') : (incident ? 'Active Incident' : 'Planning Mode'));
+  const previousLiveMapIncidentId = liveMapState.incidentId || null;
   liveMapState.incidentId = incident?.incidentId || null;
+  // An active incident owns the map view: center on the incident location the
+  // first time the map is opened for it, and show its current plume overlay
+  // once per plume run (a responder can still turn the layer off afterwards).
+  const incidentLat = Number(incident?.latitude);
+  const incidentLon = Number(incident?.longitude);
+  const incidentHasLocation = Boolean(incident) && Number.isFinite(incidentLat) && Number.isFinite(incidentLon)
+    && !(incidentLat === 0 && incidentLon === 0);
+  const centerOnIncident = !planningCoordinates && incidentHasLocation
+    && previousLiveMapIncidentId !== liveMapState.incidentId;
+  if (centerOnIncident) {
+    liveMapState.mapCenter = [incidentLon, incidentLat];
+    liveMapState.zoom = 14;
+  }
+  const currentIncidentOverlay = incident ? readLatestPlumeOverlay() : null;
+  if (currentIncidentOverlay?.id && liveMapState.plumeAutoShownFor !== currentIncidentOverlay.id) {
+    liveMapState.activeLayers.plume = true;
+    liveMapState.plumeAutoShownFor = currentIncidentOverlay.id;
+  }
   const container = document.getElementById('live-gis-map');
   observeLiveMapContainer(container);
   if (!liveMap) {
@@ -19955,6 +19974,9 @@ function initializeLiveMap(context = {}) {
     liveMap.on('load', () => {
       document.querySelector('.live-map-stage')?.classList.add('map-ready');
       setText('live-map-status', 'Live Map ready.');
+      // style.load can fire before the style reports loaded; re-apply saved
+      // overlays (including the incident plume) once the map is fully ready.
+      restoreLiveMapOverlays();
     });
     liveMap.on('error', (event) => {
       if (liveRadarController?.ownsSource(event?.sourceId)) {
@@ -20006,6 +20028,9 @@ function initializeLiveMap(context = {}) {
   ['icp', 'entry', 'decon', 'staging', 'medical', 'trafficCams'].forEach((layer) => {
     if (layer !== 'monitors' && liveMapState.activeLayers[layer]) ensureLiveLayerMarker(layer);
   });
+  if (centerOnIncident && liveMap?.loaded?.()) {
+    liveMap.jumpTo({ center: liveMapState.mapCenter, zoom: liveMapState.zoom });
+  }
   updateLiveMapPanels();
   syncLiveMapOperationalStatuses();
   restoreLiveMapOverlays();
@@ -20036,10 +20061,12 @@ function initializeLiveMap(context = {}) {
     setLiveMapGpsStatus('loading');
     setText('live-map-status', 'Locating current GPS position…');
     getCurrentGps().then((gps) => {
-      liveMap.jumpTo({ center: [gps.lon, gps.lat], zoom: Math.max(liveMap.getZoom(), 15) });
+      // Keep an active incident's location in view; the responder GPS marker
+      // is still shown so position relative to the scene is visible.
+      if (!incidentHasLocation) liveMap.jumpTo({ center: [gps.lon, gps.lat], zoom: Math.max(liveMap.getZoom(), 15) });
       updateLiveMapGpsMarker(gps);
       setLiveMapGpsStatus('live');
-      saveLiveMapState('Map centered on current GPS position.');
+      saveLiveMapState(incidentHasLocation ? 'Map centered on the incident. Your GPS position is marked.' : 'Map centered on current GPS position.');
       void fetchWeatherSources(gps.lat, gps.lon).then(({ openMeteo, nws }) => {
         latestPlumeWeather = selectPlumeWeather(openMeteo, nws);
       }).catch(() => {});
