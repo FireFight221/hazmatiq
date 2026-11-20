@@ -21,7 +21,7 @@ describe('Deferred 3D and saved report images', () => {
       window: { indexedDB: null }, incidentMapSnapshotCache: new Map(), incidentSyncBusy: false, incidentLocalSaveFailed: false,
       navigator: { onLine: true }, incidentOutbox, incidentConflicts: [],
       readIncidents: () => [{ incidentId: 'trial', plumeMapImageRef: 'trial' }],
-      isIncidentDeletionMarked: () => false,
+      isIncidentDeletionMarked: () => false, pruneIncidentOutbox: vi.fn(),
       fetch: async (_url: string, request: { body: string }) => { payload = JSON.parse(request.body); return { ok: true, json: async () => ({ accepted: [{ incidentId: 'trial', revision: 1 }], conflicts: [] }) }; },
       AbortSignal: { timeout: vi.fn(() => undefined) },
       showIncidentSyncConflicts: vi.fn(), showIncidentSyncStatus: vi.fn(),
