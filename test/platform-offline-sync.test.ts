@@ -52,12 +52,12 @@ describe('stuck unsynced-change cleanup', () => {
   const platform = readFileSync(new URL('../server/public/platform.js', import.meta.url), 'utf8');
   it('prunes only ids that are missing locally or deletion-marked, before every sync and restore', () => {
     expect(script).toMatch(/incidentOutbox\.prune\(\(id\) => localIds\.has\(id\) && !isIncidentDeletionMarked\(id\)\)/);
-    expect(script).toMatch(/!navigator\.onLine\) return;\n  pruneIncidentOutbox\(\);/);
-    expect(script).toMatch(/incidentRestoreBusy = true;\n  pruneIncidentOutbox\(\);/);
+    expect(script).toMatch(/!navigator\.onLine\) return;\n {2}pruneIncidentOutbox\(\);/);
+    expect(script).toMatch(/incidentRestoreBusy = true;\n {2}pruneIncidentOutbox\(\);/);
   });
   it('Settings can sync on demand and Install Update syncs before deciding', () => {
     expect(platform).toContain("syncNowButton.id = 'platform-sync-now'");
-    expect(platform).toMatch(/async function requestUpdate\(manual\) \{\n    if \(blockedByPendingWork\(\) && manual\) \{\n      stopCountdown\(\);\n      const result = await syncNow\(\);/);
+    expect(platform).toMatch(/async function requestUpdate\(manual\) \{\n {4}if \(blockedByPendingWork\(\) && manual\) \{\n {6}stopCountdown\(\);\n {6}const result = await syncNow\(\);/);
     expect(platform).toMatch(/local save failed/);
   });
 });
