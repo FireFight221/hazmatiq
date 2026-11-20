@@ -28,6 +28,15 @@
         if (keepLocal) this.enqueue(id); else persist();
       },
       count() { return Object.keys(state.pending).length; },
+      // Drop queue entries that no longer point at a sendable record (the
+      // incident was deleted on this device or no longer exists locally).
+      // Only queue metadata is removed; incident content is never touched.
+      prune(isSendable) {
+        const removed = Object.keys(state.pending).filter((id) => !isSendable(id));
+        removed.forEach((id) => { delete state.pending[id]; });
+        if (removed.length) persist();
+        return removed;
+      },
     };
   }
   global.EMERGENZSync = { createTracker };

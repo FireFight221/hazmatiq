@@ -1476,6 +1476,21 @@ let incidentLocalSaveFailed = false;
 const incidentOutbox = window.EMERGENZSync.createTracker(window.localStorage);
 let incidentConflicts = [];
 window.EMERGENZPendingIncidentCount = () => incidentOutbox.count();
+// Queue entries for incidents that were deleted on this device, or that no
+// longer exist locally, have nothing to send and would otherwise sit in the
+// unsynced count forever (and block app updates). Real records are kept.
+function pruneIncidentOutbox() {
+  const localIds = new Set(readIncidents().map((item) => item?.incidentId).filter(Boolean));
+  return incidentOutbox.prune((id) => localIds.has(id) && !isIncidentDeletionMarked(id));
+}
+window.EMERGENZSyncIncidentsNow = async () => {
+  pruneIncidentOutbox();
+  await restoreIncidentsFromBackend();
+  if (incidentOutbox.count()) await syncIncidentsToBackend();
+  window.EMERGENZPlatform?.status(incidentConflicts.length ? 'Saved on this device · sync conflict needs review'
+    : incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Connected · all changes synced', navigator.onLine ? undefined : false);
+  return { pending: incidentOutbox.count(), conflicts: incidentConflicts.length };
+};
 function showIncidentSyncStatus(message, connection) {
   window.EMERGENZPlatform?.status(message, connection);
 }
@@ -1708,6 +1723,7 @@ function writeIncidents(incidents, { sync = true } = {}) {
 
 async function syncIncidentsToBackend() {
   if (incidentSyncBusy || !navigator.onLine) return;
+  pruneIncidentOutbox();
   const batch = incidentOutbox.batch().filter((item) => !isIncidentDeletionMarked(item.id) && !incidentConflicts.some((conflict) => conflict.incidentId === item.id));
   if (!batch.length) return;
   incidentSyncBusy = true;
@@ -1743,6 +1759,7 @@ function incidentModifiedAt(incident) {
 async function restoreIncidentsFromBackend() {
   if (incidentRestoreBusy || incidentSyncBusy || !navigator.onLine) return;
   incidentRestoreBusy = true;
+  pruneIncidentOutbox();
   try {
     const response = await fetch('/api/incidents', { signal: AbortSignal.timeout(15000), cache: 'no-store' });
     if (!response.ok) throw new Error(`Incident restore unavailable (${response.status})`);
@@ -1770,6 +1787,7 @@ async function restoreIncidentsFromBackend() {
       if (pointer && !getActiveIncident()) clearActiveIncidentState();
       if (!document.activeElement?.matches('input,textarea,select,[contenteditable=true]')) renderIncidentLists();
     }
+    pruneIncidentOutbox();
     showIncidentSyncStatus(incidentOutbox.count() ? `Saved on this device · ${incidentOutbox.count()} pending sync` : 'Connected · server records available', true);
     if (incidentOutbox.count()) void syncIncidentsToBackend();
   } catch (error) {

@@ -17,7 +17,7 @@
   const AUTO_UPDATE_DELAY_SEC = 30;
   let latestVersion = null, versionCheckedAt = null, versionCheckError = '', updateReady = false, updatePostponedUntil = 0;
   let countdownTimer = null, countdownLeft = 0, postponeButton = null, swRegistration = null;
-  let updateDetail, updateStatusDetail, checkUpdateButton, installUpdateButton, autoUpdateInput;
+  let updateDetail, updateStatusDetail, checkUpdateButton, installUpdateButton, autoUpdateInput, syncNowButton, syncBusy = false;
   function storageGet(key) { try { return window.localStorage?.getItem(key) ?? null; } catch { return null; } }
   function storageSet(key, value) { try { window.localStorage?.setItem(key, value); } catch { /* private mode */ } }
   function autoUpdateEnabled() { return storageGet(AUTO_UPDATE_KEY) !== 'off'; }
@@ -53,12 +53,13 @@
     if (updateDetail) updateDetail.textContent = `This device: ${loadedBuild || 'build not stamped'}${latestVersion ? ` · Deployed: ${shortBuild(latestVersion)}` : ''}`;
     if (updateStatusDetail) {
       updateStatusDetail.textContent = countdownTimer ? `A new version is available. Updating automatically in ${countdownLeft} seconds.`
-        : updateReady ? (pending ? `A new version is available. Sync or resolve ${pending} pending change${pending === 1 ? '' : 's'} before updating.` : 'A new version is available. Tap Install Update to load it.')
+        : updateReady ? (pending ? `A new version is available. ${pending} incident change${pending === 1 ? ' is' : 's are'} saved on this device but not yet on the server. Install Update syncs first.` : 'A new version is available. Tap Install Update to load it.')
         : versionCheckError ? versionCheckError
         : versionCheckedAt ? `Up to date · checked ${new Date(versionCheckedAt).toLocaleTimeString()}`
         : 'Checking for updates…';
     }
-    if (installUpdateButton) installUpdateButton.disabled = !updateReady;
+    if (installUpdateButton) installUpdateButton.disabled = !updateReady || syncBusy;
+    if (syncNowButton) { syncNowButton.disabled = syncBusy; syncNowButton.textContent = syncBusy ? 'Syncing…' : pending ? `Sync ${pending} Change${pending === 1 ? '' : 's'} Now` : 'Sync Now'; }
     if (autoUpdateInput) autoUpdateInput.checked = autoUpdateEnabled();
     if (installDetail) installDetail.textContent = installed ? 'Running as an installed app.' : installCacheError || 'Install on this device using Install App, or your browser’s Add to Home Screen option.';
   }
@@ -72,7 +73,9 @@
     connectionDetail = document.createElement('p'); connectionDetail.id = 'platform-connection-detail'; connectionDetail.setAttribute('role', 'status');
     accountDetail = document.createElement('p'); accountDetail.id = 'platform-account-detail';
     installDetail = document.createElement('p'); installDetail.id = 'platform-install-detail';
-    const actions = document.createElement('div'); actions.className = 'settings-actions'; actions.append(signButton, installButton);
+    syncNowButton = document.createElement('button'); syncNowButton.type = 'button'; syncNowButton.id = 'platform-sync-now';
+    syncNowButton.addEventListener('click', () => { void syncNow(); });
+    const actions = document.createElement('div'); actions.className = 'settings-actions'; actions.append(syncNowButton, signButton, installButton);
     const updatesTitle = document.createElement('h3'); updatesTitle.id = 'platform-updates-title'; updatesTitle.textContent = 'App Updates';
     updateDetail = document.createElement('p'); updateDetail.id = 'platform-update-version';
     updateStatusDetail = document.createElement('p'); updateStatusDetail.id = 'platform-update-status'; updateStatusDetail.setAttribute('role', 'status'); updateStatusDetail.setAttribute('aria-live', 'polite');
@@ -133,8 +136,24 @@
       reload();
     }
   }
-  function requestUpdate(manual) {
-    if (blockedByPendingWork()) { stopCountdown(); draw(); window.alert('Sync or resolve pending incident changes before updating.'); return; }
+  async function syncNow() {
+    if (syncBusy || typeof window.EMERGENZSyncIncidentsNow !== 'function') return { pending: window.EMERGENZPendingIncidentCount?.() || 0, conflicts: conflicts.length };
+    syncBusy = true; draw();
+    try { return await window.EMERGENZSyncIncidentsNow(); }
+    catch { return { pending: window.EMERGENZPendingIncidentCount?.() || 0, conflicts: conflicts.length }; }
+    finally { syncBusy = false; draw(); }
+  }
+  async function requestUpdate(manual) {
+    if (blockedByPendingWork() && manual) {
+      stopCountdown();
+      const result = await syncNow();
+      if (/local save failed/i.test(syncText)) { window.alert('This device could not save some changes locally. Keep this tab open until they reach the server, then update.'); return; }
+      if (result.conflicts) { window.alert(`Review ${result.conflicts} sync conflict${result.conflicts === 1 ? '' : 's'} (top bar) before updating.`); return; }
+      if (result.pending && !window.confirm(`${result.pending} incident change${result.pending === 1 ? ' is' : 's are'} still waiting for the server. They are saved on this device and will keep syncing after the update. Update and reload now?`)) return;
+      if (!result.pending && !window.confirm('All changes are synced. Update and reload now?')) return;
+      applyUpdate(); return;
+    }
+    if (blockedByPendingWork()) { stopCountdown(); draw(); return; }
     if (manual && !countdownTimer && !window.confirm('Save your work before updating. Update and reload now?')) return;
     applyUpdate();
   }

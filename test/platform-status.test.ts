@@ -82,9 +82,19 @@ describe('compact platform status and Settings actions', () => {
     const bar = f.body.children[0], warning = bar.children.find(e => e.className === 'em-platform-warning');
     expect(warning?.hidden).toBe(false); expect(warning?.textContent).toBe('2 unsynced changes');
     const update = bar.children.find(e => e.className === 'em-platform-update');
-    expect(update?.hidden).toBe(false); update?.handlers.click();
+    expect(update?.hidden).toBe(false);
+    // Manual install syncs first; still-queued changes need explicit consent.
+    const synced = vi.fn(async () => ({ pending: 2, conflicts: 0 }));
+    Object.assign(f.window, { EMERGENZSyncIncidentsNow: synced, confirm: vi.fn(() => false) });
+    update?.handlers.click(); await f.flush();
+    expect(synced).toHaveBeenCalledTimes(1);
+    expect(f.window.confirm).toHaveBeenCalledWith(expect.stringMatching(/2 incident changes are still waiting for the server\. They are saved on this device/));
+    expect(f.worker.postMessage).not.toHaveBeenCalled();
+    // A failed local save is never reloaded away.
+    f.api.status('Local save failed · 2 pending sync'); update?.handlers.click(); await f.flush();
     expect(f.window.alert).toHaveBeenCalled(); expect(f.worker.postMessage).not.toHaveBeenCalled();
-    f.setPending(0); f.api.status('Saved to server', true); update?.handlers.click();
+    Object.assign(f.window, { confirm: () => true });
+    f.setPending(0); f.api.status('Saved to server', true); update?.handlers.click(); await f.flush();
     expect(f.worker.postMessage).toHaveBeenCalledWith({ type: 'ACTIVATE_UPDATE' });
     expect(warning?.hidden).toBe(true);
   });
@@ -149,7 +159,7 @@ describe('app updates', () => {
     expect(update.textContent).toBe('Update Available · Tap to Install');
     for (const tick of f.intervals) tick();
     expect(f.location.reload).not.toHaveBeenCalled();
-    expect(findId(f.grid.children[0], 'platform-update-status')?.textContent).toMatch(/Sync or resolve 1 pending change/);
+    expect(findId(f.grid.children[0], 'platform-update-status')?.textContent).toMatch(/1 incident change is saved on this device but not yet on the server\. Install Update syncs first/);
   });
   it('silently activates a waiting worker when the page already runs the deployed build', async () => {
     const f = await fixture(true, true);

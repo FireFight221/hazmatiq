@@ -37,6 +37,29 @@ describe('durable incident outbox', () => {
     tracker.observe('incident', 8); tracker.enqueue('incident', true);
     expect(tracker.batch()[0].base).toBeNull();
   });
+  it('prunes queue entries that have no sendable local record and keeps real ones', () => {
+    const { create } = trackerFixture(); const tracker = create();
+    ['kept', 'deleted', 'orphan'].forEach((id) => tracker.enqueue(id));
+    const removed = tracker.prune((id: string) => id === 'kept');
+    expect(removed.sort()).toEqual(['deleted', 'orphan']);
+    expect(tracker.count()).toBe(1);
+    expect(create().batch().map((item: { id: string }) => item.id)).toEqual(['kept']);
+  });
+});
+
+describe('stuck unsynced-change cleanup', () => {
+  const script = readFileSync(new URL('../server/public/script.js', import.meta.url), 'utf8');
+  const platform = readFileSync(new URL('../server/public/platform.js', import.meta.url), 'utf8');
+  it('prunes only ids that are missing locally or deletion-marked, before every sync and restore', () => {
+    expect(script).toMatch(/incidentOutbox\.prune\(\(id\) => localIds\.has\(id\) && !isIncidentDeletionMarked\(id\)\)/);
+    expect(script).toMatch(/!navigator\.onLine\) return;\n  pruneIncidentOutbox\(\);/);
+    expect(script).toMatch(/incidentRestoreBusy = true;\n  pruneIncidentOutbox\(\);/);
+  });
+  it('Settings can sync on demand and Install Update syncs before deciding', () => {
+    expect(platform).toContain("syncNowButton.id = 'platform-sync-now'");
+    expect(platform).toMatch(/async function requestUpdate\(manual\) \{\n    if \(blockedByPendingWork\(\) && manual\) \{\n      stopCountdown\(\);\n      const result = await syncNow\(\);/);
+    expect(platform).toMatch(/local save failed/);
+  });
 });
 
 describe('offline shell isolation', () => {
