@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { offlineWorker } from './pwa.js';
+import { appVersion, offlineWorker, stampBuild } from './pwa.js';
 import { accessGuard, accessRoutes, accountForRequest } from './access.js';
 // Hono REST API for the Hazmat Response Support backend.
 //
@@ -231,10 +231,20 @@ app.use("/service-worker.js", async (c, next) => { c.header("Cache-Control", "no
 const serverDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDirectory = path.join(serverDirectory, "public");
 const publicIndexPath = path.join(publicDirectory, "index.html");
-const serveHazardIdWorkspace = async (c: Context) =>
-  c.html(await readFile(publicIndexPath, "utf8"));
+const serveHazardIdWorkspace = async (c: Context) => {
+  const { build } = await appVersion(publicDirectory);
+  c.header("Cache-Control", "no-cache");
+  return c.html(stampBuild(await readFile(publicIndexPath, "utf8"), build));
+};
+app.get("/", serveHazardIdWorkspace);
+app.get("/index.html", serveHazardIdWorkspace);
 app.get("/hazard-id", serveHazardIdWorkspace);
 app.get("/chemical-id", serveHazardIdWorkspace);
+// Open tabs poll this to detect a new deploy; never cached.
+app.get("/app-version.json", async (c) => {
+  c.header("Cache-Control", "no-store");
+  return c.json(await appVersion(publicDirectory));
+});
 app.get("/service-worker.js", async (c) => {
   c.header("Content-Type", "text/javascript; charset=utf-8");
   return c.body(await offlineWorker(publicDirectory));

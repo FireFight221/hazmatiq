@@ -87,4 +87,21 @@ describe('single-agency account and shared incident safeguards', () => {
     expect(worker.headers.get('Content-Type')).toContain('javascript');
     expect(worker.headers.get('Cache-Control')).toBe('no-cache');
   });
+  it('stamps the page with its build and reports the deployed build for update checks', async () => {
+    const version = await app.request('/app-version.json');
+    expect(version.status).toBe(200);
+    expect(version.headers.get('Cache-Control')).toBe('no-store');
+    const body = await version.json() as { build: string; commit: string | null };
+    expect(body.build).toMatch(/^[a-f0-9]{16}$/);
+    // Same content hash that names the offline cache.
+    expect(await offlineWorker(path.resolve(__dirname, '../public'))).toContain(`emergenz-shell-${body.build}`);
+    for (const route of ['/', '/index.html', '/hazard-id']) {
+      const page = await app.request(route);
+      expect(page.status).toBe(200);
+      const html = await page.text();
+      expect(html).toContain(`<meta name="emergenz-build" content="${body.build}" />`);
+      // The stamp must precede platform.js, which reads it synchronously.
+      expect(html.indexOf('name="emergenz-build"')).toBeLessThan(html.indexOf('/platform.js'));
+    }
+  });
 });

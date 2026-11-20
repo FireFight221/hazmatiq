@@ -29,3 +29,10 @@
 
 /* Plume stability: resolved auto class */
 .plume-stability-resolved { color: #f5c542; font-weight: 800; margin-left: 4px; }
+.em-platform-bar .em-platform-postpone{padding:3px 10px;min-height:27px;font-size:12px;font-weight:700;background:transparent;color:#f4f7fa;border:1px solid #8296a8;border-radius:6px}
+.em-platform-bar .em-platform-postpone[hidden]{display:none}
+.em-platform-settings h3{margin:14px 0 4px;font-size:15px;letter-spacing:.04em;text-transform:uppercase}
+.em-platform-settings .em-platform-toggle{display:flex;align-items:flex-start;gap:10px;margin:6px 0 10px;line-height:1.4;cursor:pointer}
+.em-platform-settings .em-platform-toggle input{width:20px;height:20px;margin-top:1px;flex:none;accent-color:#d4a017}
+.em-platform-settings button:disabled{opacity:.55;cursor:not-allowed}
+@media (max-width:480px){.em-platform-bar[data-updating="countdown"] .em-platform-settings-link{display:none}.em-platform-bar[data-updating="countdown"]{gap:6px}}

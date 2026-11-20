@@ -9,6 +9,19 @@
   let bar, status, connectionDot, connectionLabel, warning, signButton, installButton, updateButton, conflictButton, login;
   let connectionDetail, accountDetail, installDetail;
   let checkForUpdate = () => {};
+  // App updates: the served page carries its build id; /app-version.json reports
+  // the build now deployed. A difference means this open tab is stale.
+  const buildMeta = document.querySelector('meta[name="emergenz-build"]');
+  const loadedBuild = buildMeta && typeof buildMeta.getAttribute === 'function' ? buildMeta.getAttribute('content') || null : null;
+  const AUTO_UPDATE_KEY = 'emergenz.autoUpdate';
+  const AUTO_UPDATE_DELAY_SEC = 30;
+  let latestVersion = null, versionCheckedAt = null, versionCheckError = '', updateReady = false, updatePostponedUntil = 0;
+  let countdownTimer = null, countdownLeft = 0, postponeButton = null, swRegistration = null;
+  let updateDetail, updateStatusDetail, checkUpdateButton, installUpdateButton, autoUpdateInput;
+  function storageGet(key) { try { return window.localStorage?.getItem(key) ?? null; } catch { return null; } }
+  function storageSet(key, value) { try { window.localStorage?.setItem(key, value); } catch { /* private mode */ } }
+  function autoUpdateEnabled() { return storageGet(AUTO_UPDATE_KEY) !== 'off'; }
+  function shortBuild(version) { return version ? [version.build, version.commit ? `commit ${version.commit}` : ''].filter(Boolean).join(' · ') : ''; }
   function connectionState() {
     const state = !navigator.onLine || serverConnected === false ? 'disconnected' : serverConnected === true ? 'connected' : 'checking';
     return { state, label: !navigator.onLine ? 'Offline' : state === 'connected' ? 'Connected' : state === 'checking' ? 'Checking Connection' : 'Not Connected' };
@@ -31,6 +44,22 @@
     installButton.hidden = installed;
     if (connectionDetail) connectionDetail.textContent = `${connection.label} · ${syncText.replace(/^Connected · /, '')}${verifiedAt ? ` · Last server response: ${new Date(verifiedAt).toLocaleTimeString()}` : ''}`;
     if (accountDetail) accountDetail.textContent = account ? `Signed in as ${account.displayName}` : required === null ? 'Account status unavailable. Reconnect to verify access.' : required ? 'Agency sign-in required.' : 'Pilot access: sign-in not enabled. This preview does not require an account.';
+    if (updateButton) {
+      updateButton.hidden = !updateReady;
+      updateButton.textContent = countdownTimer ? `Updating in ${countdownLeft}s · Update Now` : 'Update Available · Tap to Install';
+      bar.dataset.updating = countdownTimer ? 'countdown' : updateReady ? 'available' : 'none';
+    }
+    if (postponeButton) postponeButton.hidden = !countdownTimer;
+    if (updateDetail) updateDetail.textContent = `This device: ${loadedBuild || 'build not stamped'}${latestVersion ? ` · Deployed: ${shortBuild(latestVersion)}` : ''}`;
+    if (updateStatusDetail) {
+      updateStatusDetail.textContent = countdownTimer ? `A new version is available. Updating automatically in ${countdownLeft} seconds.`
+        : updateReady ? (pending ? `A new version is available. Sync or resolve ${pending} pending change${pending === 1 ? '' : 's'} before updating.` : 'A new version is available. Tap Install Update to load it.')
+        : versionCheckError ? versionCheckError
+        : versionCheckedAt ? `Up to date · checked ${new Date(versionCheckedAt).toLocaleTimeString()}`
+        : 'Checking for updates…';
+    }
+    if (installUpdateButton) installUpdateButton.disabled = !updateReady;
+    if (autoUpdateInput) autoUpdateInput.checked = autoUpdateEnabled();
     if (installDetail) installDetail.textContent = installed ? 'Running as an installed app.' : installCacheError || 'Install on this device using Install App, or your browser’s Add to Home Screen option.';
   }
   function mountSettingsControls() {
@@ -44,7 +73,24 @@
     accountDetail = document.createElement('p'); accountDetail.id = 'platform-account-detail';
     installDetail = document.createElement('p'); installDetail.id = 'platform-install-detail';
     const actions = document.createElement('div'); actions.className = 'settings-actions'; actions.append(signButton, installButton);
-    card.append(connectionDetail, accountDetail, installDetail, actions); grid.append(card); draw();
+    const updatesTitle = document.createElement('h3'); updatesTitle.id = 'platform-updates-title'; updatesTitle.textContent = 'App Updates';
+    updateDetail = document.createElement('p'); updateDetail.id = 'platform-update-version';
+    updateStatusDetail = document.createElement('p'); updateStatusDetail.id = 'platform-update-status'; updateStatusDetail.setAttribute('role', 'status'); updateStatusDetail.setAttribute('aria-live', 'polite');
+    const autoLabel = document.createElement('label'); autoLabel.className = 'em-platform-toggle';
+    autoUpdateInput = document.createElement('input'); autoUpdateInput.type = 'checkbox'; autoUpdateInput.id = 'platform-auto-update';
+    autoUpdateInput.addEventListener('change', () => {
+      storageSet(AUTO_UPDATE_KEY, autoUpdateInput.checked ? 'on' : 'off');
+      if (!autoUpdateInput.checked) stopCountdown(); else maybeAutoUpdate();
+      draw();
+    });
+    const autoText = document.createElement('span'); autoText.textContent = 'Install updates automatically (30-second notice, never while changes are unsynced)';
+    autoLabel.append(autoUpdateInput, autoText);
+    checkUpdateButton = document.createElement('button'); checkUpdateButton.type = 'button'; checkUpdateButton.id = 'platform-check-update'; checkUpdateButton.textContent = 'Check for Updates';
+    checkUpdateButton.addEventListener('click', () => { void checkVersion(true); });
+    installUpdateButton = document.createElement('button'); installUpdateButton.type = 'button'; installUpdateButton.id = 'platform-install-update'; installUpdateButton.textContent = 'Install Update';
+    installUpdateButton.addEventListener('click', () => requestUpdate(true));
+    const updateActions = document.createElement('div'); updateActions.className = 'settings-actions'; updateActions.append(checkUpdateButton, installUpdateButton);
+    card.append(connectionDetail, accountDetail, installDetail, actions, updatesTitle, updateDetail, updateStatusDetail, autoLabel, updateActions); grid.append(card); draw();
   }
   async function signIn() {
     await domReady;
@@ -67,6 +113,63 @@
       });
     }
     if (!login.open) login.showModal();
+  }
+  function stopCountdown() {
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = null; countdownLeft = 0;
+  }
+  function blockedByPendingWork() { return (window.EMERGENZPendingIncidentCount?.() || 0) > 0; }
+  function applyUpdate() {
+    stopCountdown();
+    const reload = () => location.reload();
+    const waiting = swRegistration?.waiting;
+    if (waiting && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
+      waiting.postMessage({ type: 'ACTIVATE_UPDATE' });
+      // The shell is network-first, so a plain reload also loads the new build
+      // if the worker hand-off is slow.
+      setTimeout(reload, 4000);
+    } else {
+      reload();
+    }
+  }
+  function requestUpdate(manual) {
+    if (blockedByPendingWork()) { stopCountdown(); draw(); window.alert('Sync or resolve pending incident changes before updating.'); return; }
+    if (manual && !countdownTimer && !window.confirm('Save your work before updating. Update and reload now?')) return;
+    applyUpdate();
+  }
+  function maybeAutoUpdate() {
+    if (!updateReady || countdownTimer || !autoUpdateEnabled() || Date.now() < updatePostponedUntil) return;
+    if (blockedByPendingWork() || document.visibilityState === 'hidden') return;
+    countdownLeft = AUTO_UPDATE_DELAY_SEC;
+    countdownTimer = setInterval(() => {
+      if (blockedByPendingWork()) { stopCountdown(); draw(); return; }
+      countdownLeft -= 1; draw();
+      if (countdownLeft <= 0) applyUpdate();
+    }, 1000);
+    draw();
+  }
+  function markUpdateReady() {
+    if (!updateReady) updateReady = true;
+    draw(); maybeAutoUpdate();
+  }
+  async function checkVersion(manual) {
+    if (!navigator.onLine) { versionCheckError = 'Offline · updates are checked when the connection returns.'; draw(); return; }
+    try {
+      const response = await nativeFetch('/app-version.json', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error('Version check unavailable');
+      const version = await response.json();
+      versionCheckError = ''; versionCheckedAt = Date.now();
+      if (version && typeof version.build === 'string') {
+        latestVersion = version;
+        if (loadedBuild && version.build !== loadedBuild) markUpdateReady();
+      }
+      if (swRegistration && typeof swRegistration.update === 'function') await Promise.resolve(swRegistration.update()).catch(() => {});
+      draw();
+    } catch {
+      versionCheckError = manual ? 'Could not reach the server to check for updates. Try again when connected.' : 'Update check unavailable · will retry.';
+      draw();
+    }
   }
   window.fetch = async function (input, init) {
     const request = input instanceof Request ? input : null;
@@ -139,23 +242,33 @@
     updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.hidden = true; updateButton.className = 'em-platform-update'; updateButton.textContent = 'Update Available · Tap to Install'; updateButton.setAttribute('aria-label', 'A new EMERGENZ version is available. Install the update and reload.');
     const settingsButton = document.createElement('button'); settingsButton.type = 'button'; settingsButton.className = 'em-platform-settings-link'; settingsButton.textContent = 'Details'; settingsButton.setAttribute('aria-label', 'Open connection and app settings');
     settingsButton.addEventListener('click', () => { window.HazMatIQ?.showView?.('settings'); document.getElementById('platform-settings-title')?.scrollIntoView({ block: 'nearest' }); });
-    bar.append(status, warning, conflictButton, updateButton, settingsButton); document.body.prepend(bar); mountSettingsControls(); draw();
+    postponeButton = document.createElement('button'); postponeButton.type = 'button'; postponeButton.hidden = true; postponeButton.className = 'em-platform-postpone'; postponeButton.textContent = 'Postpone';
+    postponeButton.setAttribute('aria-label', 'Postpone the automatic update for 30 minutes');
+    postponeButton.addEventListener('click', () => { stopCountdown(); updatePostponedUntil = Date.now() + 30 * 60 * 1000; draw(); });
+    updateButton.addEventListener('click', () => requestUpdate(true));
+    bar.append(status, warning, conflictButton, updateButton, postponeButton, settingsButton); document.body.prepend(bar); mountSettingsControls(); draw();
+    // Long-running scene tabs never reload on their own: check for a new deploy
+    // shortly after load, every 5 minutes, when the tab is shown again and when
+    // the device comes back online.
+    checkForUpdate = () => { void checkVersion(false); };
+    setTimeout(checkForUpdate, 5000);
+    setInterval(checkForUpdate, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { checkForUpdate(); maybeAutoUpdate(); } });
     if ('serviceWorker' in navigator && window.isSecureContext) {
       try {
         const registration = await navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' });
-        const ready = () => { updateButton.hidden = !registration.waiting; };
-        ready(); registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', ready));
-        // Long-running scene tabs never reload on their own; check for a new
-        // deploy every 15 minutes and whenever the device comes back online.
-        checkForUpdate = () => { if (navigator.onLine && typeof registration.update === 'function') void Promise.resolve(registration.update()).then(ready).catch(() => {}); };
-        setInterval(checkForUpdate, 15 * 60 * 1000);
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
-        updateButton.addEventListener('click', () => {
-          if (!window.confirm('Save your work before updating. Update and reload now?')) return;
-          if (window.EMERGENZPendingIncidentCount?.() > 0) return window.alert('Sync or resolve pending incident changes before updating.');
-          navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
-          registration.waiting?.postMessage({ type: 'ACTIVATE_UPDATE' });
-        });
+        swRegistration = registration;
+        const ready = async () => {
+          if (!registration.waiting) return;
+          if (!latestVersion) await checkVersion(false);
+          if (!registration.waiting) return;
+          // The shell is network-first, so a freshly loaded page may already run
+          // the build the waiting worker caches: activate it silently. Otherwise
+          // the waiting worker signals a new deploy.
+          if (loadedBuild && latestVersion && latestVersion.build === loadedBuild && !updateReady) registration.waiting.postMessage({ type: 'ACTIVATE_UPDATE' });
+          else markUpdateReady();
+        };
+        void ready(); registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', () => { void ready(); }));
       } catch { installCacheError = 'App installation cache unavailable · browser mode remains available'; draw(); }
     }
   });
