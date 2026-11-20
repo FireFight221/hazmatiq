@@ -1,0 +1,359 @@
+/*
+ * Mobile usability layer. Loaded last so it wins over the earlier override
+ * sheets without touching them. Desktop layout is unchanged except for the
+ * profile title wrap and the hazard-detail bullet styling, which apply at
+ * every width.
+ */
+
+/* ---------- Hazard profile: title never sits under the VERIFIED chip ---------- */
+#chemical-id-results .chemical-profile-header-top {
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  row-gap: 6px !important;
+}
+#chemical-id-results .chemical-profile-header-top > div {
+  flex: 1 1 100% !important;
+  min-width: 0 !important;
+}
+#chemical-id-results #chemical-name {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+#chemical-id-results .chemical-profile-status-chip {
+  position: static !important;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+/* Print / Export button had white text on a light fill. */
+#chemical-id-results #chemical-profile-print-export-btn,
+#chemical-id-results .chemical-profile-print-export {
+  color: #0b1f33 !important;
+}
+
+/* ---------- Hazard profile: bullets for long mixing / explosion text ---------- */
+#chemical-id-results .chemical-profile-row > .hazard-detail-list,
+.chemical-profile-row > .hazard-detail-list {
+  display: block !important;
+  margin: 4px 0 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  columns: auto !important;
+}
+.chemical-profile-row > .hazard-detail-list > li {
+  position: relative;
+  display: block !important;
+  margin: 0 !important;
+  padding: 9px 4px 9px 18px !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(148, 190, 230, 0.18) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #e6eef6 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.45 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+.chemical-profile-row > .hazard-detail-list > li:first-child {
+  border-top: 0 !important;
+}
+.chemical-profile-row > .hazard-detail-list > li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1.05em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d8b24a;
+}
+.chemical-profile-row > .hazard-detail-list .hazard-detail-lead {
+  display: block;
+  color: inherit !important;
+  font: inherit !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+.chemical-profile-row > .hazard-detail-list .hazard-detail-sublist {
+  display: block !important;
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  columns: auto !important;
+}
+.chemical-profile-row > .hazard-detail-list .hazard-detail-sublist > li {
+  position: relative;
+  display: block !important;
+  margin: 0 !important;
+  padding: 5px 2px 5px 16px !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(148, 190, 230, 0.1) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #d4e0eb !important;
+  font-size: 0.9rem !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+  text-transform: none !important;
+}
+.chemical-profile-row > .hazard-detail-list .hazard-detail-sublist > li:first-child {
+  border-top: 0 !important;
+}
+.chemical-profile-row > .hazard-detail-list .hazard-detail-sublist > li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0.95em;
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: #7fa8cf;
+}
+@media (min-width: 900px) {
+  .chemical-profile-row > .hazard-detail-list .hazard-detail-sublist {
+    columns: 2 260px !important;
+    column-gap: 22px;
+  }
+  .chemical-profile-row > .hazard-detail-list .hazard-detail-sublist > li {
+    break-inside: avoid;
+  }
+}
+
+/* Full sentences read as normal text; only list lead-ins are emphasised. */
+.chemical-profile-row > .hazard-detail-list > li:not(.has-sublist) .hazard-detail-lead {
+  font-weight: 400 !important;
+}
+
+/* ---------- Plume map options toggle (hidden on larger screens) ---------- */
+.plume-map-options-toggle {
+  display: none;
+}
+
+/* ======================================================================
+ * Phone layout
+ * ==================================================================== */
+@media (max-width: 640px) {
+  /* Use the full phone width: collapse the stacked frame padding. */
+  .app-shell {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .content-area > .view.active {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  #chemical-id-results.chemical-id-results {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #chemical-id-results .chemical-profile-header-card {
+    padding: 10px !important;
+  }
+  #chemical-id-results .chemical-profile-content-card {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #chemical-id-results #chemical-profile-content,
+  #chemical-id-results .chemical-profile-content {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #chemical-id-results .chemical-profile-layout {
+    border: 0 !important;
+  }
+  #chemical-id-results .chemical-profile-section {
+    padding: 8px !important;
+  }
+  #chemical-id-results .chemical-profile-row {
+    padding: 10px !important;
+  }
+  #chemical-id-results #chemical-name {
+    font-size: clamp(1.1rem, 5.6vw, 1.45rem) !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  /* Form controls: 16px text stops iOS zoom-on-focus; 44px tap targets. */
+  #plume input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+  #plume select,
+  #plume textarea {
+    min-height: 44px !important;
+    font-size: 16px !important;
+    line-height: 1.25 !important;
+  }
+  #plume textarea { min-height: 88px !important; }
+  #plume button:not(.plume-layer-button):not(.plume-map-maximize-button):not(.maplibregl-ctrl button) {
+    min-height: 44px;
+  }
+  #plume label {
+    font-size: 0.82rem;
+  }
+  #plume .plume-model-section-grid {
+    row-gap: 12px !important;
+  }
+  #plume .plume-model-field {
+    height: auto !important;
+    min-height: 0 !important;
+    grid-template-rows: auto auto !important;
+    grid-auto-rows: auto !important;
+  }
+  #plume .plume-model-section-grid {
+    grid-template-rows: none !important;
+    grid-auto-rows: auto !important;
+  }
+  #plume .plume-release-calculator > summary {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 10px;
+  }
+
+  /* Release-rate calculator: one field per row, full-width actions. */
+  #plume .plume-release-calculator {
+    padding: 10px !important;
+  }
+  #plume .plume-release-calculator > summary small {
+    flex: 1 1 100%;
+    order: 2;
+    text-align: left;
+  }
+  #plume .plume-release-calc-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+  #plume .plume-release-calc-grid > label {
+    display: grid !important;
+    gap: 6px !important;
+    min-width: 0;
+  }
+  #plume .plume-release-calc-grid > label[hidden] { display: none !important; }
+  #plume .plume-release-calc-grid input,
+  #plume .plume-release-calc-grid select {
+    width: 100% !important;
+  }
+  #plume .plume-release-calc-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  #plume .plume-release-calc-actions button {
+    min-height: 48px !important;
+    font-size: 1rem !important;
+  }
+  #plume .plume-release-calc-result {
+    font-size: 0.95rem;
+  }
+
+  /* Container bubbles also go to one column so selects are not clipped. */
+  #plume .container-bubble-grid,
+  #plume .container-detail-fields {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Map: taller, controls collapsed behind a single button. */
+  #plume.view.active .plume-v2-map-column {
+    height: max(380px, 64svh) !important;
+  }
+  #plume .plume-map-options-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 30;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid rgba(216, 178, 74, 0.85);
+    border-radius: 999px;
+    background: rgba(4, 18, 33, 0.92);
+    color: #f8f0d8;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  }
+  #plume .plume-map-options-toggle svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  #plume .plume-map-options-toggle[aria-expanded="true"] {
+    background: #d8b24a;
+    color: #0b1f33;
+  }
+  #plume .plume-v2-map-card { position: relative; }
+  #plume.view.active .plume-v2-map-card:not(.map-options-open) .plume-v2-map-controls {
+    display: none !important;
+  }
+  #plume.view.active .plume-v2-map-card.map-options-open .plume-v2-map-controls {
+    top: 58px !important;
+    left: 8px !important;
+    right: 8px !important;
+    max-height: calc(100% - 120px) !important;
+    overflow-y: auto !important;
+    padding: 8px !important;
+    gap: 6px !important;
+  }
+  /* Each group wraps so every option is visible while the panel is open. */
+  #plume.view.active .plume-v2-map-controls > .plume-map-mode-controls,
+  #plume.view.active .plume-v2-map-controls > .plume-map-layer-controls,
+  #plume.view.active .plume-v2-map-controls > .plume-map-action-controls {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  #plume.view.active .plume-v2-map-controls .plume-map-control-label {
+    flex: 0 0 100%;
+    min-width: 0;
+  }
+  #plume.view.active .plume-v2-map-controls .plume-layer-button {
+    flex: 0 0 auto;
+    min-height: 38px !important;
+    padding: 0 12px !important;
+    white-space: nowrap !important;
+  }
+  #plume.view.active .plume-v2-map-controls .plume-layer-button[disabled][data-plume-map-view="plume3d"] {
+    display: none !important;
+  }
+  /* Map status messages sit below the options button, not under it. */
+  #plume.view.active .plume-map-availability,
+  #plume.view.active .plume-terrain-status {
+    top: 58px !important;
+    left: 10px !important;
+    max-width: calc(100% - 80px) !important;
+  }
+  #plume.view.active .plume-v2-map-card.map-options-open .plume-map-availability,
+  #plume.view.active .plume-v2-map-card.map-options-open .plume-terrain-status {
+    display: none !important;
+  }
+  /* Keep the maximize button clear of the options button. */
+  #plume .plume-map-maximize-button {
+    top: auto !important;
+    bottom: 34px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Keep text inputs at 16px across the app on phones (prevents iOS zoom). */
+  .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+  .app-shell select,
+  .app-shell textarea {
+    font-size: 16px !important;
+  }
+}

@@ -125,15 +125,41 @@ function normalizeMinimumExplosiveConcentration(value: unknown): string {
     : text;
 }
 
+// Related rows frequently repeat the same value once per contributing source
+// (e.g. physical state "Liquid" from two records). Keep the first occurrence of
+// each distinct value, case-insensitively, in source order.
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = value.trim().replace(/\s+/g, ' ').toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// Short descriptor vocabularies (physical state, odor) are sometimes stored
+// as overlapping entries such as "Liquid" and "Liquid, Fuming". Treat each
+// short comma-separated descriptor as a term so the merged value reads
+// "Liquid, Fuming" instead of "Liquid, Liquid, Fuming". Longer or
+// parenthetical values are left intact.
+function uniqueDescriptorTerms(values: string[]): string[] {
+  return uniqueStrings(values.flatMap((value) => (
+    value.length <= 60 && !/[()]/.test(value)
+      ? value.split(/\s*,\s*/).filter(Boolean)
+      : [value]
+  )));
+}
+
 function relatedStrings(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
+  return uniqueStrings(value.flatMap((item) => {
     if (typeof item === 'string') return asList(item);
     if (!item || typeof item !== 'object') return [];
     return Object.entries(item as Record<string, unknown>)
       .filter(([key, field]) => !/^(?:chemicalid|revision(?:_id)?|.*id)$/i.test(key) && field !== null && field !== '')
       .flatMap(([, field]) => asList(field));
-  });
+  }));
 }
 
 function explicitRunoffGuidance(...values: unknown[]): string[] {
@@ -360,8 +386,8 @@ export function normalizeChemicalProfile(chemical: Record<string, unknown>, rela
   const detectorRows = Array.isArray(relatedData.detectors) ? relatedData.detectors : [];
   const deconRows = Array.isArray(relatedData.decon) ? relatedData.decon : [];
   const protocols = Array.isArray(relatedData.protocols) ? relatedData.protocols : [];
-  const physicalStates = relatedStrings(relatedData.physicalStates);
-  const odors = relatedStrings(relatedData.odors);
+  const physicalStates = uniqueDescriptorTerms(relatedStrings(relatedData.physicalStates));
+  const odors = uniqueDescriptorTerms(relatedStrings(relatedData.odors));
   const characteristics = relatedStrings(relatedData.characteristics);
   const classes = relatedStrings(relatedData.classes);
   const reactiveGroups = relatedStrings(relatedData.reactiveGroups);

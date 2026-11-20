@@ -5154,7 +5154,21 @@ function profileDisplayParts(value) {
     .map((item) => item.trim())
     .filter(hasAvailableProfileData);
   const normalized = chemicalProfileText.normalizeGuidanceItems(parts);
-  return normalized.filter(hasMeaningfulChemicalProfileData);
+  return uniqueProfileText(normalized.filter(hasMeaningfulChemicalProfileData));
+}
+
+// Several sources often report the identical value (e.g. "Liquid" from both
+// Chemical Companion and NIOSH). Show each distinct value once, keeping the
+// first spelling and the original order.
+function uniqueProfileText(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (typeof item !== 'string') return true;
+    const key = item.trim().replace(/[.\s]+$/, '').replace(/\s+/g, ' ').toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function shouldUseCompactColumns(items) {
@@ -5241,6 +5255,44 @@ function createHybridDeconLink() {
   return section;
 }
 
+// Long source sentences (mixing risk, explosion hazards) are shown as
+// bullets with nested sub-lists. Wording is unchanged; see
+// HazMatChemicalProfileText.structureHazardDetail for the safe split rules.
+const hazardDetailFields = new Set(['mixing-risk', 'explosion-hazards', 'firefighting-precautions']);
+
+function structuredHazardDetail(parts) {
+  if (typeof chemicalProfileText.structureHazardDetail !== 'function') return [];
+  return parts.flatMap((part) => chemicalProfileText.structureHazardDetail(part))
+    .filter((statement) => statement.text || statement.items.length);
+}
+
+function createHazardDetailList(statements) {
+  const list = document.createElement('ul');
+  list.className = 'chemical-profile-value-list hazard-detail-list';
+  statements.forEach((statement) => {
+    const item = document.createElement('li');
+    if (statement.text) {
+      const lead = document.createElement('span');
+      lead.className = 'hazard-detail-lead';
+      lead.textContent = statement.text;
+      item.append(lead);
+    }
+    if (statement.items.length) {
+      item.classList.add('has-sublist');
+      const sublist = document.createElement('ul');
+      sublist.className = 'hazard-detail-sublist';
+      statement.items.forEach((entry) => {
+        const sub = document.createElement('li');
+        sub.textContent = entry;
+        sublist.append(sub);
+      });
+      item.append(sublist);
+    }
+    list.append(item);
+  });
+  return list;
+}
+
 function createProfileSection(title, rows, list = false) {
   const section = document.createElement('section');
   section.className = 'chemical-profile-section';
@@ -5298,8 +5350,11 @@ function createProfileSection(title, rows, list = false) {
       const parts = profileDisplayParts(formatProfileMeasurement(entry.label, entry.value));
       const hasTreatmentGroups = row.dataset.field === 'treatment-notes'
         && parts.some((part) => /^(?:BLS|ALS)$/i.test(part));
+      const hazardDetail = hazardDetailFields.has(row.dataset.field) ? structuredHazardDetail(parts) : [];
       let value;
-      if (hasTreatmentGroups) {
+      if (hazardDetail.length > 1 || hazardDetail.some((statement) => statement.items.length)) {
+        value = createHazardDetailList(hazardDetail);
+      } else if (hasTreatmentGroups) {
         value = document.createElement('div');
         value.className = 'chemical-treatment-columns';
         const groups = { bls: [], als: [] };
@@ -5484,6 +5539,22 @@ function createChemicalProfileEmptyState() {
   return state;
 }
 
+// The same publication is labelled differently by different records
+// ("NIOSH" vs "NIOSH Pocket Guide", "ERG" vs "ERG 2024"). Collapse those
+// aliases to one display name so a source is listed once.
+const chemicalProfileSourceAliases = [
+  [/^NIOSH(?:\s+(?:NPG|Pocket Guide(?: to Chemical Hazards)?))?$/i, 'NIOSH Pocket Guide'],
+  [/^(?:PHMSA\s+)?ERG(?:\s+2024)?$|^Emergency Response Guidebook(?:\s+2024)?$/i, 'ERG 2024'],
+  [/^CAMEO(?:\s+Chemicals)?$/i, 'CAMEO Chemicals'],
+  [/^Chemical Companion(?:\s+Master)?$/i, 'Chemical Companion'],
+];
+
+function canonicalChemicalProfileSource(label) {
+  const text = String(label || '').trim();
+  const alias = chemicalProfileSourceAliases.find(([pattern]) => pattern.test(text));
+  return alias ? alias[1] : text;
+}
+
 function chemicalProfileSources(profile) {
   return [...new Set([
     ...profileArray(profile?.sourceLabels),
@@ -5493,6 +5564,7 @@ function chemicalProfileSources(profile) {
   ]
     .filter(Boolean)
     .map(chemicalProfileText.normalizeSourceLabel)
+    .map(canonicalChemicalProfileSource)
     .filter(hasMeaningfulChemicalProfileData))];
 }
 
@@ -12871,7 +12943,9 @@ function addErgIsolationLayer() {
     });
   }
   if (!plumeMap.getLayer('hazmat-erg-isolation-label')) {
-    plumeMap.addLayer({
+    // Optional text label: skipped on styles without a glyph atlas (satellite)
+    // instead of raising a MapLibre style error over the map.
+    addOptionalPlumeGuideLayer({
       id: 'hazmat-erg-isolation-label',
       type: 'symbol',
       source: sourceId,

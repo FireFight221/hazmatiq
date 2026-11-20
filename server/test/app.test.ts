@@ -327,6 +327,14 @@ describe("API routes", () => {
     expect(body.header).toMatchObject({ name: "Phenol", un: "1671", ergGuide: "153" });
   });
 
+  it("lists each physical state once when overlapping source rows repeat a term", async () => {
+    // ChemicalCompanionDB links HF to both "Liquid" and "Liquid, Fuming".
+    const res = await app.request("/api/chemicals/1160/profile");
+    expect(res.status).toBe(200);
+    const body = await res.json() as { properties: { physicalState: string } };
+    expect(body.properties.physicalState).toBe("Liquid, Fuming");
+  });
+
   it("hydrates the reviewed HCl profile with NFPA, exposure, response, and source provenance", async () => {
     const res = await app.request("/api/chemicals/56/profile");
     expect(res.status).toBe(200);
