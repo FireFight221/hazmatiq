@@ -111,7 +111,72 @@
     });
   }
 
+  // Display-only structuring for long source sentences such as mixing risk
+  // and explosion hazards. The source wording is preserved verbatim; only the
+  // separators (semicolons, sentence breaks, top-level comma lists) become
+  // bullets. Commas inside parentheses and commas without a following space
+  // (e.g. "1,2-dichloroethane") are never treated as boundaries.
+  const abbreviation = /(?:\b(?:e\.g|i\.e|etc|approx|vs|ca|no|incl|esp|min|max|conc|temp)\.|\b[A-Z]\.)$/i;
+
+  function splitTopLevel(text, isBoundary) {
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      if (ch === '(' || ch === '[') depth += 1;
+      else if ((ch === ')' || ch === ']') && depth > 0) depth -= 1;
+      else if (depth === 0) {
+        const cut = isBoundary(text, i);
+        if (cut) {
+          parts.push(text.slice(start, cut.end).trim());
+          start = cut.next;
+          i = cut.next - 1;
+        }
+      }
+    }
+    parts.push(text.slice(start).trim());
+    return parts.filter(Boolean);
+  }
+
+  function splitHazardStatements(text) {
+    return splitTopLevel(text, (value, i) => {
+      if (value[i] === ';' && /\s/.test(value[i + 1] || '')) return { end: i, next: i + 2 };
+      if (/[.!?]/.test(value[i]) && /\s/.test(value[i + 1] || '') && /[A-Z0-9]/.test(value[i + 2] || '')
+        && !abbreviation.test(value.slice(Math.max(0, i - 8), i + 1))) {
+        return { end: i + 1, next: i + 2 };
+      }
+      return null;
+    });
+  }
+
+  function splitHazardList(text) {
+    return splitTopLevel(text, (value, i) => (
+      value[i] === ',' && value[i + 1] === ' ' && !/\d/.test(value[i + 2] || '')
+        ? { end: i, next: i + 2 }
+        : null
+    ));
+  }
+
+  function structureHazardDetail(value, { minListItems = 4 } = {}) {
+    const text = normalizeChemicalProfileText(value);
+    if (!text) return [];
+    return splitHazardStatements(text).map((statement) => {
+      // Exception and negation clauses change which items the sentence is
+      // about, so those sentences are never broken into a list.
+      if (/\b(?:except|exception|other than|unless|excluding|but not|not including)\b/i.test(statement)) {
+        return { text: statement, items: [] };
+      }
+      const pieces = splitHazardList(statement);
+      if (pieces.length < minListItems) return { text: statement, items: [] };
+      const lead = pieces[0].match(/^(.*?\b(?:with|including|such as)\b:?)\s+(.+)$/i);
+      if (lead && lead[1].length <= 90) return { text: lead[1], items: [lead[2], ...pieces.slice(1)] };
+      return { text: statement, items: [] };
+    });
+  }
+
   window.HazMatChemicalProfileText = {
+    structureHazardDetail,
     NO_DATA,
     isEmpty,
     normalizeChemicalProfileText,

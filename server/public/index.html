@@ -32,6 +32,7 @@
     <link rel="stylesheet" href="plume-layout-correction.css?v=15" />
     <link rel="stylesheet" href="dashboard-header.css?v=17&gold=1" />
     <link rel="stylesheet" href="settings-preferences.css?v=1" />
+    <link rel="stylesheet" href="mobile-usability.css?v=1" />
   </head>
   <body>
     <div class="em-platform-bar-spacer" aria-hidden="true"></div>
@@ -1371,7 +1372,11 @@
 
               <main class="plume-v2-map-column">
                 <article class="plume-v2-map-card">
-                  <div class="plume-v2-map-controls" role="group" aria-label="Plume map controls">
+                  <button class="plume-map-options-toggle" id="plume-map-options-toggle" type="button" aria-expanded="false" aria-controls="plume-map-controls">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>
+                    <span>Map Options</span>
+                  </button>
+                  <div class="plume-v2-map-controls" id="plume-map-controls" role="group" aria-label="Plume map controls">
                       <div class="plume-map-mode-controls" role="group" aria-label="Map mode">
                         <span class="plume-map-control-label">MAP MODE</span>
                         <button class="plume-layer-button active" type="button" data-plume-map-view="satellite" aria-pressed="true">Satellite</button>
@@ -2203,14 +2208,14 @@
     </div>
 
     <script src="vendor/maplibre-gl/maplibre-gl.js"></script>
-    <script src="chemical-profile-text.js?v=chemical-intel-7"></script>
+    <script src="chemical-profile-text.js?v=hazard-detail-1"></script>
     <script src="responder-text.js"></script>
     <script src="weather-radar-providers.js?v=2"></script>
     <script src="weather-radar.js"></script>
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
     <script src="incident-report-model.js"></script>
-     <script src="script.js?v=plume-degadis-3"></script>
+     <script src="script.js?v=mobile-usability-1"></script>
     <script src="weather-workspace.js?v=7&gold=1"></script>
     <script src="settings-workspace.js?v=2"></script>
     <script src="incident-command.js?v=final-audit-1"></script>
@@ -2222,5 +2227,6 @@
     <script src="equipment.js"></script>
     <script src="monitoring-console.js?v=5"></script>
     <script src="sources.js"></script>
+    <script src="mobile-usability.js?v=1"></script>
   </body>
 </html>
