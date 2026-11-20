@@ -1148,7 +1148,81 @@ document.getElementById('preplan-saved-close-btn')?.addEventListener('click', ()
 document.getElementById('preplan-type')?.addEventListener('change', syncPreplanEditorMode);
 document.getElementById('preplan-form')?.addEventListener('submit', (event) => { event.preventDefault(); const record = collectPreplan(); const records = readPreplans(); const index = records.findIndex((item) => item.id === record.id); if (index >= 0) { record.createdAt = records[index].createdAt; records[index] = record; } else records.unshift(record); if (!writePreplans(records)) return; currentPreplanDraft.id = record.id; const hiddenId = preplanEl('id'); if (hiddenId) hiddenId.value = record.id; setPreplanMessage(`Saved ${record.name || 'pre-plan'} locally. Attachments and site image are associated with this plan.`); });
 document.getElementById('preplan-print-btn')?.addEventListener('click', () => { setPreplanMessage('Print preview opened. Choose “Save to PDF” in the browser print dialog to generate a PDF.'); window.print(); });
-document.getElementById('preplan-send-incident-btn')?.addEventListener('click', () => setPreplanMessage('Pre-plan summary ready to attach when an active incident is selected.'));
+// Attach the pre-plan to the active incident: fill only empty incident fields
+// (never overwrite what command has already recorded), keep the full pre-plan
+// on the incident for the report/ICS 201, and log the attachment.
+function preplanIncidentSummary(record) {
+  const rows = [
+    ['Pre-plan', [record.name, record.type, record.status].filter(Boolean).join(' · ')],
+    ['Facility', record.facility], ['Address', record.address], ['Occupancy', record.occupancy],
+    ['Contacts', record.contacts], ['Access', record.access], ['Utilities / shutoffs', record.utilities],
+    ['Fire water', record['fire-water']], ['Hazards', record.hazards], ['Tactical considerations', record.tactical],
+    ['Map / zones', record['map-zones']], ['Resources', record.resources], ['Pipeline', record.pipelinePlanning], ['Notes', record.notes],
+  ];
+  return rows.filter(([, value]) => String(value || '').trim()).map(([label, value]) => `${label}: ${String(value).trim()}`).join('\n');
+}
+function sendPreplanToIncident() {
+  const record = collectPreplan();
+  if (!record.name && !record.facility && !record.address) {
+    setPreplanMessage('Add at least a pre-plan name, facility, or address before sending it to Incident Command.');
+    return null;
+  }
+  const active = getActiveIncident();
+  if (!active) {
+    setPreplanMessage('No active incident. Start or select an incident on the Command page, then send this pre-plan again.');
+    return null;
+  }
+  const incidents = readIncidents();
+  const index = incidents.findIndex((item) => item.incidentId === active.incidentId);
+  if (index < 0) return null;
+  const incident = incidents[index];
+  const now = new Date().toISOString();
+  const summary = preplanIncidentSummary(record);
+  const { attachments, siteImage, ...planFields } = record;
+  const filled = [];
+  const fillIfEmpty = (key, value) => {
+    if (!String(value || '').trim() || String(incident[key] || '').trim()) return {};
+    filled.push(key);
+    return { [key]: String(value).trim() };
+  };
+  const alreadyNoted = String(incident.notes || '').includes(`Pre-plan: ${record.name}`);
+  // Site image -> ICS 201 map/sketch fallback. Stored in IndexedDB (like plume
+  // snapshots) so a large image never overflows localStorage.
+  let preplanSiteImageRef = incident.preplanSiteImageRef || null;
+  if (siteImage?.dataUrl && /^data:image\/(png|jpeg);base64,/.test(siteImage.dataUrl)) {
+    preplanSiteImageRef = `preplan-site-${incident.incidentId}`;
+    persistIncidentMapSnapshot(preplanSiteImageRef, siteImage.dataUrl);
+    filled.push('siteImage');
+  }
+  incidents[index] = {
+    ...incident,
+    ...fillIfEmpty('facilityName', record.facility || record.name),
+    ...fillIfEmpty('address', record.address),
+    ...fillIfEmpty('stagingResources', record.resources),
+    notes: alreadyNoted ? incident.notes : [incident.notes, summary].filter((value) => String(value || '').trim()).join('\n\n'),
+    preplanSiteImageRef,
+    attachedPreplan: {
+      ...planFields,
+      attachmentNames: (Array.isArray(attachments) ? attachments : []).map((item) => item.fileName).filter(Boolean),
+      siteImageName: siteImage?.fileName || '',
+      attachedAt: now,
+    },
+    incidentTimeline: [...(Array.isArray(incident.incidentTimeline) ? incident.incidentTimeline : []), {
+      type: 'preplan-attached', changedAt: now, changedBy: incidentResponderIdentity(), source: 'planning',
+      label: `Pre-plan attached: ${record.name || record.facility || 'Untitled'}`,
+    }],
+    updatedAt: now,
+  };
+  writeIncidents(incidents);
+  renderIncidentLists();
+  window.dispatchEvent(new CustomEvent('hazmatiq:incident-command-updated', { detail: incidents[index] }));
+  setPreplanMessage(`${record.name || 'Pre-plan'} attached to ${incident.incidentName || 'the active incident'}.${filled.length ? ` Filled empty fields: ${filled.map((key) => ({ facilityName: 'facility', address: 'address', stagingResources: 'resources', siteImage: 'ICS 201 map/sketch (site image)' })[key]).join(', ')}.` : ' Existing incident fields were kept.'} Pre-plan details were added to incident notes.`);
+  return incidents[index];
+}
+document.getElementById('preplan-send-incident-btn')?.addEventListener('click', () => {
+  const updated = sendPreplanToIncident();
+  if (updated && window.confirm('Pre-plan attached. Open Incident Command now?')) showView('incident');
+});
 document.getElementById('preplan-import-btn')?.addEventListener('click', () => openPreplanAttachmentDialog());
 document.getElementById('preplan-import-editor-btn')?.addEventListener('click', () => openPreplanAttachmentDialog(currentPreplanDraft.id));
 
@@ -1554,11 +1628,51 @@ function compactIncidentForLocalStorage(incident) {
   };
 }
 
+// Audit H1 repair: records saved before the chemical-replacement fix can name
+// one chemical while still carrying another chemical's ERG guide, IDLH, NIOSH
+// link, or hazard text (e.g. "Sarin" with propane's ERG 115 / 2,100 ppm). The
+// identity captured at selection time (involvedChemicals) or the captured
+// profile header is authoritative; dependent fields that disagree are cleared,
+// never guessed, and the record is flagged for re-confirmation.
+function plainIdentifier(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? '').trim()).filter(Boolean).join(', ');
+  return value === null || value === undefined ? '' : String(value).trim();
+}
+function repairIncidentChemicalIdentity(incident) {
+  if (!incident || typeof incident !== 'object' || !incident.chemicalName) return incident;
+  const name = String(incident.chemicalName).trim().toLowerCase();
+  const involved = Array.isArray(incident.involvedChemicals) ? incident.involvedChemicals : [];
+  const header = incident.chemicalProfile?.header;
+  const identity = involved.find((item) => String(item?.chemicalName || item?.name || '').trim().toLowerCase() === name)
+    || (header && String(header.name || '').trim().toLowerCase() === name ? { ergGuide: header.ergGuide, cas: header.cas, un: header.un } : null);
+  const unNumber = plainIdentifier(incident.unNumber);
+  if (!identity) return unNumber === incident.unNumber ? incident : { ...incident, unNumber };
+  const differs = (a, b) => Boolean(plainIdentifier(a) && plainIdentifier(b) && plainIdentifier(a).toLowerCase() !== plainIdentifier(b).toLowerCase());
+  if (!differs(identity.ergGuide, incident.ergGuide) && !differs(identity.cas, incident.casNumber)) {
+    return unNumber === incident.unNumber ? incident : { ...incident, unNumber };
+  }
+  return {
+    ...incident,
+    ergGuide: plainIdentifier(identity.ergGuide),
+    casNumber: plainIdentifier(identity.cas) || plainIdentifier(incident.casNumber),
+    unNumber: plainIdentifier(identity.un) || unNumber,
+    idlh: '',
+    nioshSourceId: '',
+    nioshIdentityStatus: '',
+    primaryHazard: '',
+    chemicalIdentityRepair: {
+      repairedAt: new Date().toISOString(),
+      note: 'Fields left over from a previously selected chemical were cleared. Re-open the hazard profile to confirm ERG, IDLH and hazard data.',
+      previous: { ergGuide: incident.ergGuide || '', casNumber: incident.casNumber || '', idlh: incident.idlh || '', nioshSourceId: incident.nioshSourceId || '', primaryHazard: incident.primaryHazard || '' },
+    },
+  };
+}
+
 function readIncidents() {
-  if (volatileIncidentRecords) return volatileIncidentRecords.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId));
+  if (volatileIncidentRecords) return volatileIncidentRecords.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)).map(repairIncidentChemicalIdentity);
   try {
     const incidents = JSON.parse(window.localStorage.getItem(incidentsStorageKey) || '[]');
-    return Array.isArray(incidents) ? incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)) : [];
+    return Array.isArray(incidents) ? incidents.filter((incident) => !isIncidentDeletionMarked(incident?.incidentId)).map(repairIncidentChemicalIdentity) : [];
   } catch {
     return [];
   }
@@ -1747,6 +1861,9 @@ function readIncidentCommandStorage(key, fallback) {
   }
 }
 
+// Shown when an identified material has no IDLH in its source record (e.g. VX,
+// biological agents). Display text only - no IDLH value is created.
+const NO_IDLH_LISTED_TEXT = 'No IDLH listed in source data - use ERG protective action distances / AEGLs';
 function incidentCommandValue(value, fallback = noCurrentDataText) {
   if (Array.isArray(value)) {
     const values = value.map((item) => incidentCommandValue(item, '')).filter(Boolean);
@@ -1758,6 +1875,21 @@ function incidentCommandValue(value, fallback = noCurrentDataText) {
   }
   const text = String(value ?? '').trim();
   return text || fallback;
+}
+
+// ERG lists small- and large-spill isolation separately. Showing only the
+// first (small-spill) value under-isolates a large release, so whenever both
+// are published, present both, labelled, verbatim from the source record.
+function ergSpillSizeIsolation(isolationErg) {
+  if (!isolationErg || typeof isolationErg !== 'object') return '';
+  const usable = (value) => {
+    const text = String(value ?? '').trim();
+    return text && !/^(?:N\/?A|Not available|No Current Data Exists)$/i.test(text) ? text : '';
+  };
+  const small = usable(isolationErg.smallSpill);
+  const large = usable(isolationErg.largeSpill);
+  if (small && large && small !== large) return `Small spill ${small} · Large spill ${large}`;
+  return '';
 }
 
 function firstChemicalDataValue(...values) {
@@ -1813,7 +1945,7 @@ function selectedChemicalOperationalData({ record = activeChemicalRecord, chemic
       profile.header?.sources,
       incidentHasCanonicalIdentity ? incident?.chemicalSources : null,
     ),
-    initialIsolation: firstChemicalDataValue(profile.isolationErg?.initialIsolationDistance, record?.commandFacts?.initialIsolation),
+    initialIsolation: firstChemicalDataValue(ergSpillSizeIsolation(profile.isolationErg), profile.isolationErg?.initialIsolationDistance, record?.commandFacts?.initialIsolation, profile.identifiers?.ergProtectiveActionDistances),
     protectiveAction: firstChemicalDataValue(profile.isolationErg?.protectiveActionDistance, record?.commandFacts?.protectiveAction),
     profile,
   };
@@ -2391,7 +2523,7 @@ function buildIncidentCommandViewModel() {
       unNumber: incidentCommandValue(chemicalData.unNumber),
       ergGuide: incidentCommandValue(chemicalData.ergGuide),
       hazardClass: incidentCommandValue(chemicalData.hazardClass),
-      idlh: incidentCommandValue(chemicalData.idlh),
+      idlh: incidentCommandValue(chemicalData.idlh, chemicalData.chemicalName ? NO_IDLH_LISTED_TEXT : noCurrentDataText),
     },
     coordinates: Number.isFinite(Number(incident.latitude)) && Number.isFinite(Number(incident.longitude)) ? { lat: Number(incident.latitude), lon: Number(incident.longitude) } : null,
     startTime: incident.startedAt || [incident.startDate, incident.startTime].filter(Boolean).join(' '),
@@ -2399,7 +2531,7 @@ function buildIncidentCommandViewModel() {
     hazards,
     hazardClass: incidentCommandValue(hazardClass),
     primaryHazard: incidentCommandValue(chemicalData.primaryHazard, 'Hazard classification pending'),
-    idlh: incidentCommandValue(chemicalData.idlh, 'IDLH not established for this incident'),
+    idlh: incidentCommandValue(chemicalData.idlh, chemicalData.chemicalName ? NO_IDLH_LISTED_TEXT : 'IDLH not established for this incident'),
     nioshSourceId: incidentCommandValue(chemicalData.nioshSourceId, ''),
     nioshIdentityStatus: incidentCommandValue(chemicalData.nioshIdentityStatus, ''),
     operationalMode,
@@ -2503,7 +2635,7 @@ function renderIncidentCommandHeader(model) {
   const updatedAt = weather?.observedAt && Number.isFinite(Date.parse(weather.observedAt))
     ? new Date(weather.observedAt).toLocaleString()
     : unavailable;
-  const stability = document.getElementById('plume-stability-class')?.value.trim();
+  const stability = plumeStabilityDisplay();
   const description = weather?.description || (weather ? weather.conditions?.split(' · ')[1] : '') || 'Current observation unavailable';
   setText('ic-weather-condition', weather ? description : 'Current observation unavailable');
   setText('ic-weather-temperature', number(weather?.temperatureF, 1, ' °F'));
@@ -3569,6 +3701,10 @@ async function refreshIcsPdfPreview(incident, selection = openIcsForm) {
   if (!isIncidentPlumeCurrent(payload.plumeModelResults, payload)) delete payload.plumeMapImage;
   if (!payload.plumeMapImage && payload.plumeMapImageRef && isIncidentPlumeCurrent(payload.plumeModelResults, payload)) {
     payload.plumeMapImage = await readIncidentMapSnapshot(payload.plumeMapImageRef);
+  }
+  // Pre-plan site image is the ICS 201 map/sketch fallback when no current plume map exists.
+  if (!payload.plumeMapImage && payload.preplanSiteImageRef) {
+    payload.preplanSiteImage = await readIncidentMapSnapshot(payload.preplanSiteImageRef);
   }
   if (openIcsForm !== selection) return;
   const response = await fetch(`/api/ics-forms/${encodeURIComponent(selection.formId)}/pdf`, {
@@ -9115,9 +9251,9 @@ const hazardLaneUi = Object.freeze({
     label: 'CBRNE & CWA',
     modeLabel: 'CBRNE / CWA Intelligence',
     title: 'Warfare Agents Identification',
-    description: 'Search nerve, blister, blood, choking, biological, or CBRNE agent records.',
-    placeholder: 'Search Sarin, VX, Mustard, Ricin...',
-    examples: ['Sarin', 'VX', 'Mustard', 'Ricin'],
+    description: 'Search nerve, blister, blood, and choking agents, biological agents and toxins, or an unknown substance / white powder (ERG 111).',
+    placeholder: 'Search Sarin, VX, Anthrax, Ricin, white powder...',
+    examples: ['Sarin', 'VX', 'Anthrax', 'Ricin', 'White Powder'],
     emblem: 'CB',
     tabs: [
       ['Overview', ['overviewFacts', 'hazardFacts']], ['Health / Exposure', ['hazardFacts', 'medicalFacts']],
@@ -15615,7 +15751,7 @@ function formatOpenMeteo(data) {
     elevationFt,
     description: weatherCodeDescription(current.weather_code),
     weatherCode: Number(current.weather_code),
-    cloudCoverPct: Number(current.cloud_cover),
+    cloudCoverPct: current.cloud_cover === null || current.cloud_cover === undefined ? null : Number(current.cloud_cover),
     visibilityMiles: Number.isFinite(Number(current.visibility)) ? Number(current.visibility) / 1609.344 : null,
     dewPointF: Number.isFinite(Number(current.dew_point_2m)) ? Number(current.dew_point_2m) : null,
     conditions: `${current.temperature_2m}°F${feelsLike} · RH ${current.relative_humidity_2m}% · Wind ${current.wind_speed_10m} mph ${degreesToCompass(current.wind_direction_10m)} · Gust ${current.wind_gusts_10m} mph · Pressure ${pressureInHg.toFixed(2)} inHg`,
@@ -15680,7 +15816,7 @@ function formatNws(data) {
     rh: Number.isFinite(rh) ? rh : null,
     pressureInHg: Number.isFinite(pressurePa) ? pressurePa * 0.000295299830714 : null,
     elevationFt: Number.isFinite(elevationM) ? elevationM * 3.28084 : null,
-    cloudCoverPct: Number(observation.cloudCover?.value),
+    cloudCoverPct: observation.cloudCover?.value === null || observation.cloudCover?.value === undefined ? null : Number(observation.cloudCover.value),
     visibilityMiles: Number.isFinite(Number(observation.visibility?.value)) ? Number(observation.visibility.value) / 1609.344 : null,
     dewPointF: Number.isFinite(Number(observation.dewpoint?.value)) ? (Number(observation.dewpoint.value) * 9) / 5 + 32 : null,
     description: observation.textDescription || 'No description',
@@ -16205,6 +16341,28 @@ function restoreIncidentContainerData() {
   updateContainerControlSummaries();
 }
 
+let lastResolvedPlumeStability = null;
+
+function plumeStabilityDisplay() {
+  const value = document.getElementById('plume-stability-class')?.value?.trim() || '';
+  if (value !== 'auto') return value;
+  return lastResolvedPlumeStability?.stabilityClass ? `${lastResolvedPlumeStability.stabilityClass} (auto)` : 'Auto (wind, sun, cloud)';
+}
+
+function renderResolvedPlumeStability(result) {
+  const stability = result?.stability;
+  lastResolvedPlumeStability = stability?.mode === 'auto' ? stability : null;
+  const label = document.getElementById('plume-stability-resolved');
+  if (!label) return;
+  if (stability?.mode === 'auto') {
+    label.textContent = `→ Class ${stability.stabilityClass}`;
+    label.title = (stability.basis || []).join(' ');
+  } else {
+    label.textContent = '';
+    label.title = '';
+  }
+}
+
 function updatePlumeReleaseQuantityLabel() {
   const releaseKind = document.getElementById('plume-release-type')?.value;
   const puffDurationField = document.getElementById('plume-puff-duration-field');
@@ -16237,11 +16395,18 @@ function readPlumeModelInputs(location) {
   const temperatureF = Number(document.getElementById('plume-temperature')?.value);
   const weatherSourceMode = document.getElementById('plume-weather-source')?.value || '';
   const liveHumidity = ['auto-live', 'open-meteo'].includes(weatherSourceMode) ? latestPlumeWeather?.rh : null;
-  const enteredHumidity = Number(document.getElementById('columbia-humidity')?.value);
-  const relativeHumidity = Number.isFinite(Number(liveHumidity))
+  // Number(null) and Number('') are 0, so blank humidity must stay "not recorded".
+  const enteredHumidityRaw = String(document.getElementById('columbia-humidity')?.value ?? '').trim();
+  const enteredHumidity = enteredHumidityRaw === '' ? NaN : Number(enteredHumidityRaw);
+  const relativeHumidity = liveHumidity !== null && liveHumidity !== undefined && liveHumidity !== '' && Number.isFinite(Number(liveHumidity))
     ? Number(liveHumidity)
     : (Number.isFinite(enteredHumidity) && enteredHumidity >= 0 && enteredHumidity <= 100 ? enteredHumidity : null);
-  const stabilityClass = document.getElementById('plume-stability-class')?.value;
+  const stabilitySelection = document.getElementById('plume-stability-class')?.value || 'auto';
+  const stabilityAuto = stabilitySelection === 'auto';
+  const stabilityClass = stabilityAuto ? 'auto' : stabilitySelection;
+  const rawCloudCover = latestPlumeWeather?.cloudCoverPct;
+  // Number(null) is 0; a missing cloud report must stay missing, not become clear sky.
+  const cloudCoverPct = rawCloudCover === null || rawCloudCover === undefined || rawCloudCover === '' ? NaN : Number(rawCloudCover);
   const surfaceRoughness = document.getElementById('plume-surface-roughness')?.value;
   const releaseHeightFtValue = document.getElementById('plume-release-height')?.value;
   const releaseHeightFt = releaseHeightFtValue === '' ? 0 : Number(releaseHeightFtValue);
@@ -16268,6 +16433,8 @@ function readPlumeModelInputs(location) {
     windSpeedMps: windSpeedMph * 0.44704,
     windDirDeg,
     stabilityClass,
+    ...(stabilityAuto ? { stabilityMode: 'auto' } : {}),
+    ...(Number.isFinite(cloudCoverPct) ? { cloudCoverPct } : {}),
     surfaceRoughness,
     releaseHeightM: releaseHeightFt * 0.3048,
     tempC: (temperatureF - 32) * (5 / 9),
@@ -16316,6 +16483,7 @@ async function runBackendPlume(inputs) {
     // The model normalizes inputs and omits some source/weather fields. Retain
     // the submitted snapshot so completed-run displays never read live controls.
     if (result) result.submittedInputs = { ...inputs };
+    try { if (typeof renderResolvedPlumeStability === 'function') renderResolvedPlumeStability(result); } catch { /* display only */ }
     if (result?.mode === 'erg-protective-action' && result.ergOverlay) {
       const erg = result.ergOverlay;
       return {
@@ -16799,6 +16967,23 @@ function threatZonePanelData(result, intelligence = {}, features = []) {
     ['Computed', result?.computedAt || result?.generatedAt || 'Not recorded'],
     ['Chemical', identity.chemicalName || 'Not recorded'], ['CAS', identity.casNumber || 'Not recorded'],
     ['Model', [result?.modelName || result?.modelModeLabel, result?.modelVersion].filter(Boolean).join(' · ') || 'Not recorded'],
+    ['Model Selection', (() => {
+      const selection = result?.heavyGas?.selection;
+      if (!selection) return 'Not recorded';
+      const ri = selection.richardsonNumber === null || selection.richardsonNumber === undefined ? NaN : Number(selection.richardsonNumber);
+      const riText = selection.denserThanAir === false
+        ? 'lighter than air, so the heavy-gas test does not apply; '
+        : Number.isFinite(ri) ? `critical Richardson number ${ri >= 10 ? ri.toFixed(0) : ri.toFixed(2)}; ` : '';
+      const chosen = result.heavyGas.applied ? 'Heavy Gas (EPA DEGADIS 2.1)' : selection.model === 'heavy-gas' ? 'Heavy Gas indicated; Gaussian shown (heavy-gas run unavailable)' : 'Gaussian';
+      return `${chosen} · ${riText}vapor ${Number(selection.gasDensityKgM3).toFixed(3)} kg/m³ vs air ${Number(selection.airDensityKgM3).toFixed(3)} kg/m³ (ALOHA 4.4.1)`;
+    })()],
+    ...(result?.heavyGas?.applied ? [['Heavy-Gas Run', [
+      `friction velocity ${Number(result.heavyGas.frictionVelocityMps).toFixed(3)} m/s`,
+      Number.isFinite(Number(result.heavyGas.moninObukhovLengthM)) ? `Monin-Obukhov length ${Number(result.heavyGas.moninObukhovLengthM).toFixed(1)} m` : null,
+      Number.isFinite(Number(result.heavyGas.sourceBlanketRadiusM)) ? `source blanket radius ${Number(result.heavyGas.sourceBlanketRadiusM).toFixed(1)} m` : null,
+      `release modeled ${Math.round(Number(result.heavyGas.releaseDurationSec) / 60)} min`,
+      '5-minute averaging time',
+    ].filter(Boolean).join(' · ')]] : []),
     ['Release Type', inputs.releaseKind || result?.releaseScenario || 'Not recorded'],
     ['Container', inputs.containerType || submitted.containerType || 'Not recorded'],
     ['Release Phase', submitted.releasePhase || 'Not recorded'],
@@ -16810,7 +16995,10 @@ function threatZonePanelData(result, intelligence = {}, features = []) {
     ['Temperature', numeric(inputs.tempC, '°C')], ['Relative Humidity', numeric(inputs.rh, '%')],
     ['Weather Source', result?.weather?.source || submitted.weatherSource || 'Not recorded'],
     ['Weather Observation', result?.weather?.observationTime || submitted.weatherObservationTime || 'Not recorded'],
-    ['Stability Class', inputs.stabilityClass || 'Not recorded'], ['Surface Roughness', inputs.surfaceRoughness || 'Not recorded'],
+    ['Stability Class', inputs.stabilityClass || 'Not recorded'],
+    ['Stability Basis', result?.stability?.mode === 'auto' ? `${result.stability.method}: ${(result.stability.basis || []).join(' ')}` : (result?.stability?.method || 'Not recorded')],
+    ['Wind-Shift Confidence', Number.isFinite(Number(result?.windShift?.halfAngleDeg)) ? `±${result.windShift.halfAngleDeg}°${Number(result.windShift.lightWindHalfAngleDeg) > Number(result.windShift.documentedHalfAngleDeg) ? ' (light-wind widening; formula value ±' + result.windShift.documentedHalfAngleDeg + '°)' : ' (wind-direction formula)'}` : 'Not recorded'],
+    ['Surface Roughness', inputs.surfaceRoughness || 'Not recorded'],
     ['Molecular Weight', numeric(inputs.molecularWeight, 'g/mol')],
     ['AEGL Source', result?.endpoint?.endpointSource || 'Not recorded'],
     ['Exposure Duration', numeric(result?.endpoint?.selectedDurationMinutes, 'min')],
@@ -16916,32 +17104,54 @@ function updatePlumeRightRailZoneResults(result = null) {
   renderThreatZonePanels(result);
 }
 
-// Dense-gas products are drawn with the neutral-gas Gaussian screen. Say so
-// where the operator reads the result, not only inside Model Details.
+// Heavier-than-air products: ALOHA 4.4.1 selects the Heavy Gas (DEGADIS) model
+// when the critical Richardson number is at least 1. Say which model drew the
+// footprint where the operator reads the result, not only inside Model Details.
 function updatePlumeDenseGasWarning(result = null) {
   const warning = document.getElementById('plume-dense-gas-warning');
   if (!warning) return;
-  const family = String(result?.modelFamily || result?.model?.modelFamily || result?.modelMetadata?.modelFamily || '');
-  const dense = result && result.mode !== 'erg-protective-action' && /dense|heavy/i.test(family);
-  warning.hidden = !dense;
   const chip = document.getElementById('plume-map-dense-gas-chip');
-  if (chip) {
-    chip.hidden = !dense;
-    chip.textContent = result?.denseGas?.applicable
-      ? 'Heavier-than-air product · dense-gas near field screened (Britter–McQuaid, orange arcs) · pooling and terrain not modeled'
-      : 'Heavier-than-air product · dense-gas behavior NOT modeled · footprint may underpredict near the source and in low areas';
-  }
-  const screen = result?.denseGas;
-  const screened = screen?.applicable
-    ? (screen.levels || []).filter((level) => Number(level.distanceM) > 0).map((level) => `${level.label} to ${formatIsolationDistance(level.distanceM)}`).join('; ')
-    : '';
+  const modeled = result && result.mode !== 'erg-protective-action';
+  const heavy = modeled ? result.heavyGas : null;
+  const selection = heavy?.selection || null;
+  const family = String(result?.modelFamily || result?.model?.modelFamily || result?.modelMetadata?.modelFamily || '');
+  const denser = Boolean(modeled && (selection ? selection.denserThanAir : /dense|heavy/i.test(family)));
   const shift = Number(result?.windShift?.halfAngleDeg);
   const shiftText = Number.isFinite(shift) ? ` Dashed white lines show ±${shift}° wind-shift uncertainty.` : '';
-  warning.textContent = dense
-    ? screened
-      ? `Heavier-than-air product. Dense-gas screen (Britter–McQuaid): ${screened}. Orange arcs mark these near-field distances; beyond 0.2% the Gaussian AEGL footprint applies. Slumping, pooling in low areas and terrain channeling are not modeled.${shiftText} Confirm with air monitoring.`
-      : `Heavier-than-air product: this footprint uses a neutral-gas Gaussian screen.${screen?.reason ? ` ${screen.reason}` : ''} Dense-gas slumping, upwind and crosswind spread, and pooling in low areas are NOT modeled. Expect a wider, more concentrated cloud near the source and in low terrain; confirm with air monitoring.${shiftText}`
-    : '';
+  const ri = selection?.richardsonNumber === null || selection?.richardsonNumber === undefined ? NaN : Number(selection.richardsonNumber);
+  const riText = Number.isFinite(ri) ? `critical Richardson number ${ri >= 10 ? ri.toFixed(0) : ri.toFixed(1)}` : '';
+  let chipText = '';
+  let text = '';
+  let tone = 'caution';
+  if (denser && heavy?.applied) {
+    tone = 'modeled';
+    const blanket = Number(heavy.sourceBlanketRadiusM);
+    const blanketText = Number.isFinite(blanket) && blanket > 1.5 ? ` The dense gas blanket spreads about ${formatIsolationDistance(blanket)} around the release, including upwind.` : '';
+    chipText = 'Heavy-gas model · EPA DEGADIS 2.1 · slumping and crosswind spread modeled';
+    text = `Heavier-than-air product (${riText}): threat zones use the EPA DEGADIS 2.1 heavy-gas model, as ALOHA does. Gravity slumping, the source gas blanket and crosswind spread are modeled.${blanketText} Modeled as a ground-level release at air temperature; cold or flashing releases, pooling in low areas and terrain channeling are not modeled.${shiftText} Confirm with air monitoring.`;
+  } else if (denser && selection && selection.model === 'gaussian') {
+    tone = 'modeled';
+    chipText = 'Heavier than air but passive at this release rate · Gaussian model';
+    text = `Heavier-than-air product, but the cloud is passive at this release rate and wind (${riText}, below 1). ALOHA uses the Gaussian model in this case; so does this footprint.${shiftText} Low areas can still collect vapor; confirm with air monitoring.`;
+  } else if (denser) {
+    const screen = result?.denseGas;
+    const screened = screen?.applicable
+      ? (screen.levels || []).filter((level) => Number(level.distanceM) > 0).map((level) => `${level.label} to ${formatIsolationDistance(level.distanceM)}`).join('; ')
+      : '';
+    const reason = heavy?.fallbackReason ? ` ${heavy.fallbackReason}` : '';
+    chipText = 'Heavier-than-air product · heavy-gas model unavailable · Gaussian footprint may underpredict near the source';
+    text = screened
+      ? `Heavier-than-air product.${reason} Dense-gas screen (Britter–McQuaid): ${screened}. Orange arcs mark these near-field distances. Slumping, pooling in low areas and terrain channeling are not modeled.${shiftText} Confirm with air monitoring.`
+      : `Heavier-than-air product: this footprint uses a neutral-gas Gaussian screen.${reason} Dense-gas slumping, upwind and crosswind spread, and pooling in low areas are NOT modeled. Expect a wider, more concentrated cloud near the source and in low terrain; confirm with air monitoring.${shiftText}`;
+  }
+  warning.hidden = !denser;
+  warning.dataset.tone = tone;
+  warning.textContent = text;
+  if (chip) {
+    chip.hidden = !denser;
+    chip.dataset.tone = tone;
+    chip.textContent = chipText;
+  }
 }
 
 function updatePlumeCommandPanel(result = null) {
@@ -17630,7 +17840,7 @@ async function plotPlumeFromControls(locationOverride = null) {
       const releaseType = document.getElementById('plume-release-type')?.selectedOptions?.[0]?.textContent;
       const windSpeed = document.getElementById('plume-wind-speed')?.value;
       const windDirection = document.getElementById('plume-wind-direction')?.value;
-      const stability = document.getElementById('plume-stability-class')?.value;
+      const stability = plumeStabilityDisplay();
       activePlumeCommand = {
         title: `${plotChemical?.name || activeChemical?.name || 'Selected chemical'} ERG protective-action overlay`,
         summary: ergFallbackReason ? `${ergFallbackReason} ${modeled.summary}` : modeled.summary,
@@ -17686,7 +17896,7 @@ async function plotPlumeFromControls(locationOverride = null) {
     const windSpeed = document.getElementById('plume-wind-speed')?.value;
     const windDirection = document.getElementById('plume-wind-direction')?.value;
     const temperature = document.getElementById('plume-temperature')?.value;
-    const stability = document.getElementById('plume-stability-class')?.value;
+    const stability = plumeStabilityDisplay();
     const surface = document.getElementById('plume-surface-roughness')?.selectedOptions?.[0]?.textContent;
     const thresholdKinds = [...new Set((modeled.result.thresholdsUsed || []).map((threshold) => threshold.kind))];
     activePlumeCommand = {

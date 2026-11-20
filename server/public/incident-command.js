@@ -137,6 +137,23 @@
     });
   }
 
+  // Structured operational values (PPE recommendation objects, lists of
+  // protective actions) must reach ICS 208 / 215A as readable text, never as
+  // "[object Object]".
+  function prefillText(value) {
+    if (value === null || value === undefined || value === false) return '';
+    if (Array.isArray(value)) return value.map(prefillText).filter(Boolean).join('; ');
+    if (typeof value === 'object') {
+      const preferred = ['displayLabel', 'summary', 'label', 'title', 'text', 'value', 'recommendation', 'description'];
+      const lead = preferred.map((key) => value[key]).find((item) => typeof item === 'string' && item.trim());
+      const detail = ['items', 'details', 'respiratoryProtection', 'skinProtection', 'eyeFaceProtection']
+        .map((key) => prefillText(value[key])).filter(Boolean).join('; ');
+      if (lead || detail) return [lead, detail].filter(Boolean).join(' — ');
+      return Object.values(value).filter((item) => typeof item === 'string' || typeof item === 'number').map(String).join('; ');
+    }
+    return String(value).trim();
+  }
+
   function buildIcsPrefill(incident = legacyApi()?.getActiveIncident?.()) {
     const state = incident?.raw ? incident : normalizeIncidentState(incident);
     const source = state.raw || {};
@@ -166,7 +183,7 @@
       state.operational.decon,
       tacticalMitigation.entryDecision || tacticalSupport.entryDecision,
       tacticalMitigation.requiredVerification || tacticalSupport.requiredVerification,
-    ].filter(Boolean).join('\n');
+    ].map(prefillText).filter(Boolean).join('\n');
     const tacticalDocumentation = [
       tactical.selectedTacticalMode && `Selected tactical mode: ${tactical.selectedTacticalMode}`,
       tacticalSupport.tacticalPostureSource && `Decision source: ${tacticalSupport.tacticalPostureSource}`,
@@ -194,7 +211,7 @@
     const recordedTimeline = state.reporting.timeline
       .map((event) => [event.changedAt || event.createdAt || event.timestamp, event.type, event.message || event.evidence].filter(Boolean).join(' · '))
       .filter(Boolean);
-    const monitoring = source.monitoringStatus || source.monitoringReadings || source.monitoringLog || '';
+    const monitoring = prefillText(source.monitoringStatus || source.monitoringReadings || source.monitoringLog || '');
     const plumeFacts = state.plume.result
       ? [
           source.plumeSummary,
@@ -393,6 +410,13 @@
     });
   }
 
+  // CBRNE source packs list identifiers as arrays (["2810"]); incident
+  // records, ICS forms and matching all expect a plain string.
+  function identifierText(value) {
+    if (Array.isArray(value)) return value.map((item) => String(item ?? '').trim()).filter(Boolean).join(', ');
+    return value === null || value === undefined ? '' : String(value).trim();
+  }
+
   function propagateHazardToIncident(result, profile) {
     const api = legacyApi();
     const incident = api?.getActiveIncident?.();
@@ -405,8 +429,8 @@
       chemicalCompanionId: normalized.chemicalCompanionId || null,
       cbrneCanonicalId: normalized.cbrneCanonicalId || normalized.canonicalId || null,
       chemicalName: normalized.displayName || '',
-      cas: normalized.cas || identifiers.cas || identifiers.casNumber || '',
-      un: normalized.un || identifiers.un || identifiers.unNaNumbers || '',
+      cas: identifierText(normalized.cas || identifiers.cas || identifiers.casNumber),
+      un: identifierText(normalized.un || identifiers.un || identifiers.unNaNumbers || normalized.unNaNumbers),
       ergGuide: normalized.erg || identifiers.erg || identifiers.ergGuide || '',
       source: 'Chemical / Hazard ID selection',
       identifiedAt: new Date().toISOString(),
@@ -454,13 +478,17 @@
       canonicalHazardId: normalized.canonicalId || prior.canonicalHazardId || null,
       hazardProfileType: normalized.profileType || 'hazard',
       hazardRoutingLane: normalized.routingLane || result.lane || prior.hazardRoutingLane || '',
-      casNumber: normalized.cas || identifiers.cas || identifiers.casNumber || prior.casNumber || '',
-      unNumber: normalized.un || identifiers.un || identifiers.unNaNumbers || prior.unNumber || '',
+      casNumber: identifierText(normalized.cas || identifiers.cas || identifiers.casNumber) || identifierText(prior.casNumber),
+      unNumber: identifierText(normalized.un || identifiers.un || identifiers.unNaNumbers || normalized.unNaNumbers) || identifierText(prior.unNumber),
       ergGuide: normalized.erg || identifiers.erg || identifiers.ergGuide || prior.ergGuide || '',
       idlh: normalized.idlh || identifiers.idlh || viewProfile.idlh || viewProfile.exposures?.idlh || prior.idlh || '',
       nioshSourceId: normalized.nioshSourceId || viewProfile.niosh?.sourceRecordId || prior.nioshSourceId || '',
       nioshIdentityStatus: normalized.nioshIdentityStatus || viewProfile.niosh?.status || prior.nioshIdentityStatus || '',
       hazardClass: normalized.category || prior.hazardClass || '',
+      // The previous chemical's hazard description / sources must never ride
+      // along under a new agent name (audit H1: "Sarin" shown as flammable gas).
+      primaryHazard: viewProfile.header?.hazard || viewProfile.primaryHazard || normalized.category || prior.primaryHazard || '',
+      chemicalSources: replacing ? (viewProfile.sources || viewProfile.header?.sources || []) : incident.chemicalSources,
       chemicalProfile: viewProfile,
       chemicalProfileCapturedAt: new Date().toISOString(),
       sourceStatuses: { ...(incident.sourceStatuses || {}), chemical: normalized.sourceState || NO_DATA },

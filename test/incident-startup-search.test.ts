@@ -19,6 +19,7 @@ describe('Incident startup and product lookup', () => {
     });
     const rendered = vi.fn();
     runInNewContext([
+      declaration('ergSpillSizeIsolation'),
       declaration('firstChemicalDataValue'),
       declaration('normalizeChemicalSelectionId'),
       declaration('incidentChemicalIdentity'),

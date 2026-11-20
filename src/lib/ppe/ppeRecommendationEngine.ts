@@ -43,8 +43,16 @@ export type PpeRecommendationInput = {
   approvedSourceFacts?: Partial<Record<PpeSourceName, unknown>>;
   hiddenRawOptions?: Record<string, unknown>;
   operationalConditions?: PpeOperationalConditions;
+  /** Hazard class / category text (e.g. "NERVE AGENT", "6.1 Toxic"). Used only
+   * to raise the protection floor; it never lowers a source-backed level. */
+  hazardCategory?: string | null;
+  /** True when the record's CAS links to a CHEMICAL_WARFARE identity record in the CBRNE corpus. */
+  chemicalWarfareAgent?: boolean;
   generatedAt?: string;
 };
+
+const WARFARE_AGENT_PATTERN = /nerve agent|blister agent|vesicant|chemical warfare|\bCWA\b|\bG-?series\b|\bV-?series\b/i;
+const SKIN_ABSORPTION_PATTERN = /skin absorption|absorbed (?:through|via) (?:the )?skin|dermal(?:ly)? toxic|percutaneous|fatal (?:if|in) contact with skin/i;
 
 export type PpeRecommendation = {
   chemicalId: string | number | null;
@@ -225,6 +233,28 @@ export function buildPpeRecommendation(input: PpeRecommendationInput): PpeRecomm
     selectedLevel = skinVaporFacts.length && explicitA.length ? PPE_LEVELS.LEVEL_A : PPE_LEVELS.LEVEL_B;
   } else if (!recommendation.sourceConflicts.length && levelDAllowed) selectedLevel = PPE_LEVELS.LEVEL_D;
 
+  // Initial-entry protection floor (NIOSH ERSH-DB / NRT QRG / OSHA 1910.120
+  // App. B): Level A until air monitoring confirms the agent and its
+  // concentration. Level B's splash suit protects against liquids but is not
+  // vapor-tight, so it is a downgrade option once dermal risk is confirmed
+  // low - not the default for an unconfirmed warfare-agent or skin-absorbing
+  // vapor hazard. The floor does not apply after monitoring confirms
+  // concentration, leaving the source-backed B/C logic in place.
+  const warfareAgent = input.chemicalWarfareAgent === true
+    || WARFARE_AGENT_PATTERN.test(String(input.hazardCategory ?? ""))
+    || facts.some((fact) => WARFARE_AGENT_PATTERN.test(fact));
+  const skinAbsorptionFacts = matchedFacts(facts, SKIN_ABSORPTION_PATTERN);
+  const concentrationConfirmed = conditions.concentrationKnown === true && conditions.monitoringVerified === true;
+  let protectionFloorReason = "";
+  if (!concentrationConfirmed
+    && ((warfareAgent && (selectedLevel === PPE_LEVELS.LEVEL_B || selectedLevel === PPE_LEVELS.LEVEL_C))
+      || (skinAbsorptionFacts.length && selectedLevel === PPE_LEVELS.LEVEL_B))) {
+    selectedLevel = PPE_LEVELS.LEVEL_A;
+    protectionFloorReason = warfareAgent
+      ? "Initial entry: Level A until air monitoring confirms agent identity and concentration (NIOSH ERSH-DB / NRT QRG). Level B may be selected once concentration is confirmed and dermal exposure is less of a risk; Level C only when APR/PAPR criteria are met (below IDLH / AEGL-2)."
+      : `Initial entry: Level A while concentration is unconfirmed - skin-absorption hazard (${skinAbsorptionFacts[0]}). Reassess for Level B once monitoring confirms concentration and low dermal risk (OSHA 1910.120 App. B).`;
+  }
+
   recommendation.selectedLevel = selectedLevel;
   recommendation.displayLabel = PPE_DISPLAY_LABELS[selectedLevel];
   recommendation.recommendationStatus = selectedLevel === PPE_LEVELS.REVIEW ? "REQUIRES_REVIEW" : "SOURCE_BACKED_RECOMMENDATION";
@@ -232,6 +262,7 @@ export function buildPpeRecommendation(input: PpeRecommendationInput): PpeRecomm
     || selectedLevel === PPE_LEVELS.LEVEL_B
     || (selectedLevel === PPE_LEVELS.REVIEW && conditionRequiresScba);
   recommendation.decisionReasons = unique([
+    protectionFloorReason,
     factReason("Explicit protection-level guidance", [...explicitA, ...explicitB, ...explicitC, ...explicitD]),
     factReason("Respiratory source guidance", scbaFacts.length ? scbaFacts : aprFacts),
     factReason("Skin/vapor source guidance", skinVaporFacts),

@@ -21,3 +21,11 @@
 .em-platform-settings p{color:var(--text-secondary);overflow-wrap:anywhere;line-height:1.5}
 .em-platform-settings button{min-height:44px;padding:8px 12px;background:#e5e8ec;color:#0b1f33;border:1px solid #8296a8;border-radius:6px;font-weight:700;cursor:pointer}
 .em-platform-bar [hidden],.em-platform-settings [hidden]{display:none!important}
+/* Visible on every page so field devices never miss a deployed update. */
+.em-platform-bar .em-platform-update{padding:3px 10px;min-height:27px;font-size:12px;font-weight:800;background:#d4a017;color:#0b1622;border:1px solid #f3d270;border-radius:6px;animation:em-update-pulse 2s ease-in-out 3}
+.em-platform-bar .em-platform-update[hidden]{display:none}
+@keyframes em-update-pulse{0%,100%{box-shadow:0 0 0 0 rgba(243,210,112,.0)}50%{box-shadow:0 0 0 4px rgba(243,210,112,.45)}}
+@media (prefers-reduced-motion:reduce){.em-platform-bar .em-platform-update{animation:none}}
+
+/* Plume stability: resolved auto class */
+.plume-stability-resolved { color: #f5c542; font-weight: 800; margin-left: 4px; }

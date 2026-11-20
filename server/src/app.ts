@@ -35,7 +35,10 @@ import { getDb } from "./db.js";
 import * as schema from "./schema.js";
 import { NIOSH_IDENTITY_STATUS, queryChemicalProfile, searchCompanionChemicals } from "./chemical-companion.js";
 import { reviewedSourceLinksForMaster } from "./chemical-companion/reviewed-source-links.js";
-import { runPlume } from "../../src/lib/model/plume.js";
+import { plumeConfidenceHalfAngleDeg, runPlume } from "../../src/lib/model/plume.js";
+import { ALOHA_ROUGHNESS_PRESETS_M, ALOHA_TECH_DOC_REFERENCE, ALOHA_MIN_RELEASE_DURATION_SEC, alohaStabilityClass, clampReleaseDuration, type StabilityDetermination } from "../../src/lib/model/alohaMethod.js";
+import { selectHeavyGasModel } from "../../src/lib/model/heavyGasSelection.js";
+import { DEGADIS_MODEL_VERSION, DEGADIS_PRIMARY_SOURCE_RADIUS_M, DEGADIS_REFERENCE, DEGADIS_TOXIC_AVERAGING_TIME_SEC, degadisAvailable, runDegadis, type DegadisResult } from "./degadis.js";
 import { PlumeInputs } from "../../src/lib/schema/plume.js";
 import { aeglThresholdBands, selectVerifiedAeglEndpoint } from "../../src/lib/model/plume-endpoints.js";
 import { determinePlumeStatus } from "../../src/lib/model/plume-status.js";
@@ -48,6 +51,7 @@ import { denseGasScreen, windShiftHalfAngleDeg, type DenseGasLevel } from "../..
 import { ERG_TABLE_1, getErgAdditionalTables, getErgContainerDistances, lookupErgGuideInitialIsolation } from "../../src/data/erg.js";
 import { molecularWeightOf } from "../../src/data/molecular-weight.js";
 import { searchStarterHazards } from "../../src/lib/hazard-id/hazardSearch.js";
+import { UNKNOWN_SUBSTANCE_ID, matchesUnknownSubstanceQuery, unknownSubstanceProfile, unknownSubstanceSearchResult } from "../../src/lib/hazard-id/unknownSubstanceProtocol.js";
 import { starterHazardProfile } from "../../src/lib/hazard-id/hazardProfileAdapter.js";
 import type { HazardIdLane } from "../../src/lib/hazard-id/hazardTypes.js";
 import { lookupCriticalInfrastructure, type ThreatZoneFeature } from "./critical-infrastructure.js";
@@ -383,14 +387,28 @@ function chemicalSafetyForIcs(incident: Record<string, unknown>) {
   ].filter(Boolean).join("\n").slice(0, 1800);
 }
 
+function protectionLevelForIcs(incident: Record<string, unknown>, profile: Record<string, unknown>) {
+  const recommendation = profileSection(profile, "ppeRecommendation");
+  const fromProfile = typeof recommendation.displayLabel === "string" ? recommendation.displayLabel.trim() : "";
+  if (fromProfile) return fromProfile;
+  const summary = incident.ppeSummary && typeof incident.ppeSummary === "object" ? incident.ppeSummary as Record<string, unknown> : {};
+  const items = Array.isArray(summary.items) ? summary.items : [];
+  const first = items.find((item) => typeof item === "string" && /level\s+[abcd]\b/i.test(item));
+  return typeof first === "string" ? first.replace(/^Recommended protection level:\s*/i, "").trim() : "";
+}
+
 function chemicalMitigationsForIcs(incident: Record<string, unknown>) {
   const profile = incidentChemicalProfile(incident);
   const ppe = profileSection(profile, "ppeRespiratory");
   const decon = profileSection(profile, "decon");
   const medical = profileSection(profile, "medical");
+  const level = protectionLevelForIcs(incident, profile);
   return [
+    level && `Required protection level: ${level}`,
     profileText(ppe.bestMatch) && `PPE best match: ${profileText(ppe.bestMatch)}`,
-    profileText(ppe.respiratorRecommendations) && `Respiratory: ${profileText(ppe.respiratorRecommendations, 450)}`,
+    // Source product lists can include air-purifying cartridges; the
+    // protection level above governs whether any APR may be used.
+    profileText(ppe.respiratorRecommendations) && `Respirator products listed in source (use only as permitted by the protection level): ${profileText(ppe.respiratorRecommendations, 450)}`,
     profileText(decon.preferredMethod) && `Decon: ${profileText(decon.preferredMethod, 350)}`,
     profileText(decon.patientVictimDecon) && `Patient decon: ${profileText(decon.patientVictimDecon, 500)}`,
     profileText(decon.runoffContainment) && `Runoff: ${profileText(decon.runoffContainment, 300)}`,
@@ -604,7 +622,11 @@ app.get("/api/hazards/search", (c) => {
   if (lane !== "CBRNE_CWA" && lane !== "RADIOLOGICAL") {
     return c.json({ error: "lane must be CBRNE_CWA or RADIOLOGICAL", results: [] }, 400);
   }
-  return c.json({ lane, results: searchStarterHazards(lane, query) });
+  const results = searchStarterHazards(lane, query);
+  // Unknown / white-powder protocol (ERG 111 + FBI-DHS-CDC guidance) is
+  // offered first in the CBRNE lane for unknown-material searches.
+  if (lane === "CBRNE_CWA" && matchesUnknownSubstanceQuery(query)) results.unshift(unknownSubstanceSearchResult(lane));
+  return c.json({ lane, results });
 });
 
 app.get("/api/hazards/:lane/:id/profile", (c) => {
@@ -612,6 +634,7 @@ app.get("/api/hazards/:lane/:id/profile", (c) => {
   if (lane !== "CBRNE_CWA" && lane !== "RADIOLOGICAL") {
     return c.json({ error: "Chemical profiles use the existing Chemical Companion endpoint" }, 400);
   }
+  if (lane === "CBRNE_CWA" && c.req.param("id") === UNKNOWN_SUBSTANCE_ID) return c.json(unknownSubstanceProfile());
   const profile = starterHazardProfile(lane, c.req.param("id"));
   return profile ? c.json(profile) : c.json({ error: "not found" }, 404);
 });
@@ -999,6 +1022,35 @@ app.post("/api/plume/release-rate", async (c) => {
 app.post("/api/plume/run", async (c) => {
   const db = getDb();
   const body = await c.req.json().catch(() => null);
+  // ALOHA 4.2.1: stability class from 10 m wind, location, time and cloud cover.
+  let stabilityDetermination: StabilityDetermination | null = null;
+  if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    const autoRequested = record.stabilityMode === "auto" || record.stabilityClass === "auto";
+    if (autoRequested) {
+      const lat = Number(record.lat);
+      const lng = Number(record.lng);
+      const wind = Number(record.windSpeedMps);
+      const observed = typeof record.weatherObservationTime === "string" && Number.isFinite(Date.parse(record.weatherObservationTime))
+        ? new Date(record.weatherObservationTime)
+        : new Date();
+      if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(wind) && wind > 0) {
+        const cloud = record.cloudCoverPct === null || record.cloudCoverPct === undefined || record.cloudCoverPct === ""
+          ? null
+          : Number(record.cloudCoverPct);
+        stabilityDetermination = alohaStabilityClass({
+          windSpeed10mMps: wind,
+          latDeg: lat,
+          lonDeg: lng,
+          observationTime: observed,
+          cloudCoverPct: Number.isFinite(cloud as number) ? cloud : null,
+        });
+        record.stabilityClass = stabilityDetermination.stabilityClass;
+      } else if (record.stabilityClass === "auto") {
+        record.stabilityClass = undefined;
+      }
+    }
+  }
   const parsed = PlumeInputs.safeParse(body);
   if (!parsed.success) {
     return c.json({ error: "invalid plume inputs", issues: parsed.error.issues, ...plumeBlockedFields() }, 400);
@@ -1243,12 +1295,93 @@ app.post("/api/plume/run", async (c) => {
   });
 
   try {
-    const result = runPlume(inputs, { thresholds });
+    const result = runPlume(inputs, { thresholds, releaseDurationSec: numericValue(bodyRecord.releaseDurationSec) });
+    // ALOHA 4.4.1: choose Gaussian or Heavy Gas (DEGADIS) from the critical
+    // Richardson number. Gases not denser than air always use the Gaussian model.
+    const isContinuous = inputs.releaseKind === "plume";
+    const heavyGasDurationSec = isContinuous
+      ? clampReleaseDuration(numericValue(bodyRecord.releaseDurationSec))
+      : ALOHA_MIN_RELEASE_DURATION_SEC;
+    const heavyGasRate = isContinuous
+      ? Number(inputs.releaseRateKgPerSec)
+      : Number(inputs.totalMassKg) / ALOHA_MIN_RELEASE_DURATION_SEC;
+    const roughnessM = ALOHA_ROUGHNESS_PRESETS_M[inputs.surfaceRoughness === "urban" ? "urban" : "rural"];
+    const heavyGasSelection = selectHeavyGasModel({
+      releaseRateKgPerSec: heavyGasRate,
+      molecularWeight: Number(inputs.molecularWeight),
+      gasTempC: inputs.tempC,
+      ambientTempC: inputs.tempC,
+      windSpeed10mMps: inputs.windSpeedMps,
+      stabilityClass: inputs.stabilityClass,
+      roughnessM,
+    });
+    let degadis: DegadisResult | null = null;
+    let heavyGasFallbackReason: string | null = null;
+    if (heavyGasSelection.model === "heavy-gas") {
+      if (!degadisAvailable()) {
+        heavyGasFallbackReason = "The DEGADIS heavy-gas executables are not installed on this server; the neutral-gas Gaussian footprint is shown instead.";
+      } else {
+        try {
+          degadis = await runDegadis({
+            releaseRateKgPerSec: heavyGasRate,
+            releaseDurationSec: heavyGasDurationSec,
+            molecularWeight: Number(inputs.molecularWeight),
+            ambientTempC: inputs.tempC,
+            windSpeed10mMps: inputs.windSpeedMps,
+            stabilityClass: inputs.stabilityClass,
+            roughnessM,
+            levels: thresholds.map((band) => ({ key: `${band.kind}-${band.level}`, ppm: band.valuePpm })),
+            maxRangeM: result.computationalRangeM,
+            gasName: companionProfile.header.name,
+            title: `${companionProfile.header.name} ${companionCas}`,
+          });
+        } catch (error) {
+          heavyGasFallbackReason = `The DEGADIS heavy-gas run did not complete (${error instanceof Error ? error.message : "unknown error"}); the neutral-gas Gaussian footprint is shown instead.`;
+        }
+      }
+    }
+    if (degadis) {
+      const byKey = new Map(degadis.footprints.map((footprint) => [footprint.key, footprint]));
+      result.isopleths = thresholds.map((band) => {
+        const footprint = byKey.get(`${band.kind}-${band.level}`);
+        return {
+          thresholdKind: band.kind,
+          thresholdLevel: band.level,
+          polygon: footprint?.polygon ?? [],
+          maxDownwindM: footprint?.maxDownwindM ?? 0,
+          maxCrosswindM: footprint?.maxCrosswindM ?? 0,
+          rangeTruncated: footprint?.rangeTruncated ?? false,
+        };
+      });
+      result.centerline = degadis.centerline;
+      result.modelName = `${DEGADIS_MODEL_VERSION} heavy-gas dispersion (ALOHA 4.4 method)`;
+      result.limitations = [
+        ...result.limitations.filter((item) => !/Neutrally buoyant gas only|Does not model dense-gas slumping|Threat zones use the maximum ground-level concentration over time/i.test(item)),
+        "Heavy-gas footprint from EPA DEGADIS 2.1: gravity slumping, the source gas blanket, upwind and crosswind spreading, and stable-layer entrainment are modeled.",
+        `The release is treated as an isothermal, ground-level area source at ambient temperature with a ${DEGADIS_PRIMARY_SOURCE_RADIUS_M} m primary radius; DEGADIS forms the gas blanket. Cold, flashing or aerosol releases (for example liquefied chlorine or ammonia) are colder and denser than modeled and can travel farther near the ground.`,
+        "Jet momentum, elevated releases, terrain, buildings, pooling in low areas and chemical reactions are not modeled by DEGADIS.",
+        `Threat zones use the maximum concentration over time from DEGADIS sorted transient output, with a ${DEGADIS_TOXIC_AVERAGING_TIME_SEC / 60}-minute averaging time for toxic levels (ALOHA 4.4.4).`,
+        ...(inputs.releaseHeightM > 0 ? [`Release height ${inputs.releaseHeightM} m was entered; DEGADIS treats every dense-gas release as ground level.`] : []),
+      ];
+    }
+    // ALOHA Technical Documentation 4.5.3 gives alpha = arctan(2 sigma-y / 300 U3).
+    // Read with Briggs sigma-y, that angle barely changes with wind speed, while
+    // the ALOHA User's Manual states the lines widen as wind drops and form a
+    // circle near 1 m/s. The wider of the two is used so light-wind uncertainty
+    // is never understated.
+    const documentedAngle = plumeConfidenceHalfAngleDeg(inputs);
+    const lightWindAngle = windShiftHalfAngleDeg(inputs.windSpeedMps);
     const windShift = {
-      halfAngleDeg: windShiftHalfAngleDeg(inputs.windSpeedMps),
-      basis: "Wind-direction uncertainty lines, widened in light wind (screening approximation of the NOAA ALOHA confidence-line approach).",
+      halfAngleDeg: Number(Math.max(documentedAngle, lightWindAngle).toFixed(1)),
+      documentedHalfAngleDeg: Number(documentedAngle.toFixed(1)),
+      lightWindHalfAngleDeg: lightWindAngle,
+      basis: "Wind-direction confidence lines (about 95%): the wider of alpha = arctan(2 sigma-y / 300 U3) (ALOHA 5.4.4 Technical Documentation 4.5.3) and a light-wind widening that reflects the ALOHA User's Manual (lines widen as wind drops and form a circle near 1 m/s).",
+      source: ALOHA_TECH_DOC_REFERENCE,
     };
-    const denseGas = inputs.releaseKind === "plume" && inputs.releaseRateKgPerSec && (vaporDensityAir ?? 0) > 1
+    const stability = stabilityDetermination
+      ? { mode: "auto", method: "ALOHA 5.4.4 Technical Documentation 4.2.1, Table 10", ...stabilityDetermination }
+      : { mode: "manual", stabilityClass: inputs.stabilityClass, method: "Operator-selected stability class" };
+    const denseGas = !degadis && heavyGasSelection.model === "heavy-gas" && inputs.releaseKind === "plume" && inputs.releaseRateKgPerSec
       ? denseGasScreen({
         releaseRateKgPerSec: inputs.releaseRateKgPerSec,
         molecularWeight: inputs.molecularWeight ?? numericValue(companionProfile.properties.molecularWeight) ?? 0,
@@ -1258,18 +1391,65 @@ app.post("/api/plume/run", async (c) => {
         levels: denseGasLevelsFor(companionProfile.properties.lelUel),
       })
       : null;
-    const confidenceLevel = weather.status === "Requires Review" || modelSelection.status === "Requires Review"
+    const heavyGas = {
+      selection: heavyGasSelection,
+      applied: Boolean(degadis),
+      model: degadis ? DEGADIS_MODEL_VERSION : null,
+      reference: DEGADIS_REFERENCE,
+      fallbackReason: heavyGasFallbackReason,
+      sourceBlanketRadiusM: degadis?.sourceBlanketRadiusM ?? null,
+      frictionVelocityMps: degadis?.frictionVelocityMps ?? heavyGasSelection.frictionVelocityMps,
+      moninObukhovLengthM: degadis?.moninObukhovLengthM ?? null,
+      releaseDurationSec: heavyGasDurationSec,
+      inputsUsed: degadis?.inputsUsed ?? null,
+      buildValidation: "This DEGADIS build reproduces the EPA reference outputs for the Burro 9 LNG field trial (steady-state and transient) and the Enid, Oklahoma ammonia example (server/vendor/degadis/testcases).",
+    };
+    const effectiveSelection = degadis
+      ? {
+        ...modelSelection,
+        modelFamily: "Heavy gas / dense gas" as const,
+        calculationApproach: `Heavy-gas dispersion with ${DEGADIS_MODEL_VERSION} (critical Richardson number ${heavyGasSelection.richardsonNumber?.toFixed(1)}; ALOHA 4.4.1)`,
+        status: "Planning Estimate" as const,
+        supported: true,
+        assumptions: [
+          `Critical Richardson number ${heavyGasSelection.richardsonNumber?.toFixed(1)} (at least 1): the Heavy Gas model applies (ALOHA 4.4.1).`,
+          "Isothermal ground-level release at ambient temperature; DEGADIS computes the source gas blanket, slumping and dense-cloud dispersion.",
+        ],
+        limitations: [],
+      }
+      : heavyGasSelection.denserThanAir && heavyGasSelection.model === "gaussian"
+        ? {
+          ...modelSelection,
+          modelFamily: (inputs.releaseKind === "puff" ? "Instantaneous / puff release" : "Gaussian neutral gas") as typeof modelSelection.modelFamily,
+          calculationApproach: "Gaussian dispersion (ALOHA 4.3); the gas is heavier than air but passive at this release rate and wind",
+          status: "Planning Estimate" as const,
+          supported: true,
+          assumptions: [heavyGasSelection.reason],
+          limitations: [],
+        }
+        : !heavyGasSelection.denserThanAir
+          ? {
+            ...modelSelection,
+            modelFamily: (inputs.releaseKind === "puff" ? "Instantaneous / puff release" : "Gaussian neutral gas") as typeof modelSelection.modelFamily,
+            calculationApproach: "Gaussian dispersion (ALOHA 4.3); gas is not denser than air",
+            status: "Planning Estimate" as const,
+            supported: true,
+            assumptions: [heavyGasSelection.reason, "Buoyant plume rise is not modeled; ground-level concentrations from a lighter-than-air gas are conservative (ALOHA does the same)."],
+            limitations: [],
+          }
+          : modelSelection;
+    const confidenceLevel = weather.status === "Requires Review" || effectiveSelection.status === "Requires Review"
       ? "Requires Review"
       : "Planning Only";
     const assumptions = [...new Set([
-      ...modelSelection.assumptions,
+      ...effectiveSelection.assumptions,
       "Chemical identity and AEGL endpoint are linked by exact Chemical Companion master record and CAS number.",
       "Constant wind, stability, and roughness are applied across the displayed footprint.",
       "Terrain elevation, buildings, chemical reactions, deposition, and topographic channeling are not calculated.",
     ])];
     const limitations = [...new Set([
       ...result.limitations,
-      ...modelSelection.limitations,
+      ...effectiveSelection.limitations,
       ...sourceStrength.sourceStrengthLimitations,
       ...weather.limitations,
     ])];
@@ -1286,7 +1466,7 @@ app.post("/api/plume/run", async (c) => {
       mode: "aegl-plume",
       modelMode: planningModelMode,
       modelModeLabel: plumeModelModeLabel(planningModelMode),
-      modelFamily: modelSelection.modelFamily,
+      modelFamily: effectiveSelection.modelFamily,
       releaseScenario: sourceStrength.releaseScenario,
       chemical: {
         masterChemicalId,
@@ -1298,7 +1478,9 @@ app.post("/api/plume/run", async (c) => {
       sourceStrength,
       weather,
       windShift,
+      stability,
       denseGas,
+      heavyGas,
       terrain: {
         status: "Flat-ground assumption",
         elevationM: numericValue(bodyRecord.terrainElevationM),
@@ -1339,7 +1521,7 @@ app.post("/api/plume/run", async (c) => {
         sourceStatus: "Verified Chemical Companion Master Record",
       },
       endpoint,
-      textSummary: `${companionProfile.header.name} (${companionCas}) — ${sourceStrength.releaseScenario}; ${modelSelection.modelFamily}; EPA AEGL ${endpoint.selectedDurationMinutes}-minute endpoints. Output: ${plumeModelModeLabel(planningModelMode)} (${confidenceLevel}). Verify source strength and weather, and use field monitoring to establish actual boundaries.`,
+      textSummary: `${companionProfile.header.name} (${companionCas}) — ${sourceStrength.releaseScenario}; ${effectiveSelection.modelFamily}; EPA AEGL ${endpoint.selectedDurationMinutes}-minute endpoints. Output: ${plumeModelModeLabel(planningModelMode)} (${confidenceLevel}). Verify source strength and weather, and use field monitoring to establish actual boundaries.`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "plume calculation blocked";

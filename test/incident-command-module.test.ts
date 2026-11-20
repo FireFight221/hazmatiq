@@ -55,7 +55,7 @@ describe('Incident Command operational hub', () => {
   });
 
   it('loads as the page-owned module and provides direct command actions', () => {
-    expect(html.indexOf('<script src="incident-command.js"></script>')).toBeGreaterThan(html.indexOf('<script src="script.js'));
+    expect(html.indexOf('<script src="incident-command.js?v=final-audit-1"></script>')).toBeGreaterThan(html.indexOf('<script src="script.js'));
     expect(html).toContain('id="ic-command-actions"');
     expect(html).toContain('id="ic-chemical-summary"');
     expect(html).toContain('data-incident-command-action="chemical-profile"');

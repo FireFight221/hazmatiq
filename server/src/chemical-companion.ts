@@ -8,6 +8,7 @@ import {
   REVIEWED_MASTER_ALIASES,
   reviewedSourceLinksForMaster,
 } from './chemical-companion/reviewed-source-links.js';
+import { hydrateCbrneDatabase } from '../../src/lib/cbrne/hydrateCbrneDatabase.js';
 import { buildPpeRecommendation } from '../../src/lib/ppe/ppeRecommendationEngine.js';
 import { extractChemicalProfileFacts } from '../../src/lib/chemical-profile/extractChemicalProfileFacts.js';
 import {
@@ -886,6 +887,8 @@ export function queryChemicalProfile(chemicalId: string | number) {
     masterLinked: true,
     chemicalId: id,
     chemicalName: profile.header.name,
+    hazardCategory: [profile.header.hazardClass, profile.header.hazard].filter(Boolean).join(' · '),
+    chemicalWarfareAgent: isChemicalWarfareCas(profile.header.cas),
     approvedSourceFacts: {
       'Chemical Companion': [
         profile.ppeRespiratory.aprPaprScba,
@@ -1188,6 +1191,13 @@ export function rebuildCompanionSearchIndex() {
 }
 
 export function getCompanionDiagnostics() { return diagnostics ?? rebuildCompanionSearchIndex(); }
+
+function isChemicalWarfareCas(cas: unknown) {
+  const values = (Array.isArray(cas) ? cas : [cas]).map((value) => String(value ?? '').trim()).filter((value) => /^\d{2,7}-\d{2}-\d$/.test(value));
+  if (!values.length) return false;
+  return hydrateCbrneDatabase().records.some((record) => record.domain === 'CHEMICAL_WARFARE'
+    && (record.cas ?? []).some((recordCas) => values.includes(String(recordCas).trim())));
+}
 
 export function searchCompanionChemicals(query: string) {
   const term = normalizeSearchText(query);

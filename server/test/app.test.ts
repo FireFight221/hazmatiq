@@ -456,6 +456,48 @@ describe("API routes", () => {
     expect(body.textSummary).toMatch(/Ammonia|7664-41-7/i);
   });
 
+  it("POST /api/plume/run uses the EPA DEGADIS heavy-gas model for chlorine and Gaussian for ammonia", async () => {
+    const run = async (chemicalId: string, stabilityClass: string, windSpeedMps: number) => {
+      const res = await app.request("/api/plume/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chemicalId, releaseKind: "plume", releaseRateKgPerSec: 1, releaseDurationSec: 1800,
+          windSpeedMps, windDirDeg: 270, stabilityClass, tempC: 10,
+          ...currentManualWeather(),
+        }),
+      });
+      expect(res.status).toBe(200);
+      return await res.json() as {
+        modelFamily: string;
+        modelName: string;
+        denseGas: unknown;
+        heavyGas: { applied: boolean; fallbackReason: string | null; selection: { model: string; denserThanAir: boolean; richardsonNumber: number | null } };
+        isopleths: Array<{ thresholdLevel: number; maxDownwindM: number; maxCrosswindM: number; polygon: Array<[number, number]> }>;
+      };
+    };
+    const chlorine = await run("22", "F", 2);
+    expect(chlorine.heavyGas.selection.model).toBe("heavy-gas");
+    expect(chlorine.heavyGas.selection.richardsonNumber!).toBeGreaterThan(1);
+    const { degadisAvailable } = await import("../src/degadis.js");
+    if (degadisAvailable()) {
+      expect(chlorine.heavyGas.applied).toBe(true);
+      expect(chlorine.modelFamily).toBe("Heavy gas / dense gas");
+      expect(chlorine.modelName).toMatch(/DEGADIS 2\.1/);
+      expect(chlorine.denseGas).toBeNull();
+      const aegl3 = chlorine.isopleths.find((zone) => zone.thresholdLevel === 3)!;
+      expect(aegl3.maxDownwindM).toBeGreaterThan(1000);
+      expect(aegl3.polygon.some(([x]) => x < 0)).toBe(true); // upwind blanket
+    } else {
+      expect(chlorine.heavyGas.applied).toBe(false);
+      expect(chlorine.heavyGas.fallbackReason).toMatch(/not installed/);
+    }
+    const ammonia = await run("10", "F", 2);
+    expect(ammonia.heavyGas.selection.denserThanAir).toBe(false);
+    expect(ammonia.heavyGas.applied).toBe(false);
+    expect(ammonia.modelFamily).toBe("Gaussian neutral gas");
+  }, 60_000);
+
   it("POST /api/plume/run plots Hydrazine with its reviewed final EPA AEGL endpoint", async () => {
     const res = await app.request("/api/plume/run", {
       method: "POST",
@@ -961,6 +1003,28 @@ describe("API routes", () => {
     expect(body.fields).toContainEqual(expect.objectContaining({ name: "Phys StateRow1", value: "Gas" }));
     expect(body.fields).toContainEqual(expect.objectContaining({ name: "LELRow1", value: "15" }));
     expect(body.fields).toContainEqual(expect.objectContaining({ name: "UELRow1", value: "28" }));
+  });
+
+  it("states the required protection level ahead of source respirator products on the ICS 208", async () => {
+    const incident = {
+      incidentId: "incident-208-level",
+      incidentName: "Nerve agent release",
+      chemicalName: "Sarin (GB)",
+      chemicalProfile: {
+        header: { name: "Sarin (GB)", cas: "107-44-8" },
+        ppeRecommendation: { displayLabel: "Vapor Protective Level A w/ SCBA" },
+        ppeRespiratory: { bestMatch: "Kappler — Frontline 500", respiratorRecommendations: ["Respirator: 3M — Cartridge FR-15-CBRN"] },
+      },
+    };
+    const response = await app.request("/api/ics-forms/208/prepare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(incident),
+    });
+    const body = await response.json() as { fields: Array<{ name: string; value: string }> };
+    const message = body.fields.find((field) => /Safety Message/.test(field.name))?.value ?? "";
+    expect(message.split("\n")[0]).toBe("Required protection level: Vapor Protective Level A w/ SCBA");
+    expect(message).toMatch(/Respirator products listed in source \(use only as permitted by the protection level\)/);
   });
 
   it("maps Guided Response assignments and history into operational ICS forms", async () => {

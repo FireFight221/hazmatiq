@@ -32,9 +32,16 @@ export const BRIGGS_URBAN: Readonly<Record<StabilityClass, DispersionPair>> = {
   F: { sigmaY: power(0.11, 0.0004, -0.5), sigmaZ: power(0.08, 0.0015, -0.5) },
 };
 
+/**
+ * ALOHA 5.4.4 Technical Documentation section 4.3.1: ALOHA uses only the rural
+ * (3-minute averaging) sigma-y coefficients for every surface roughness, and
+ * the urban sigma-z set when roughness is 20 cm or more.
+ */
 export function pickRoughness(
   cls: StabilityClass,
   surface: "urban" | "rural",
 ): DispersionPair {
-  return surface === "urban" ? BRIGGS_URBAN[cls] : BRIGGS_RURAL[cls];
+  return surface === "urban"
+    ? { sigmaY: BRIGGS_RURAL[cls].sigmaY, sigmaZ: BRIGGS_URBAN[cls].sigmaZ }
+    : BRIGGS_RURAL[cls];
 }

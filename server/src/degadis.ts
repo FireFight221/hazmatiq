@@ -1,0 +1,518 @@
+// Heavy-gas dispersion with the EPA DEGADIS 2.1 model.
+//
+// The executables are built from the unmodified-physics EPA SCRAM source in
+// server/vendor/degadis (see README there). This adapter writes a DEGADIS input
+// file for an isothermal, ground-level, ambient-temperature gas release, runs
+// DEG1 -> DEG2 -> DEG3 (transient, finite-duration release), and converts the
+// sorted concentration tables into AEGL threat-zone footprints using the
+// DEGADIS concentration profile (ALOHA Tech Doc 4.4.4):
+//   c(x, y, 0) = cc(x)                                  |y| <= b(x)
+//   c(x, y, 0) = cc(x) exp(-((|y| - b(x)) / Sy(x))^2)   |y| >  b(x)
+// so the half-width to a level of concern is  b + Sy sqrt(ln(cc / LOC)).
+
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile, symlink, readdir, lstat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { degadisStabilityIndex, idealGasDensity } from "../../src/lib/model/heavyGasSelection.js";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+export const DEGADIS_VENDOR_DIR = path.resolve(HERE, "../vendor/degadis");
+const AIR_MW = 28.9586;
+
+export const DEGADIS_REFERENCE = Object.freeze({
+  name: "EPA DEGADIS 2.1 Dense Gas Dispersion Model (EPA-450/4-89-019), U.S. EPA SCRAM alternative model",
+  url: "https://gaftp.epa.gov/aqmg/SCRAM/models/other/degadis/",
+  userGuideUrl: "https://nepis.epa.gov/Exe/ZyPURL.cgi?Dockey=2000J5GU.TXT",
+});
+
+export const DEGADIS_MODEL_VERSION = "DEGADIS 2.1 (EPA SCRAM build, gfortran)";
+/** Primary source radius for a point (pipe/valve/tank) release. DEGADIS forms the secondary gas blanket itself. */
+export const DEGADIS_PRIMARY_SOURCE_RADIUS_M = 1;
+/** ALOHA-DEGADIS averaging time for toxic clouds (ALOHA Tech Doc 4.4.4): 5 minutes. */
+export const DEGADIS_TOXIC_AVERAGING_TIME_SEC = 300;
+const MAX_SORT_TIMES = 40; // DEG3.PRM maxnt
+const RUN_TIMEOUT_MS = 30_000;
+
+export function degadisBinDir(): string {
+  return process.env.DEGADIS_BIN_DIR || path.join(DEGADIS_VENDOR_DIR, "bin");
+}
+
+export function degadisAvailable(): boolean {
+  const dir = degadisBinDir();
+  return ["deg1", "deg2", "deg3"].every((name) => existsSync(path.join(dir, name)));
+}
+
+export type DegadisLevel = { key: string; ppm: number };
+
+export type DegadisRequest = {
+  releaseRateKgPerSec: number;
+  releaseDurationSec: number;
+  molecularWeight: number;
+  ambientTempC: number;
+  windSpeed10mMps: number;
+  stabilityClass: string;
+  roughnessM: number;
+  levels: DegadisLevel[];
+  maxRangeM: number;
+  gasName?: string;
+  title?: string;
+};
+
+export type DegadisRow = {
+  x: number;
+  moleFraction: number;
+  concentrationKgM3: number;
+  halfWidthM: number;
+  szM: number;
+  syM: number;
+};
+
+export type DegadisTable = { timeSec: number | null; rows: DegadisRow[] };
+
+export type DegadisFootprint = {
+  key: string;
+  ppm: number;
+  maxDownwindM: number;
+  maxCrosswindM: number;
+  rangeTruncated: boolean;
+  /** Upper edge (x downwind, y crosswind half-width), x ascending; mirror for the full polygon. */
+  upperEdge: Array<[number, number]>;
+  polygon: Array<[number, number]>;
+};
+
+export type DegadisResult = {
+  model: "DEGADIS 2.1";
+  modelVersion: string;
+  mode: "transient";
+  footprints: DegadisFootprint[];
+  centerline: Array<{ distanceM: number; concentrationPpm: number }>;
+  /** Largest radius of the DEGADIS source gas blanket during the release, m. */
+  sourceBlanketRadiusM: number | null;
+  frictionVelocityMps: number | null;
+  moninObukhovLengthM: number | null;
+  sortTimesSec: number[];
+  inputsUsed: Record<string, number | string>;
+};
+
+function fortranNumber(value: number): string {
+  if (!Number.isFinite(value)) throw new Error("DEGADIS input values must be finite");
+  if (value === 0) return "0.0";
+  const text = value.toPrecision(10);
+  return /[.eE]/.test(text) ? text : `${text}.0`;
+}
+
+/** DEGADIS .INP for an isothermal ground-level release (IO.FOR read order). */
+export function buildDegadisInput(request: DegadisRequest): string {
+  const T = request.ambientTempC + 273.15;
+  const gasDensity = idealGasDensity(request.molecularWeight, request.ambientTempC);
+  const airDensity = idealGasDensity(AIR_MW, request.ambientTempC);
+  const thresholds = request.levels.map((level) => level.ppm * 1e-6);
+  const upper = Math.max(...thresholds);
+  // Run to below the lowest level of concern so every LOC distance is bracketed.
+  const lower = Math.min(...thresholds) / 2;
+  const releaseEnd = Math.max(1, request.releaseDurationSec);
+  const rate = request.releaseRateKgPerSec;
+  const r1 = DEGADIS_PRIMARY_SOURCE_RADIUS_M;
+  const n = fortranNumber;
+  const gasName = (request.gasName || "GAS").replace(/[^A-Za-z0-9]/g, "").slice(0, 3).padEnd(3, "X").toUpperCase();
+  const lines = [
+    (request.title || "EMERGENZ heavy-gas run").slice(0, 80),
+    "Isothermal ground-level release at ambient temperature",
+    "Generated by EMERGENZ for DEGADIS 2.1",
+    "",
+    `${n(request.windSpeed10mMps)} 10.0 ${n(request.roughnessM)}`,
+    `${degadisStabilityIndex(request.stabilityClass)}`,
+    `0.0 ${n(DEGADIS_TOXIC_AVERAGING_TIME_SEC)}`,
+    "1 0.0",
+    `${n(T)} 1.0 0.0 0.0`,
+    `1 ${n(T)}`,
+    "0 0.0",
+    "0 0.0",
+    gasName,
+    `${n(request.molecularWeight)} ${n(T)} ${n(gasDensity)}`,
+    "0.0 1.0",
+    `${n(upper)} ${n(lower)} 0.0`,
+    "2",
+    `0.0 0.0 ${n(airDensity)} 0.0 ${n(T)}`,
+    `1.0 ${n(gasDensity)} ${n(gasDensity)} 0.0 ${n(T)}`,
+    `${n(lower)}`,
+    "0.0",
+    "4",
+    `0.0 ${n(rate)} ${n(r1)} 1.0 ${n(T)} 1.0`,
+    `${n(releaseEnd)} ${n(rate)} ${n(r1)} 1.0 ${n(T)} 1.0`,
+    `${n(releaseEnd + 1)} 0.0 0.0 1.0 ${n(T)} 1.0`,
+    `${n(releaseEnd + 2)} 0.0 0.0 1.0 ${n(T)} 1.0`,
+    " F",
+    "19-NOV-2026 00:00:00.00",
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+export function buildSortTimeParameters(baseEr3: string, firstSec: number, deltaSec: number, count: number): string {
+  // ESTRT3.FOR reads each value with FORMAT(10X,G10.4): the number must sit in columns 11-20.
+  const field = (value: number) => {
+    let text = Number(value.toPrecision(7)).toString();
+    if (!/[.eE]/.test(text)) text += ".";
+    if (text.length > 10) text = value.toExponential(3);
+    return text.padEnd(10);
+  };
+  const set = (text: string, key: string, value: number) => text.replace(new RegExp(`^${key}\\s+\\S+`, "m"), `${key.padEnd(10)}${field(value)}`);
+  let text = baseEr3;
+  text = set(text, "ERT1", firstSec);
+  text = set(text, "ERDT", deltaSec);
+  text = set(text, "ERNTIM", count);
+  text = text.replace(/^CHECK5\s+0\.\s.*$/m, "CHECK5       1.       USE THE TIME PARAMETERS GIVEN ABOVE");
+  return text;
+}
+
+/** Parses DEGADIS .sr3 tables (steady-state or sorted transient output). */
+export function parseDegadisTables(text: string): DegadisTable[] {
+  const tables: DegadisTable[] = [];
+  let current: DegadisTable | null = null;
+  let hasGamma = false;
+  let pendingTime: number | null = null;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/^0/, " ");
+    const timeMatch = line.match(/Time after beginning of spill\s+([-\d.Ee+]+)/);
+    if (timeMatch) {
+      pendingTime = Number(timeMatch[1]);
+      continue;
+    }
+    if (/Distance\s+Mole/.test(line)) {
+      hasGamma = /Gamma/.test(line);
+      current = { timeSec: pendingTime, rows: [] };
+      tables.push(current);
+      pendingTime = null;
+      continue;
+    }
+    if (!current) continue;
+    const parts = line.trim().split(/\s+/);
+    const minColumns = hasGamma ? 9 : 8;
+    if (parts.length < minColumns) continue;
+    const values = parts.slice(0, minColumns).map(Number);
+    if (values.some((value) => !Number.isFinite(value))) continue;
+    const offset = hasGamma ? 1 : 0;
+    current.rows.push({
+      x: values[0],
+      moleFraction: values[1],
+      concentrationKgM3: values[2],
+      halfWidthM: values[5 + offset],
+      szM: values[6 + offset],
+      syM: values[7 + offset],
+    });
+  }
+  return tables.filter((table) => table.rows.length > 0);
+}
+
+function halfWidthAtLevel(row: Pick<DegadisRow, "moleFraction" | "halfWidthM" | "syM">, level: number): number {
+  if (!(row.moleFraction >= level)) return 0;
+  const spread = row.syM > 0 ? row.syM * Math.sqrt(Math.log(row.moleFraction / level)) : 0;
+  return row.halfWidthM + spread;
+}
+
+function interpolateRow(a: DegadisRow, b: DegadisRow, x: number): DegadisRow {
+  const t = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x);
+  const lerp = (p: number, q: number) => p + (q - p) * t;
+  const logLerp = (p: number, q: number) => (p > 0 && q > 0 ? Math.exp(lerp(Math.log(p), Math.log(q))) : lerp(p, q));
+  return {
+    x,
+    moleFraction: logLerp(a.moleFraction, b.moleFraction),
+    concentrationKgM3: logLerp(a.concentrationKgM3, b.concentrationKgM3),
+    halfWidthM: Math.max(0, lerp(a.halfWidthM, b.halfWidthM)),
+    szM: lerp(a.szM, b.szM),
+    syM: Math.max(0, lerp(a.syM, b.syM)),
+  };
+}
+
+/** Farthest downwind distance at which the table's centerline reaches the level (log-linear between rows). */
+export function tableReach(rows: DegadisRow[], level: number): number {
+  let reach = 0;
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    if (row.moleFraction < level) continue;
+    const next = rows[index + 1];
+    if (!next || next.moleFraction >= level) {
+      reach = Math.max(reach, row.x);
+      continue;
+    }
+    const t = Math.log(row.moleFraction / level) / Math.log(row.moleFraction / next.moleFraction);
+    reach = Math.max(reach, row.x + (next.x - row.x) * t);
+  }
+  return reach;
+}
+
+function rowAt(rows: DegadisRow[], x: number): DegadisRow | null {
+  if (!rows.length || x < rows[0].x || x > rows[rows.length - 1].x) return null;
+  for (let index = 0; index < rows.length - 1; index += 1) {
+    if (x >= rows[index].x && x <= rows[index + 1].x) return interpolateRow(rows[index], rows[index + 1], x);
+  }
+  return rows[rows.length - 1];
+}
+
+/** Maximum-over-time footprint for each level (ALOHA 4.5.1 uses maximum concentration over time). */
+export function buildFootprints(tables: DegadisTable[], levels: DegadisLevel[], maxRangeM: number, lastTimeStillSpreading: boolean): DegadisFootprint[] {
+  const sorted = tables.map((table) => ({ ...table, rows: [...table.rows].sort((a, b) => a.x - b.x) }));
+  return levels.map((level) => {
+    const y = level.ppm * 1e-6;
+    let reach = 0;
+    let reachTableIndex = -1;
+    sorted.forEach((table, index) => {
+      const r = tableReach(table.rows, y);
+      if (r > reach) {
+        reach = r;
+        reachTableIndex = index;
+      }
+    });
+    if (reach <= 0) {
+      return { key: level.key, ppm: level.ppm, maxDownwindM: 0, maxCrosswindM: 0, rangeTruncated: false, upperEdge: [], polygon: [] };
+    }
+    // The cloud may still be advancing at the last sort time: report a lower bound.
+    const truncatedByTime = lastTimeStillSpreading && reachTableIndex === sorted.length - 1;
+    const rangeTruncated = reach >= maxRangeM || truncatedByTime;
+    const xEnd = Math.min(reach, maxRangeM);
+    // Secondary-source blanket: centered on the release, radius = first downwind output distance.
+    const stations = 120;
+    const xStart = sorted.reduce((min, table) => Math.min(min, table.rows[0]?.x ?? Infinity), Infinity);
+    // Only tables still attached to the source (first output at the blanket edge) define the blanket.
+    const blanketRadius = sorted.some((table) => table.rows[0] && table.rows[0].x <= xStart * 1.05 && table.rows[0].moleFraction >= y)
+      ? xStart
+      : 0;
+    const edge: Array<[number, number]> = [];
+    let maxCrosswind = 0;
+    for (let index = 0; index <= stations; index += 1) {
+      const x = xStart + ((xEnd - xStart) * index) / stations;
+      let width = 0;
+      for (const table of sorted) {
+        const row = rowAt(table.rows, x);
+        if (row) width = Math.max(width, halfWidthAtLevel(row, y));
+      }
+      if (index === stations && !rangeTruncated) width = 0;
+      if (width > maxCrosswind) maxCrosswind = width;
+      edge.push([x, width]);
+    }
+    const upperEdge: Array<[number, number]> = [];
+    if (blanketRadius > 0) {
+      // Upwind half of the circular source blanket (dense gas spreads upwind of the release).
+      for (let step = 0; step <= 8; step += 1) {
+        const angle = Math.PI - (Math.PI / 2) * (step / 8);
+        upperEdge.push([blanketRadius * Math.cos(angle), blanketRadius * Math.sin(angle)]);
+      }
+    } else {
+      upperEdge.push([xStart, 0]);
+    }
+    for (const point of edge) {
+      if (upperEdge.length && point[0] <= upperEdge[upperEdge.length - 1][0]) continue;
+      upperEdge.push(point);
+    }
+    const lower = [...upperEdge].reverse().map(([px, py]) => [px, -py] as [number, number]);
+    return {
+      key: level.key,
+      ppm: level.ppm,
+      maxDownwindM: xEnd,
+      maxCrosswindM: Math.max(maxCrosswind, blanketRadius),
+      rangeTruncated,
+      upperEdge,
+      polygon: [...upperEdge, ...lower],
+    };
+  });
+}
+
+export function centerlineEnvelope(tables: DegadisTable[], maxRangeM: number, samples = 60): Array<{ distanceM: number; concentrationPpm: number }> {
+  const sorted = tables.map((table) => [...table.rows].sort((a, b) => a.x - b.x));
+  const points: Array<{ distanceM: number; concentrationPpm: number }> = [];
+  for (let index = 1; index <= samples; index += 1) {
+    const x = (maxRangeM * index) / samples;
+    let peak = 0;
+    for (const rows of sorted) {
+      const row = rowAt(rows, x);
+      if (row) peak = Math.max(peak, row.moleFraction);
+    }
+    points.push({ distanceM: Math.round(x), concentrationPpm: Number((peak * 1e6).toFixed(4)) });
+  }
+  return points;
+}
+
+function readScalar(text: string, label: RegExp): number | null {
+  const match = text.match(label);
+  return match ? Number(match[1]) : null;
+}
+
+/** Largest "Gas Radius" in the DEG1 calculated source parameters table. */
+export function maxBlanketRadius(scl: string): number | null {
+  const start = scl.indexOf("Gas Radius");
+  if (start < 0) return null;
+  let max = 0;
+  for (const line of scl.slice(start).split(/\r?\n/).slice(2)) {
+    if (/[A-Za-z]{3,}/.test(line) && !/E[+-]/.test(line)) {
+      if (max > 0 && line.trim()) break;
+      continue;
+    }
+    const parts = line.trim().split(/\s+/).map(Number);
+    if (parts.length >= 8 && parts.every(Number.isFinite)) max = Math.max(max, parts[1]);
+  }
+  return max > 0 ? max : null;
+}
+
+export async function addCaseVariants(dir: string, name: string): Promise<void> {
+  // DEGADIS opens files with upper-, lower- and capitalized extensions (written for DOS/VMS).
+  const entries = await readdir(dir);
+  const existing = new Set(entries);
+  for (const entry of entries) {
+    if (!entry.startsWith(`${name}.`)) continue;
+    if ((await lstat(path.join(dir, entry))).isSymbolicLink()) continue;
+    const ext = entry.slice(name.length + 1);
+    for (const variant of [ext.toUpperCase(), ext.toLowerCase(), ext.charAt(0).toUpperCase() + ext.slice(1).toLowerCase()]) {
+      const target = `${name}.${variant}`;
+      if (!existing.has(target)) {
+        await symlink(entry, path.join(dir, target));
+        existing.add(target);
+      }
+    }
+  }
+}
+
+/** CRFGER values tried in order; 0.008 is the EPA EXAMPLE.ER1 default. */
+export const DEGADIS_CRFGER_STEPS = [0.008, 0.016, 0.032] as const;
+
+/** Replace the CRFGER (GEN3 vector thinning) criterion in an ER1 parameter file. */
+export function withCrfger(er1: string, crfger: number): string {
+  return er1.replace(/^(crfger\s*).{0,10}/im, (_match, label: string) => `${label.padEnd(10)}${crfger.toFixed(3).padEnd(10)}`);
+}
+
+export function runProgram(program: string, dir: string, name: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(path.join(degadisBinDir(), program), [name], { cwd: dir, timeout: RUN_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) reject(new Error(`DEGADIS ${program} failed: ${(stderr || stdout || error.message).toString().trim().split("\n").slice(-3).join(" ")}`));
+      else resolve(stdout.toString());
+    });
+    // DEGADIS error handlers pause for console input; closing stdin lets them exit immediately.
+    child.stdin?.end();
+  });
+}
+
+const cache = new Map<string, DegadisResult>();
+const CACHE_LIMIT = 64;
+
+export async function runDegadis(request: DegadisRequest): Promise<DegadisResult> {
+  if (!degadisAvailable()) throw new Error("DEGADIS executables are not installed on this server.");
+  if (!(request.releaseRateKgPerSec > 0)) throw new Error("DEGADIS requires a positive release rate.");
+  if (!(request.windSpeed10mMps > 0)) throw new Error("DEGADIS requires a positive wind speed.");
+  if (!request.levels.length) throw new Error("DEGADIS requires at least one level of concern.");
+  const key = JSON.stringify(request);
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const dir = await mkdtemp(path.join(tmpdir(), "emergenz-degadis-"));
+  const name = "run";
+  try {
+    const erDir = path.join(DEGADIS_VENDOR_DIR, "testcases");
+    const er1Base = await readFile(path.join(erDir, "EXAMPLE.ER1"), "utf8");
+    const er2 = await readFile(path.join(erDir, "EXAMPLE.ER2"), "utf8");
+    const er3 = await readFile(path.join(erDir, "EXAMPLE.ER3"), "utf8");
+    await writeFile(path.join(dir, `${name}.inp`), buildDegadisInput(request));
+
+    await writeFile(path.join(dir, `${name}.er2`), er2);
+    // Sort times span the release plus travel past the computational range at a
+    // conservative (slow) cloud speed of 0.4 x the 10 m wind.
+    const endSec = request.releaseDurationSec + request.maxRangeM / (0.4 * request.windSpeed10mMps);
+    const coarseDt = Math.max(1, Math.ceil(endSec / MAX_SORT_TIMES));
+    await writeFile(path.join(dir, `${name}.er3`), buildSortTimeParameters(er3, coarseDt, coarseDt, MAX_SORT_TIMES));
+    // DEG1 stores the source history in fixed-length vectors (MAXL = 650 points,
+    // thinned to the CRFGER relative-error criterion).  Long releases of gases
+    // only slightly denser than air can overflow them (TRAP code 5).  The EPA
+    // default criterion is tried first; only on overflow is it relaxed.
+    let deg1Error: unknown = null;
+    let crfgerUsed: number = DEGADIS_CRFGER_STEPS[0];
+    for (const crfger of DEGADIS_CRFGER_STEPS) {
+      await writeFile(path.join(dir, `${name}.er1`), withCrfger(er1Base, crfger));
+      await addCaseVariants(dir, name);
+      try {
+        await runProgram("deg1", dir, name);
+        deg1Error = null;
+        crfgerUsed = crfger;
+        break;
+      } catch (error) {
+        deg1Error = error;
+        if (!/Code:\s+5\b|crfg_/.test(error instanceof Error ? error.message : "")) break;
+      }
+    }
+    if (deg1Error) throw deg1Error;
+    await addCaseVariants(dir, name);
+    await runProgram("deg2", dir, name);
+    await addCaseVariants(dir, name);
+    await runProgram("deg3", dir, name);
+    await addCaseVariants(dir, name);
+    const tables = parseDegadisTables(await readFile(path.join(dir, `${name}.sr3`), "utf8"));
+    if (!tables.length) throw new Error("DEGADIS produced no concentration output.");
+
+    // Refine the sort times around the time of farthest reach for each level.
+    const allTables = [...tables];
+    const coarseTimes = tables.map((table) => table.timeSec ?? 0);
+    const refinedWindows = new Set<string>();
+    for (const level of request.levels) {
+      let best = -1;
+      let bestReach = 0;
+      tables.forEach((table, index) => {
+        const reach = tableReach([...table.rows].sort((a, b) => a.x - b.x), level.ppm * 1e-6);
+        if (reach > bestReach) {
+          bestReach = reach;
+          best = index;
+        }
+      });
+      if (best < 0) continue;
+      const start = Math.max(1, coarseTimes[Math.max(0, best - 1)]);
+      const end = coarseTimes[Math.min(coarseTimes.length - 1, best + 1)];
+      if (!(end > start)) continue;
+      const windowKey = `${start}-${end}`;
+      if (refinedWindows.has(windowKey)) continue;
+      refinedWindows.add(windowKey);
+      const dt = Math.max(0.5, (end - start) / (MAX_SORT_TIMES - 1));
+      await writeFile(path.join(dir, `${name}.er3`), buildSortTimeParameters(er3, start, dt, MAX_SORT_TIMES));
+      await runProgram("deg3", dir, name);
+      allTables.push(...parseDegadisTables(await readFile(path.join(dir, `${name}.sr3`), "utf8")));
+    }
+    const lastTime = Math.max(...coarseTimes);
+    const lastStillSpreading = lastTime < endSec - coarseDt / 2;
+    const footprints = buildFootprints(
+      allTables.sort((a, b) => (a.timeSec ?? 0) - (b.timeSec ?? 0)),
+      request.levels,
+      request.maxRangeM,
+      lastStillSpreading,
+    );
+    const scl = await readFile(path.join(dir, `${name}.scl`), "utf8").catch(() => "");
+    const result: DegadisResult = {
+      model: "DEGADIS 2.1",
+      modelVersion: DEGADIS_MODEL_VERSION,
+      mode: "transient",
+      footprints,
+      centerline: centerlineEnvelope(allTables, request.maxRangeM),
+      sourceBlanketRadiusM: maxBlanketRadius(scl),
+      frictionVelocityMps: readScalar(scl, /Friction velocity\s+([-\d.Ee+]+)/),
+      moninObukhovLengthM: readScalar(scl, /Monin-Obukhov length\s+([-\d.Ee+]+)/),
+      sortTimesSec: [...new Set(allTables.map((table) => table.timeSec ?? 0))].sort((a, b) => a - b),
+      inputsUsed: {
+        windSpeed10mMps: request.windSpeed10mMps,
+        stabilityClass: request.stabilityClass,
+        roughnessM: request.roughnessM,
+        ambientTempK: Number((request.ambientTempC + 273.15).toFixed(2)),
+        releaseRateKgPerSec: request.releaseRateKgPerSec,
+        releaseDurationSec: request.releaseDurationSec,
+        molecularWeight: request.molecularWeight,
+        averagingTimeSec: DEGADIS_TOXIC_AVERAGING_TIME_SEC,
+        primarySourceRadiusM: DEGADIS_PRIMARY_SOURCE_RADIUS_M,
+        sourceVectorErrorCriterion: crfgerUsed,
+      },
+    };
+    cache.set(key, result);
+    if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
+    return result;
+  } catch (error) {
+    console.warn("DEGADIS run failed", JSON.stringify(request), error instanceof Error ? error.message : error);
+    throw error;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}

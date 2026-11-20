@@ -9,8 +9,8 @@
     <meta name="apple-mobile-web-app-title" content="EMERGENZ" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/emergenz-app-32-v2.png" />
     <link rel="apple-touch-icon" href="/assets/emergenz-app-192-v2.png" />
-    <link rel="stylesheet" href="/platform.css?v=3" />
-    <script src="/platform.js?v=2"></script>
+    <link rel="stylesheet" href="/platform.css?v=5" />
+    <script src="/platform.js?v=3"></script>
     <script src="/incident-sync.js?v=1"></script>
     <script src="/preferences.js?v=1"></script>
     <title>EMERGENZ</title>
@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="guided-response-overrides.css?v=3&gold=1" />
     <link rel="stylesheet" href="hazard-profile-page.css?v=radiological-profile-1&gold=1" />
     <link rel="stylesheet" href="page-shell.css?v=2&gold=1" />
-    <link rel="stylesheet" href="plume-overrides.css?v=24&canonical-grid=1&gold=1" />
+    <link rel="stylesheet" href="plume-overrides.css?v=25&canonical-grid=1&gold=1" />
     <link rel="stylesheet" href="navigation-weather.css?v=7&gold=1" />
     <link rel="stylesheet" href="monitoring-console.css?v=4&gold=1" />
     <link rel="stylesheet" href="plume-layout-correction.css?v=15" />
@@ -1244,7 +1244,18 @@
                       <span>Air Temp (°F) <b>Required</b></span>
                       <input id="plume-temperature" type="number" step="0.1" inputmode="decimal" value="68" />
                     </label>
-                    <input id="plume-stability-class" type="hidden" value="D" />
+                    <label class="plume-model-field" for="plume-stability-class">
+                      <span>Stability <small id="plume-stability-resolved" class="plume-stability-resolved"></small></span>
+                      <select id="plume-stability-class" title="Pasquill-Gifford-Turner stability class. Auto uses the 10 m wind, the sun angle from location and time, and cloud cover (NOAA TM NOS OR&amp;R 43, Table 10).">
+                        <option value="auto" selected>Auto (wind, sun, cloud)</option>
+                        <option value="A">A · very unstable</option>
+                        <option value="B">B · unstable</option>
+                        <option value="C">C · slightly unstable</option>
+                        <option value="D">D · neutral</option>
+                        <option value="E">E · slightly stable</option>
+                        <option value="F">F · stable (night, light wind)</option>
+                      </select>
+                    </label>
                     <label class="plume-model-field" for="plume-surface-roughness">
                       <span>Surface</span>
                       <select id="plume-surface-roughness">
@@ -2199,10 +2210,10 @@
     <script src="guided-response-decision-builder.js"></script>
     <script src="plume-3d-model.js?v=plume3d-v2"></script>
     <script src="incident-report-model.js"></script>
-     <script src="script.js?v=incident-report-brief-2&gold=1"></script>
+     <script src="script.js?v=plume-degadis-3"></script>
     <script src="weather-workspace.js?v=7&gold=1"></script>
     <script src="settings-workspace.js?v=2"></script>
-    <script src="incident-command.js"></script>
+    <script src="incident-command.js?v=final-audit-1"></script>
     <script src="command-worksheet.js?v=1&gold=1"></script>
     <script src="hazard-profile.js?v=hazard-radiological-routing-1"></script>
     <script src="reports.js"></script>

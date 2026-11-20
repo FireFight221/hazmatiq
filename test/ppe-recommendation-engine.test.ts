@@ -137,4 +137,55 @@ describe("source-backed PPE recommendation engine", () => {
     });
     expect(allowed.selectedLevel).toBe(PPE_LEVELS.LEVEL_D);
   });
+
+  it("raises chemical warfare agents to Level A when only SCBA facts exist", () => {
+    const result = buildPpeRecommendation({
+      ...verified,
+      chemicalName: "Sarin (GB)",
+      hazardCategory: "NERVE AGENT",
+      approvedSourceFacts: { NIOSH: ["Positive-pressure SCBA for unknown concentration"] },
+    });
+    expect(result.selectedLevel).toBe(PPE_LEVELS.LEVEL_A);
+    expect(result.decisionReasons[0]).toMatch(/until air monitoring confirms agent identity and concentration/i);
+  });
+
+  it("raises to Level A when the CAS links to a CBRNE chemical warfare record, even with a DOT 6.1 class", () => {
+    const result = buildPpeRecommendation({
+      ...verified,
+      chemicalName: "Sarin (GB)",
+      hazardCategory: "6.1 (Toxic substances) · Substances - Toxic and/or Corrosive (Combustible)",
+      chemicalWarfareAgent: true,
+      approvedSourceFacts: { "Chemical Companion": ["Wear positive pressure self-contained breathing apparatus (SCBA)."] },
+    });
+    expect(result.selectedLevel).toBe(PPE_LEVELS.LEVEL_A);
+  });
+
+  it("does not force Level A on a warfare agent once monitoring confirms concentration", () => {
+    const result = buildPpeRecommendation({
+      ...verified,
+      chemicalName: "Sarin (GB)",
+      chemicalWarfareAgent: true,
+      operationalConditions: { unknownAtmosphere: false, concentrationKnown: true, monitoringVerified: true },
+      approvedSourceFacts: { NIOSH: ["Positive-pressure SCBA for unknown concentration"] },
+    });
+    expect(result.selectedLevel).toBe(PPE_LEVELS.LEVEL_B);
+    expect(result.decisionReasons.join(" ")).not.toMatch(/Initial entry/);
+  });
+
+  it("raises a source-documented skin-absorption hazard from Level B to Level A", () => {
+    const result = buildPpeRecommendation({
+      ...verified,
+      approvedSourceFacts: { NIOSH: ["Positive-pressure SCBA", "Readily absorbed through the skin; skin absorption hazard"] },
+    });
+    expect(result.selectedLevel).toBe(PPE_LEVELS.LEVEL_A);
+  });
+
+  it("keeps Level B for an SCBA-only hazard without skin absorption or warfare classification", () => {
+    const result = buildPpeRecommendation({
+      ...verified,
+      hazardCategory: "2.1 (Flammable gases)",
+      approvedSourceFacts: { NIOSH: ["Positive-pressure SCBA for unknown concentration"] },
+    });
+    expect(result.selectedLevel).toBe(PPE_LEVELS.LEVEL_B);
+  });
 });
