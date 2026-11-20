@@ -155,6 +155,9 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
     if (n.startsWith('28significantevents')) return incidentActivity(incident).map((event) => `${event.time} | ${event.detail}`).join('\n');
     if (n === 'fromdatetime') return [incident.startDate, incident.startTime].map(text).filter(Boolean).join(' ');
     if (n === 'todatetime') return [incident.completedDate, incident.completedTime].map(text).filter(Boolean).join(' ');
+    // Critical resource needs are a Planning/Logistics decision, not the
+    // incident objectives; leave blank unless a request is recorded.
+    if (n.startsWith('39criticalresourceneeds')) return '';
     if (n.startsWith('29primarymaterials')) return [incident.chemicalName, incident.casNumber, incident.unNumber, incident.quantity, incident.containerType].map(text).filter(Boolean).join(' | ');
   }
   if (formId === '206' && /^namerow/.test(n)) {
@@ -171,7 +174,24 @@ export function recordedIcsValue(formId: string, fieldName: string, incident: Re
     if (/^remarksrow/.test(n) && index === 0) return text(incident.communications);
   }
   if (formId === '215' && /^reportinglocation\d+$/.test(n)) return text(a?.locationStatus);
-  if (formId === '215' && /^6resources\d+$/.test(n)) return summary;
+  if (formId === '213RR') {
+    const staging = assignments.find((assignment) => organizationRoleMetadata(assignment)?.roleId === 'staging');
+    if (n === '5requesteddeliveryreportinglocation') {
+      return text(staging?.locationStatus) || [incident.facilityName, incident.address, incident.city, incident.state].map(text).filter(Boolean).join(', ');
+    }
+    if (n === '7requestedbynameposition') return [incident.preparedBy, incident.preparedByPosition].map(text).filter(Boolean).join(' / ');
+    if (n === '13notes' && text(incident.stagingResources)) return `Staging / resources on scene: ${text(incident.stagingResources)}`;
+    if (n === '2datetime') return [incident.startDate, incident.startTime].map(text).filter(Boolean).join(' ');
+    // Quantities, kinds, costs, order numbers, suppliers and Finance replies
+    // are entered by the requester / Logistics; never invented.
+    if (/^(?:qty|kind|type|cost|detaileditemdescription|arrivaldatetime)/.test(n) || /^(?:3|6|10|11|12|15|17|19)/.test(n)) return '';
+  }
+  if (formId === '215' && /^6resources\d+$/.test(n)) {
+    // One resource line per row; row N lists assignment N (audit: rows 1-10
+    // previously repeated the entire roster starting with assignment 1).
+    const resource = assignments[Number(/(\d+)$/.exec(n)?.[1] || 1) - 1];
+    return resource ? [resource.unit, resource.role, resource.personnel, resource.status].map(text).filter(Boolean).join(' | ') : '';
+  }
   if (/signature/.test(n)) return ''; // No automatic signatures or approvals.
   if (/^(?:\d+)?preparedbyname\d*$/.test(n) || (formId === '214' && n === '3name')) return text(incident.preparedBy);
   if (/^positiontitle\d*$/.test(n) || (formId === '214' && n === '4icsposition')) return text(incident.preparedByPosition);

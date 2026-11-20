@@ -23,24 +23,26 @@ async function fixture(available = true, waiting = false) {
   }), matchMedia: () => ({ matches: false }), addEventListener: (name: string, callback: () => void) => { listeners[name] = callback; },
     EMERGENZPendingIncidentCount: () => pending, confirm: () => true, alert: vi.fn() };
   const context = vm.createContext({ window, navigator, location: { href: 'https://emergenz.invalid', origin: 'https://emergenz.invalid' },
-    document: { readyState: 'complete', body, querySelector: () => grid, createElement: () => { const e = new Element(); created.push(e); return e; } },
+    setInterval: () => 0, document: { readyState: 'complete', body, addEventListener: () => {}, querySelector: () => grid, createElement: () => { const e = new Element(); created.push(e); return e; } },
     AbortSignal, Request, Headers, URL, Date, console, Event });
   vm.runInContext(script, context); await new Promise(resolve => setImmediate(resolve));
   const api = vm.runInContext('window.EMERGENZPlatform', context);
   return { api, created, grid, body, navigator, listeners, worker, window, setPending: (n: number) => { pending = n; } };
 }
 describe('compact platform status and Settings actions', () => {
-  it('keeps install, account detail, and update actions in Settings', async () => {
+  it('keeps install and account detail in Settings and the update action in the top bar', async () => {
     const f = await fixture();
     const bar = f.body.children[0];
     const connection = bar.children.find(e => e.className === 'em-platform-connection');
     expect(connection?.dataset.connection).toBe('connected');
     expect(connection?.children[1].textContent).toBe('Connected');
-    expect(bar.children.some(e => /Install App|Update Available|Pilot/.test(e.textContent))).toBe(false);
+    expect(bar.children.some(e => /Install App|Pilot/.test(e.textContent))).toBe(false);
+    // Update action lives in the always-visible bar (hidden until a new build is waiting).
+    const barUpdate = bar.children.find(e => /Update Available/.test(e.textContent));
+    expect(barUpdate).toBeDefined(); expect(barUpdate?.hidden).toBe(true);
     const card = f.grid.children[0];
     expect(card.children.some(e => e.textContent.includes('Pilot access'))).toBe(true);
     expect(card.children.at(-1)?.children.map(e => e.textContent)).toContain('Install App');
-    expect(card.children.at(-1)?.children.map(e => e.textContent)).toContain('Update Available');
   });
   it('does not show a green connection just because the browser has internet', async () => {
     const f = await fixture(false);
@@ -54,7 +56,7 @@ describe('compact platform status and Settings actions', () => {
     const f = await fixture(true, true); f.setPending(2); f.api.status('Saved on this device');
     const bar = f.body.children[0], warning = bar.children.find(e => e.className === 'em-platform-warning');
     expect(warning?.hidden).toBe(false); expect(warning?.textContent).toBe('2 unsynced changes');
-    const update = f.grid.children[0].children.at(-1)?.children.find(e => e.textContent === 'Update Available');
+    const update = bar.children.find(e => /Update Available/.test(e.textContent));
     expect(update?.hidden).toBe(false); update?.handlers.click();
     expect(f.window.alert).toHaveBeenCalled(); expect(f.worker.postMessage).not.toHaveBeenCalled();
     f.setPending(0); f.api.status('Saved to server', true); update?.handlers.click();

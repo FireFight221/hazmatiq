@@ -1,0 +1,24 @@
+--- a/ESTRT1.FOR	2026-11-20 00:48:22.748596620 +0000
++++ b/ESTRT1.FOR	2026-11-20 00:48:22.236596620 +0000
+@@ -96,9 +96,7 @@
+      .(RLBUF(15),SRCOER),
+      .(RLBUF(16),SRCSS),
+      .(RLBUF(17),SRCcut),
+-     .(RLBUF(iend),ERNOBL),
+-     .(RLBUFi(1),crfger),
+-     .(RLBUFi(iiiend),epsilon)
++     .(RLBUF(iend),ERNOBL)
+ c
+ 	equivalence
+      .(rlbufa(1),ce),
+@@ -156,7 +154,9 @@
+ C
+ C... READ A LINE AND DETERMINE ITS PURPOSE for /csprd/
+ C
+-  140	I = 1
++  140	crfger = rlbufi(1)
++	epsilon = rlbufi(iiiend)
++	I = 1
+   150	CONTINUE
+ 	READ(9,1000,END=350) DUMMY1
+ 	IF(DUMMY(1) .EQ. '!') GO TO 150

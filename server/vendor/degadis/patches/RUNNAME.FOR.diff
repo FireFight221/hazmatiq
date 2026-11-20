@@ -1,0 +1,21 @@
+--- a/RUNNAME.FOR	2026-11-20 00:48:22.992596620 +0000
++++ b/RUNNAME.FOR	2026-11-20 00:48:22.412596620 +0000
+@@ -9,7 +9,7 @@
+ c
+ 	character*(*) opnf
+ 
+-	integer*2 nnn, status
++	integer nnn, status
+ 	character*80 buffer1
+ 	character*1 buffer(80)
+ 	equivalence (buffer1,buffer(1))
+@@ -17,7 +17,8 @@
+ c... get the RUNNAME if entered on the command line
+ c
+ 	nnn = 1
+-	call getarg(nnn, buffer1, status)
++	call getarg(nnn, buffer1)
++	status = len_trim(buffer1)
+ 	opnf = buffer1
+ 	if(status .gt. 0) return
+ c

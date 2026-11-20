@@ -8,6 +8,7 @@
   const domReady = document.readyState === 'loading' ? new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve, { once: true })) : Promise.resolve();
   let bar, status, connectionDot, connectionLabel, warning, signButton, installButton, updateButton, conflictButton, login;
   let connectionDetail, accountDetail, installDetail;
+  let checkForUpdate = () => {};
   function connectionState() {
     const state = !navigator.onLine || serverConnected === false ? 'disconnected' : serverConnected === true ? 'connected' : 'checking';
     return { state, label: !navigator.onLine ? 'Offline' : state === 'connected' ? 'Connected' : state === 'checking' ? 'Checking Connection' : 'Not Connected' };
@@ -42,7 +43,7 @@
     connectionDetail = document.createElement('p'); connectionDetail.id = 'platform-connection-detail'; connectionDetail.setAttribute('role', 'status');
     accountDetail = document.createElement('p'); accountDetail.id = 'platform-account-detail';
     installDetail = document.createElement('p'); installDetail.id = 'platform-install-detail';
-    const actions = document.createElement('div'); actions.className = 'settings-actions'; actions.append(signButton, installButton, updateButton);
+    const actions = document.createElement('div'); actions.className = 'settings-actions'; actions.append(signButton, installButton);
     card.append(connectionDetail, accountDetail, installDetail, actions); grid.append(card); draw();
   }
   async function signIn() {
@@ -94,7 +95,7 @@
     if (required && !account) void signIn(); else releaseAccess(); draw();
   }).catch(() => { serverConnected = false; syncText = 'Connection unavailable · using this device’s saved work'; releaseAccess(); draw(); });
   window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); installPrompt = event; draw(); });
-  window.addEventListener('online', () => { serverConnected = null; draw(); }); window.addEventListener('offline', () => { serverConnected = false; draw(); });
+  window.addEventListener('online', () => { serverConnected = null; draw(); checkForUpdate(); }); window.addEventListener('offline', () => { serverConnected = false; draw(); });
   window.addEventListener('appinstalled', () => { installPrompt = null; draw(); });
   void domReady.then(async () => {
     bar = document.createElement('aside'); bar.className = 'em-platform-bar'; bar.setAttribute('aria-label', 'Application connection and account');
@@ -135,15 +136,20 @@
       if (installPrompt) { await installPrompt.prompt(); installPrompt = null; }
       else window.alert('Use your browser’s Install App or Add to Home Screen option. On iPhone/iPad, open Share, then Add to Home Screen.');
     });
-    updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.hidden = true; updateButton.textContent = 'Update Available';
+    updateButton = document.createElement('button'); updateButton.type = 'button'; updateButton.hidden = true; updateButton.className = 'em-platform-update'; updateButton.textContent = 'Update Available · Tap to Install'; updateButton.setAttribute('aria-label', 'A new EMERGENZ version is available. Install the update and reload.');
     const settingsButton = document.createElement('button'); settingsButton.type = 'button'; settingsButton.className = 'em-platform-settings-link'; settingsButton.textContent = 'Details'; settingsButton.setAttribute('aria-label', 'Open connection and app settings');
     settingsButton.addEventListener('click', () => { window.HazMatIQ?.showView?.('settings'); document.getElementById('platform-settings-title')?.scrollIntoView({ block: 'nearest' }); });
-    bar.append(status, warning, conflictButton, settingsButton); document.body.prepend(bar); mountSettingsControls(); draw();
+    bar.append(status, warning, conflictButton, updateButton, settingsButton); document.body.prepend(bar); mountSettingsControls(); draw();
     if ('serviceWorker' in navigator && window.isSecureContext) {
       try {
         const registration = await navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' });
         const ready = () => { updateButton.hidden = !registration.waiting; };
         ready(); registration.addEventListener('updatefound', () => registration.installing?.addEventListener('statechange', ready));
+        // Long-running scene tabs never reload on their own; check for a new
+        // deploy every 15 minutes and whenever the device comes back online.
+        checkForUpdate = () => { if (navigator.onLine && typeof registration.update === 'function') void Promise.resolve(registration.update()).then(ready).catch(() => {}); };
+        setInterval(checkForUpdate, 15 * 60 * 1000);
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
         updateButton.addEventListener('click', () => {
           if (!window.confirm('Save your work before updating. Update and reload now?')) return;
           if (window.EMERGENZPendingIncidentCount?.() > 0) return window.alert('Sync or resolve pending incident changes before updating.');

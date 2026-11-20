@@ -19,11 +19,15 @@ export async function fillIcsPdf(pdf: PDFDocument, id: string, incident: Inciden
     if (value && id !== 'NOTES') field.setFontSize(0); // Fit values inside the original FEMA field boundaries.
     field.setText(value.replace(/[\u2010-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/\u2192/g, ' -> ').replace(/[^\t\n\r\x20-\x7e\xa0-\xff]/g, '?'));
   }
-  if (id === '201' && typeof incident.plumeMapImage === 'string' && incident.plumeMapImage.length < 8_000_000) {
+  // A current plume map wins; otherwise use the attached pre-plan site image.
+  const sketchImage = typeof incident.plumeMapImage === 'string' && incident.plumeMapImage
+    ? incident.plumeMapImage
+    : typeof incident.preplanSiteImage === 'string' ? incident.preplanSiteImage : '';
+  if (id === '201' && sketchImage && sketchImage.length < 8_000_000) {
     const map = pdf.getForm().getFields().find((field) => field instanceof PDFTextField && field.getName().startsWith('4 MapSketch')) as PDFTextField | undefined;
-    if (map && !Object.prototype.hasOwnProperty.call(saved, map.getName()) && /^data:image\/(png|jpeg);base64,/.test(incident.plumeMapImage)) {
+    if (map && !Object.prototype.hasOwnProperty.call(saved, map.getName()) && /^data:image\/(png|jpeg);base64,/.test(sketchImage)) {
       try {
-        const image = incident.plumeMapImage.startsWith('data:image/png') ? await pdf.embedPng(incident.plumeMapImage) : await pdf.embedJpg(incident.plumeMapImage);
+        const image = sketchImage.startsWith('data:image/png') ? await pdf.embedPng(sketchImage) : await pdf.embedJpg(sketchImage);
         map.setImage(image);
       } catch {
         console.warn('ICS 201 snapshot could not be embedded; recorded fields are retained.');

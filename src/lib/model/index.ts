@@ -5,3 +5,5 @@ export * from "./plumeModelModes";
 export * from "./plumeModelSelector";
 export * from "./plumeWeatherValidation";
 export * from "./sourceStrengthValidation";
+export * from "./alohaMethod";
+export * from "./heavyGasSelection";

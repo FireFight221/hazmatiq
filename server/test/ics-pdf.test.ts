@@ -139,4 +139,23 @@ describe('Editable incident ICS worksheets', () => {
     expect(recordedIcsValue('201','Signature',incident)).toBe('');
   });
 
+
+  it('lists one resource per ICS 215 row and leaves ICS 209 critical resource needs blank', () => {
+    const incident = { objectives: 'Isolate 100 m', guidedResponseAssignments: [
+      { assignmentId: 'a1', role: 'Safety Officer', personnel: 'Capt Lee', unit: 'E1', status: 'Assigned' },
+      { assignmentId: 'a2', role: 'Entry Team', personnel: 'FF Smith', unit: 'HM1', status: 'Assigned' },
+    ] };
+    expect(recordedIcsValue('215', '6 Resources 1', incident)).toBe('E1 | Safety Officer | Capt Lee | Assigned');
+    expect(recordedIcsValue('215', '6 Resources 2', incident)).toBe('HM1 | Entry Team | FF Smith | Assigned');
+    expect(recordedIcsValue('215', '6 Resources 3', incident)).toBe('');
+    expect(recordedIcsValue('209', '39.Critical Resource Needs in 12-hour timeframes and beyond to meet critical incident objectives.', incident)).toBe('');
+  });
+
+  it('prefills ICS 213RR requester and delivery location without inventing order details', () => {
+    const incident = { preparedBy: 'W. Simmons', preparedByPosition: 'IC', address: '1000 1st St N', city: 'Alabaster', state: 'AL', startDate: '11/19/2026', startTime: '10:02 PM' };
+    expect(recordedIcsValue('213RR', '7 Requested by NamePosition', incident)).toBe('W. Simmons / IC');
+    expect(recordedIcsValue('213RR', '5 Requested DeliveryReporting Location', incident)).toBe('1000 1st St N, Alabaster, AL');
+    expect(recordedIcsValue('213RR', 'QtyRow1', incident)).toBe('');
+    expect(recordedIcsValue('213RR', '10 Logistics Order Number', incident)).toBe('');
+  });
 });

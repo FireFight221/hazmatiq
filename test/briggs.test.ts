@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickRoughness } from "@/lib/model";
+import { BRIGGS_URBAN, pickRoughness } from "@/lib/model";
 import type { StabilityClass } from "@/lib/schema";
 
 describe("Briggs dispersion coefficients", () => {
@@ -20,16 +20,20 @@ describe("Briggs dispersion coefficients", () => {
     }
   });
 
-  it("matches the EPA urban equations and grouped stability classes", () => {
+  it("keeps the EPA urban table but follows ALOHA 4.3.1 (rural sigma-y for all roughness)", () => {
+    expect(BRIGGS_URBAN.A.sigmaY(1000)).toBeCloseTo(0.32 * 1000 / Math.sqrt(1.4), 10);
+    for (const stability of ["A", "B", "C", "D", "E", "F"] as const) {
+      expect(pickRoughness(stability, "urban").sigmaY(1000)).toBeCloseTo(pickRoughness(stability, "rural").sigmaY(1000), 10);
+    }
+  });
+
+  it("matches the EPA urban sigma-z equations and grouped stability classes", () => {
     const urbanA = pickRoughness("A", "urban");
     const urbanB = pickRoughness("B", "urban");
     const urbanE = pickRoughness("E", "urban");
     const urbanF = pickRoughness("F", "urban");
-    expect(urbanA.sigmaY(1000)).toBeCloseTo(0.32 * 1000 / Math.sqrt(1.4), 10);
     expect(urbanA.sigmaZ(1000)).toBeCloseTo(0.24 * 1000 * Math.sqrt(2), 10);
-    expect(urbanB.sigmaY(1000)).toBeCloseTo(urbanA.sigmaY(1000), 10);
     expect(urbanB.sigmaZ(1000)).toBeCloseTo(urbanA.sigmaZ(1000), 10);
-    expect(urbanE.sigmaY(1000)).toBeCloseTo(urbanF.sigmaY(1000), 10);
     expect(urbanE.sigmaZ(1000)).toBeCloseTo(urbanF.sigmaZ(1000), 10);
   });
 

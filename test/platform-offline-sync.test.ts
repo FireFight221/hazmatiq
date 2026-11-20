@@ -45,7 +45,7 @@ describe('offline shell isolation', () => {
     const deleted: string[] = [];
     let activated = false;
     const cached = { marker: 'cached application shell' };
-    const context = vm.createContext({ URL,
+    const context = vm.createContext({ URL, setTimeout, clearTimeout,
       self: { location: { origin: 'https://emergenz.invalid' }, clients: { claim: () => Promise.resolve() },
         addEventListener: (name: string, callback: typeof handlers[string]) => { handlers[name] = callback; },
         skipWaiting: () => { activated = true; } },

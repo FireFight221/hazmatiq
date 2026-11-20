@@ -2045,3 +2045,5 @@ html:not([data-theme="light"]) #plume.view.active #plume-erg-period { color: #0b
   pointer-events: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
+.plume-dense-gas-warning[data-tone="modeled"] { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); color: #e0f2fe; }
+.plume-dense-gas-chip[data-tone="modeled"] { border-color: #38bdf8; background: rgba(56, 189, 248, 0.16); color: #e0f2fe; }

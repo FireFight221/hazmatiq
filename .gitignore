@@ -56,3 +56,6 @@ private-imports/
 .parcel-cache
 .eslintcache
 .rts2_cache
+
+# DEGADIS executables are built from server/vendor/degadis/src (build.sh / Dockerfile)
+server/vendor/degadis/bin/

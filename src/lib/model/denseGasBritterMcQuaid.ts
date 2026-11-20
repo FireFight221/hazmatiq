@@ -159,8 +159,9 @@ export function denseGasScreen(input: DenseGasInput): DenseGasResult {
  */
 export function windShiftHalfAngleDeg(windSpeedMps: number): number {
   const u = Number(windSpeedMps);
-  if (!(u > 0)) return 60;
-  if (u < 1) return 60;
+  if (!(u > 0)) return 180;
+  if (u <= 1) return 180; // ALOHA User's Manual: lines form a circle near 1 m/s
+  if (u < 1.5) return 60;
   if (u < 2) return 45;
   if (u < 3) return 30;
   if (u < 5) return 22.5;
